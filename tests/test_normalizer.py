@@ -38,7 +38,8 @@ def test_episode_session_is_normalized_without_account_lookup() -> None:
     assert candidate.player_id == "theater-id"
     assert candidate.user_id == "ryan"
     assert media.key == "42"
-    assert media.subtitle == "Example Show · S02E04"
+    assert media.title == "Example Show"
+    assert media.subtitle == "S02E04 · The Test"
     assert media.position_ms == expected_position
     assert media.poster_path == "/shows/example/poster"
     assert media.backdrop_path == "/shows/example/art"

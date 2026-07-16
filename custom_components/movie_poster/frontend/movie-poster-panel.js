@@ -93,6 +93,9 @@ class MoviePosterPanel extends HTMLElement {
     this._kioskObserver = null;
     this._nativeKioskPrevious = null;
     this._kioskSuppressed = false;
+    this._resumeHandler = () => {
+      if (document.visibilityState === "visible") this._scheduleReconnect();
+    };
     this._externalBusId = Date.now();
     this._studio = new URLSearchParams(window.location.search).get("studio") === "1";
     this._studioLoaded = false;
@@ -111,6 +114,8 @@ class MoviePosterPanel extends HTMLElement {
   connectedCallback() {
     this._render();
     this._subscribe();
+    document.addEventListener("visibilitychange", this._resumeHandler);
+    window.addEventListener("online", this._resumeHandler);
   }
 
   disconnectedCallback() {
@@ -118,6 +123,8 @@ class MoviePosterPanel extends HTMLElement {
     clearTimeout(this._retryTimer);
     clearTimeout(this._reloadTimer);
     clearTimeout(this._controlsTimer);
+    document.removeEventListener("visibilitychange", this._resumeHandler);
+    window.removeEventListener("online", this._resumeHandler);
     this._retryTimer = null;
     if (this._unsubscribePromise) {
       this._unsubscribePromise.then((unsubscribe) => unsubscribe());
@@ -448,6 +455,11 @@ class MoviePosterPanel extends HTMLElement {
     const operations = this._state?.operations ?? {};
     const source = operations.collection || operations.library || "Plex library";
     const hydration = operations.hydrating ? " · loading" : "";
+    const progress = operations.hydration_percent == null
+      ? "" : ` · ${operations.hydration_percent}%`;
+    const lastRefresh = operations.last_refresh
+      ? `Last refresh ${new Date(operations.last_refresh).toLocaleString()}`
+      : "Library cache not yet completed";
     const adminActions = operations.can_control ? `
       <button type="button" data-display-action="next">Next poster</button>
       <button type="button" data-display-action="refresh">Refresh library</button>
@@ -455,9 +467,10 @@ class MoviePosterPanel extends HTMLElement {
     return `<aside class="display-controls" aria-label="Movie Poster controls">
       <div class="display-status">
         <strong>${escapeHtml(this._state.mode === "now_playing" ? "Now Playing" : "Coming Soon")}</strong>
-        <span>${escapeHtml(source)}${hydration}</span>
+        <span>${escapeHtml(source)}${hydration}${progress}</span>
         <span>${Number(operations.loaded_movies || 0).toLocaleString()} loaded ·
           ${Number(operations.remaining_movies || 0).toLocaleString()} remaining</span>
+        <span>${escapeHtml(lastRefresh)}</span>
       </div>
       <div class="display-actions">${adminActions}
         <button type="button" data-display-action="exit">Exit kiosk</button>

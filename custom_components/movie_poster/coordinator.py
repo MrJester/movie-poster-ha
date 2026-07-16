@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import time
-from dataclasses import dataclass
-from datetime import timedelta
+from contextlib import suppress
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigEntryAuthFailed
@@ -13,17 +16,18 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import DOMAIN
 from .exceptions import PlexAuthenticationError
-from .models import DisplayMode
+from .models import DisplayMode, MediaPresentation
 from .resolver import select_session
 from .rotation import ShuffleBag
 from .state_machine import DisplayModeMachine, ModeSnapshot
 
 _MOVIE_PAGE_SIZE = 100
+_LOGGER = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
-    from .models import MediaPresentation, PlaybackPolicy, SessionCandidate
+    from .models import PlaybackPolicy, SessionCandidate
     from .plex_client import MoviePosterPlexClient
 
 
@@ -73,7 +77,7 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         """Initialize the coordinator."""
         super().__init__(
             hass,
-            logger=__import__("logging").getLogger(__name__),
+            logger=_LOGGER,
             name="Movie Poster",
             update_interval=timedelta(seconds=5),
             always_update=False,
@@ -111,19 +115,23 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._movie_refresh_buffer: dict[str, MediaPresentation] = {}
         self._movie_refresh_offset = 0
         self._movie_refresh_in_progress = False
+        self._movie_refresh_total: int | None = None
+        self._library_last_refresh: str | None = None
+        self._library_refresh_task: asyncio.Task[None] | None = None
         self._bag = ShuffleBag[str]()
         self._coming_soon: MediaPresentation | None = None
         self._defer_library_refresh = True
         self._store = Store[dict](hass, 1, f"{DOMAIN}.{entry_id}.rotation")
+        self._library_store = Store[dict](hass, 1, f"{DOMAIN}.{entry_id}.library")
         self._restored_rotation: tuple[list[str], str | None] | None = None
 
     async def async_initialize(self) -> None:
         """Restore the Coming Soon cycle before the first refresh."""
-        stored = await self._store.async_load()
-        if not isinstance(stored, dict):
-            return
-        remaining = stored.get("remaining")
-        last = stored.get("last")
+        stored, library = await asyncio.gather(
+            self._store.async_load(), self._library_store.async_load()
+        )
+        remaining = stored.get("remaining") if isinstance(stored, dict) else None
+        last = stored.get("last") if isinstance(stored, dict) else None
         if isinstance(remaining, list) and all(
             isinstance(item, str) for item in remaining
         ):
@@ -131,6 +139,16 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 remaining,
                 last if isinstance(last, str) else None,
             )
+        self._restore_library(library)
+
+    async def async_shutdown(self) -> None:
+        """Cancel background hydration before unloading the config entry."""
+        task = getattr(self, "_library_refresh_task", None)
+        if task is None or task.done():
+            return
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
 
     async def async_artwork(self, kind: str) -> tuple[bytes, str] | None:
         """Fetch artwork for the currently displayed media."""
@@ -165,9 +183,9 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         return True
 
     async def async_refresh_library(self) -> None:
-        """Make the Plex library eligible for refresh on the next update."""
+        """Start a Plex library refresh without blocking the caller."""
         self._library_refresh_due = 0.0
-        await self.async_request_refresh()
+        self._start_library_refresh()
 
     @property
     def loaded_movie_count(self) -> int:
@@ -183,6 +201,25 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
     def library_hydrating(self) -> bool:
         """Return whether Plex library pages are currently being loaded."""
         return self._movie_refresh_in_progress
+
+    @property
+    def library_hydration_percent(self) -> int | None:
+        """Return known hydration progress, or None when Plex omits a total."""
+        if not self._movie_refresh_in_progress:
+            return 100 if self._movies else None
+        if not self._movie_refresh_total:
+            return None
+        return min(
+            99,
+            round(
+                len(self._movie_refresh_buffer) * 100 / self._movie_refresh_total
+            ),
+        )
+
+    @property
+    def library_last_refresh(self) -> str | None:
+        """Return the last successful full refresh timestamp."""
+        return self._library_last_refresh
 
     @property
     def source_name(self) -> str | None:
@@ -215,7 +252,7 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
             if self._defer_library_refresh:
                 self._defer_library_refresh = False
             else:
-                await self._async_refresh_movies(now)
+                self._start_library_refresh(now)
             if self._coming_soon is None or now >= self._rotation_due:
                 key = self._bag.next()
                 self._coming_soon = self._movies.get(key) if key else None
@@ -227,6 +264,38 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
             else self._coming_soon
         )
         return CoordinatorData(mode=mode, selected_session=selected, media=media)
+
+    def _start_library_refresh(self, now: float | None = None) -> None:
+        """Start one tracked sequential hydration task when refresh is due."""
+        if self._library_title is None:
+            return
+        task = getattr(self, "_library_refresh_task", None)
+        if task is not None and not task.done():
+            return
+        current = time.monotonic() if now is None else now
+        if not self._movie_refresh_in_progress and current < self._library_refresh_due:
+            return
+        self._library_refresh_task = self.hass.async_create_task(
+            self._async_refresh_movies_until_complete(),
+            f"{DOMAIN}_{self.entry_id}_library_refresh",
+        )
+
+    async def _async_refresh_movies_until_complete(self) -> None:
+        """Hydrate every Plex page independently from playback polling."""
+        try:
+            while True:
+                await self._async_refresh_movies(time.monotonic())
+                self.async_update_listeners()
+                if not self._movie_refresh_in_progress:
+                    break
+                await asyncio.sleep(0)
+        except (ConfigEntryAuthFailed, UpdateFailed) as err:
+            self.async_set_update_error(err)
+            _LOGGER.warning(
+                "Movie Poster library refresh failed: %s", type(err).__name__
+            )
+        finally:
+            self._library_refresh_task = None
 
     async def _async_refresh_movies(self, now: float) -> None:
         if self._library_title is None or (
@@ -252,6 +321,8 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
             message = f"Unable to retrieve Plex movie library: {err}"
             raise UpdateFailed(message) from err
         movie_page = {movie.key: movie for movie in page.items}
+        if page.total is not None:
+            self._movie_refresh_total = page.total
         self._movie_refresh_buffer.update(movie_page)
         self._movies.update(movie_page)
         self._bag.replace(self._movies)
@@ -271,10 +342,54 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 self._restored_rotation = None
             self._movie_refresh_in_progress = False
             self._movie_refresh_offset = 0
+            self._movie_refresh_total = len(self._movies)
+            self._library_last_refresh = datetime.now(UTC).isoformat()
             self._library_refresh_due = now + self._library_refresh_seconds
+            library_store = getattr(self, "_library_store", None)
+            if library_store is not None:
+                library_store.async_delay_save(self._library_state, delay=5)
         else:
             self._movie_refresh_offset += len(page.items)
 
     def _rotation_state(self) -> dict[str, object]:
         """Return JSON-safe rotation state for delayed persistence."""
         return {"remaining": list(self._bag.snapshot()), "last": self._bag.last}
+
+    def _library_state(self) -> dict[str, object]:
+        """Return a JSON-safe snapshot used for instant restart recovery."""
+        return {
+            "library": self._library_title,
+            "collection": self._collection_title,
+            "last_refresh": self._library_last_refresh,
+            "movies": [asdict(movie) for movie in self._movies.values()],
+        }
+
+    def _restore_library(self, stored: object) -> None:
+        """Restore a compatible cached movie pool and shuffle state."""
+        if not isinstance(stored, dict) or (
+            stored.get("library") != self._library_title
+            or stored.get("collection") != self._collection_title
+        ):
+            return
+        raw_movies = stored.get("movies")
+        if not isinstance(raw_movies, list):
+            return
+        restored: dict[str, MediaPresentation] = {}
+        for raw_movie in raw_movies:
+            if not isinstance(raw_movie, dict):
+                continue
+            try:
+                movie = MediaPresentation(**raw_movie)
+            except TypeError:
+                continue
+            restored[movie.key] = movie
+        self._movies = restored
+        self._bag.replace(restored)
+        if self._restored_rotation is not None:
+            remaining, last = self._restored_rotation
+            self._bag.restore(remaining, last)
+            self._restored_rotation = None
+        last_refresh = stored.get("last_refresh")
+        self._library_last_refresh = (
+            last_refresh if isinstance(last_refresh, str) else None
+        )

@@ -67,6 +67,7 @@ class PlexMoviePage:
 
     items: tuple[MediaPresentation, ...]
     complete: bool
+    total: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

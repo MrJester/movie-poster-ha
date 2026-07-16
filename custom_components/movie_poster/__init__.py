@@ -185,7 +185,8 @@ async def async_unload_entry(
     """Unload Movie Poster."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
-        hass.data[DOMAIN].pop(entry.entry_id)
+        coordinator = hass.data[DOMAIN].pop(entry.entry_id)
+        await coordinator.async_shutdown()
     return unloaded
 
 

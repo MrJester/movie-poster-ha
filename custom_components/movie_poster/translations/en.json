@@ -96,7 +96,9 @@
       "display_mode": {"name": "Display mode"},
       "current_title": {"name": "Current title"},
       "loaded_movies": {"name": "Loaded movies"},
-      "remaining_movies": {"name": "Remaining movies"}
+      "remaining_movies": {"name": "Remaining movies"},
+      "hydration_progress": {"name": "Library hydration"},
+      "last_library_refresh": {"name": "Last library refresh"}
     }
   },
   "title": "Movie Poster"

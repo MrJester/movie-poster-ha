@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 from homeassistant.config_entries import ConfigEntryAuthFailed
+from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from custom_components.movie_poster.coordinator import MoviePosterCoordinator
 from custom_components.movie_poster.exceptions import PlexAuthenticationError
@@ -18,6 +19,8 @@ from custom_components.movie_poster.state_machine import DisplayModeMachine
 PERSIST_DELAY_SECONDS = 30
 MOVIE_PAGE_SIZE = 100
 PAGED_MOVIE_TOTAL = 101
+COMPLETE_PERCENT = 100
+CACHED_MOVIE_TOTAL = 2
 
 
 class FakePlexClient:
@@ -102,6 +105,16 @@ class RejectedPlexClient:
         raise PlexAuthenticationError
 
 
+class FailingMovieClient:
+    """Represent Plex becoming unavailable during library hydration."""
+
+    async def async_movies_page(
+        self, *_args: object, **_kwargs: object
+    ) -> PlexMoviePage:
+        """Fail without returning a partial replacement library."""
+        raise OSError
+
+
 async def test_library_refresh_uses_independent_cache_deadline() -> None:
     """Frequent playback polls do not repeatedly enumerate the movie library."""
     expected_refresh_due = 1000.0
@@ -152,9 +165,86 @@ async def test_first_refresh_defers_full_library_enumeration() -> None:
     assert first.media is None
     assert client.calls == 0
 
-    second = await coordinator._async_update_data()
-    assert second.media is not None
+    await coordinator._async_refresh_movies(100.0)
     assert client.calls == 1
+
+
+async def test_background_refresh_hydrates_all_pages_without_poll_delay() -> None:
+    """One tracked task loads every page instead of waiting for five-second polls."""
+    client = PagedPlexClient()
+    coordinator = object.__new__(MoviePosterCoordinator)
+    coordinator._client = client
+    coordinator._library_title = "Movies"
+    coordinator._collection_title = None
+    coordinator._library_refresh_due = 0.0
+    coordinator._library_refresh_seconds = 900
+    coordinator._movies = {}
+    coordinator._movie_refresh_buffer = {}
+    coordinator._movie_refresh_offset = 0
+    coordinator._movie_refresh_in_progress = False
+    coordinator._movie_refresh_total = None
+    coordinator._library_refresh_task = None
+    coordinator._bag = ShuffleBag[str]()
+    coordinator._restored_rotation = None
+    coordinator.async_update_listeners = lambda: None
+
+    await coordinator._async_refresh_movies_until_complete()
+
+    assert client.offsets == [0, MOVIE_PAGE_SIZE]
+    assert len(coordinator._movies) == PAGED_MOVIE_TOTAL
+    assert coordinator.library_hydration_percent == COMPLETE_PERCENT
+
+
+def test_cached_library_restores_immediately_and_preserves_rotation() -> None:
+    """A compatible disk snapshot is available before Plex hydration starts."""
+    coordinator = object.__new__(MoviePosterCoordinator)
+    coordinator._library_title = "Movies"
+    coordinator._collection_title = None
+    coordinator._movies = {}
+    coordinator._bag = ShuffleBag[str]()
+    coordinator._restored_rotation = (["2"], "1")
+    coordinator._library_last_refresh = None
+    coordinator._restore_library(
+        {
+            "library": "Movies",
+            "collection": None,
+            "last_refresh": "2026-07-16T12:00:00+00:00",
+            "movies": [
+                {"key": "1", "media_type": "movie", "title": "One"},
+                {"key": "2", "media_type": "movie", "title": "Two"},
+            ],
+        }
+    )
+
+    assert coordinator.loaded_movie_count == CACHED_MOVIE_TOTAL
+    assert coordinator._bag.snapshot() == ("2",)
+    assert coordinator.library_last_refresh == "2026-07-16T12:00:00+00:00"
+
+
+async def test_failed_refresh_keeps_cached_library_available() -> None:
+    """An interrupted Plex refresh never discards the last complete cache."""
+    coordinator = object.__new__(MoviePosterCoordinator)
+    coordinator._client = FailingMovieClient()
+    coordinator._library_title = "Movies"
+    coordinator._collection_title = None
+    coordinator._library_refresh_due = 0.0
+    coordinator._library_refresh_seconds = 900
+    coordinator._movies = {
+        "cached": MediaPresentation(
+            key="cached", media_type="movie", title="Cached Movie"
+        )
+    }
+    coordinator._movie_refresh_buffer = {}
+    coordinator._movie_refresh_offset = 0
+    coordinator._movie_refresh_in_progress = False
+    coordinator._bag = ShuffleBag[str]()
+    coordinator._bag.replace(coordinator._movies)
+
+    with pytest.raises(UpdateFailed, match="Unable to retrieve Plex movie library"):
+        await coordinator._async_refresh_movies(100.0)
+
+    assert coordinator.loaded_movie_count == 1
+    assert coordinator._movies["cached"].title == "Cached Movie"
 
 
 async def test_library_hydrates_in_pages_and_reconciles_removed_movies() -> None:

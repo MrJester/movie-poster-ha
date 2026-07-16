@@ -59,6 +59,21 @@ SENSORS: Final = (
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda coordinator: coordinator.remaining_movie_count,
     ),
+    MoviePosterSensorDescription(
+        key="hydration_progress",
+        translation_key="hydration_progress",
+        icon="mdi:database-sync",
+        native_unit_of_measurement="%",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda coordinator: coordinator.library_hydration_percent,
+    ),
+    MoviePosterSensorDescription(
+        key="last_library_refresh",
+        translation_key="last_library_refresh",
+        icon="mdi:clock-check-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda coordinator: coordinator.library_last_refresh,
+    ),
 )
 
 

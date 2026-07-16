@@ -13,8 +13,20 @@ and display state. Browsers are authenticated renderers, never Plex clients.
 3. The playback resolver applies ordered player/user policy deterministically.
 4. The state machine handles Now Playing, stop grace, and Coming Soon.
 5. The selection engine rotates an eligible library pool without repeats.
-6. A versioned WebSocket contract publishes state to all displays.
-7. An authenticated HTTP view proxies and caches Plex artwork.
+6. Home Assistant storage persists the last complete normalized library and
+   remaining shuffle cycle for immediate restart recovery.
+7. A tracked background task hydrates Plex pages sequentially without delaying
+   five-second playback reconciliation.
+8. A versioned WebSocket contract publishes state to all displays.
+9. An authenticated HTTP view proxies Plex artwork with media-specific URLs.
+
+## Failure behavior
+
+- A failed or interrupted refresh keeps the last complete library active.
+- Plex authentication failures flow through Home Assistant reauthentication.
+- Background hydration is cancelled when the config entry unloads.
+- Wall displays resubscribe after browser visibility and network-online events.
+- Artwork URLs are media-specific and marked `no-store` to prevent stale posters.
 
 ## Extension model
 

@@ -48,7 +48,7 @@ def normalize_session(
     presentation = MediaPresentation(
         key=rating_key,
         media_type=media_type,
-        title=_text(session, "title", "Unknown title"),
+        title=_session_title(session, media_type),
         subtitle=_subtitle(session, media_type),
         summary=getattr(session, "summary", None),
         year=getattr(session, "year", None),
@@ -77,7 +77,6 @@ def normalize_movie(movie: object) -> MediaPresentation:
 
 def _subtitle(session: object, media_type: str) -> str | None:
     if media_type == "episode":
-        show = getattr(session, "grandparentTitle", None)
         season = getattr(session, "parentIndex", None)
         episode = getattr(session, "index", None)
         number = (
@@ -85,10 +84,22 @@ def _subtitle(session: object, media_type: str) -> str | None:
             if isinstance(season, int) and isinstance(episode, int)
             else None
         )
-        return " · ".join(value for value in (show, number) if value) or None
+        episode_title = getattr(session, "title", None)
+        return " · ".join(value for value in (number, episode_title) if value) or None
     if media_type == "track":
         return getattr(session, "grandparentTitle", None)
     return getattr(session, "tagline", None)
+
+
+def _session_title(session: object, media_type: str) -> str:
+    """Use the series as an episode's primary display title."""
+    if media_type == "episode":
+        return _text(
+            session,
+            "grandparentTitle",
+            _text(session, "title", "Unknown title"),
+        )
+    return _text(session, "title", "Unknown title")
 
 
 def _session_artwork(session: object, media_type: str) -> tuple[str | None, str | None]:

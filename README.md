@@ -7,8 +7,10 @@ rotates movies from a configured Plex library or collection.
 
 ## Project status
 
-Pre-alpha integration with Plex setup, automatic Now Playing/Coming Soon state,
-and a first full-screen theater panel. Install only for testing.
+Beta integration with Plex setup, automatic Now Playing/Coming Soon state,
+persistent large-library caching, native Home Assistant controls, and a
+full-screen customizable theater panel. Install on a test display before
+rolling it out broadly.
 
 After configuring the integration, open the display at:
 
@@ -28,6 +30,11 @@ An optional theater logo can be loaded from an HTTPS URL or Home Assistant's
 Saved presentation changes are broadcast to open poster panels, which reconnect
 automatically after the integration reloads.
 
+Movie metadata and shuffle progress are cached in Home Assistant. After a
+restart, the last complete library is available immediately while Plex refreshes
+sequentially in the background. The on-screen control overlay reports hydration
+progress and the last successful refresh.
+
 Native Home Assistant sensors report the display mode, current title, loaded
 movie count, and posters remaining in the shuffle cycle. Dashboard buttons and
 the `movie_poster.next_poster`, `movie_poster.refresh_library`, and
@@ -43,6 +50,8 @@ the `movie_poster.next_poster`, `movie_poster.refresh_library`, and
 - Current Home Assistant stable release and the previous two monthly releases.
 
 See [Architecture](docs/ARCHITECTURE.md) and the [roadmap](docs/ROADMAP.md).
+See [Beta testing](docs/BETA_TESTING.md) before deploying to a production wall
+display.
 
 ## Development
 

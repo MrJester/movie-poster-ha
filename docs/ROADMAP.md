@@ -26,3 +26,11 @@
 - Reauthentication, repairs, diagnostics, translations, accessibility, and docs.
 - Hassfest, HACS, backend, frontend, and three-version compatibility CI.
 - Upgrade and fresh-install testing on supported Home Assistant releases.
+
+## 0.1 beta hardening — complete
+
+- Persistent normalized Plex library cache and shuffle-cycle recovery.
+- Independent sequential large-library hydration with progress telemetry.
+- Native sensors, buttons, services, and an auto-hiding operational overlay.
+- Browser wake/online resubscription and resilient artwork cache behavior.
+- Restart, interrupted-refresh, and large-library regression coverage.

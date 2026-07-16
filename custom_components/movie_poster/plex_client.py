@@ -179,7 +179,7 @@ class MoviePosterPlexClient:
                     normalize_movie(item)
                     for item in section.collection(collection_title).items()
                 )
-                return PlexMoviePage(items=items, complete=True)
+                return PlexMoviePage(items=items, complete=True, total=len(items))
             raw_items = tuple(
                 section.search(
                     container_start=offset,
@@ -194,6 +194,7 @@ class MoviePosterPlexClient:
         return PlexMoviePage(
             items=tuple(normalize_movie(item) for item in raw_items),
             complete=len(raw_items) < size,
+            total=_section_total(section),
         )
 
     async def async_artwork(self, path: str) -> tuple[bytes, str]:
@@ -218,3 +219,11 @@ class MoviePosterPlexClient:
             ";", 1
         )[0]
         return response.content, content_type
+
+
+def _section_total(section: object) -> int | None:
+    """Return Plex's library size when the server exposes it."""
+    total = getattr(section, "totalSize", None)
+    if callable(total):
+        total = total()
+    return total if isinstance(total, int) else None
