@@ -49,6 +49,7 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
     )
 
     assert state["schema_version"] == 1
+    assert state["health"] == {"connected": True, "message": None}
     assert state["presentation"] == {"theme": "neon"}
     assert state["heading"] == "Now Playing"
     assert state["media"]["poster_url"].startswith(
@@ -56,3 +57,32 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
     )
     assert state["session"]["player"] == "Theater"
     assert "token" not in str(state).casefold()
+
+
+def test_state_contract_reports_plex_outage_without_exposing_exception() -> None:
+    """The renderer gets actionable health without internal connection details."""
+    coordinator = SimpleNamespace(
+        entry_id="entry-1",
+        theme="classic",
+        last_update_success=False,
+        last_exception=RuntimeError("secret internal detail"),
+        data=SimpleNamespace(
+            mode=ModeSnapshot(
+                mode=DisplayMode.COMING_SOON,
+                grace_deadline=None,
+                reason=TransitionReason.STARTUP_IDLE,
+            ),
+            media=None,
+            selected_session=None,
+        ),
+    )
+
+    state = _serialize_state(
+        SimpleNamespace(data={}),
+        coordinator,
+        refresh_token_id=None,
+    )
+
+    assert state["health"]["connected"] is False
+    assert "Retrying automatically" in state["health"]["message"]
+    assert "secret internal detail" not in str(state)

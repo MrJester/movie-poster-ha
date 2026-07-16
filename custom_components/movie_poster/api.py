@@ -124,6 +124,12 @@ def _serialize_state(
     session = data.selected_session
     return {
         "schema_version": 1,
+        "health": {
+            "connected": getattr(coordinator, "last_update_success", True),
+            "message": None
+            if getattr(coordinator, "last_update_success", True)
+            else "Plex is temporarily unavailable. Retrying automatically.",
+        },
         "presentation": {"theme": coordinator.theme},
         "mode": data.mode.mode,
         "heading": "Now Playing"

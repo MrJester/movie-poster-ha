@@ -106,6 +106,7 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   _updateLiveState() {
+    this._updateHealth();
     const media = this._state?.media;
     const progress = this.shadowRoot.querySelector(".progress");
     if (!media || !progress || !media.duration_ms) return;
@@ -115,6 +116,14 @@ class MoviePosterPanel extends HTMLElement {
     );
     progress.querySelector("i").style.width = `${percentage}%`;
     progress.setAttribute("aria-valuenow", String(Math.round(percentage)));
+  }
+
+  _updateHealth() {
+    const warning = this.shadowRoot.querySelector(".connection-warning");
+    if (!warning) return;
+    const connected = this._state?.health?.connected !== false;
+    warning.hidden = connected;
+    warning.textContent = connected ? "" : this._state.health.message;
   }
 
   _render() {
@@ -132,7 +141,9 @@ class MoviePosterPanel extends HTMLElement {
         <main class="empty"><div><h1>${escapeHtml(state.heading)}</h1>
         <p>Loading movies from Plex… If this persists, check the integration options
         and Home Assistant logs.</p>
-        </div></main>`;
+        <p class="connection-warning" role="status"
+          ${state.health?.connected === false ? "" : "hidden"}>
+          ${escapeHtml(state.health?.message)}</p></div></main>`;
       return;
     }
 
@@ -151,6 +162,9 @@ class MoviePosterPanel extends HTMLElement {
     this.shadowRoot.innerHTML = `${this._styles()}
       <main class="theater theme-${theme} mode-${escapeHtml(state.mode)}" ${backdropStyle}>
         <div class="ambient"></div>
+        <p class="connection-warning" role="status"
+          ${state.health?.connected === false ? "" : "hidden"}>
+          ${escapeHtml(state.health?.message)}</p>
         <section class="marquee-frame">
           <header class="marquee">
             <span class="eyebrow">Theater Presentation</span>
@@ -254,6 +268,25 @@ class MoviePosterPanel extends HTMLElement {
         opacity: .75;
         transform: scale(1.08);
       }
+      .connection-warning {
+        position: fixed;
+        z-index: 5;
+        top: max(12px, env(safe-area-inset-top));
+        left: 50%;
+        width: max-content;
+        max-width: calc(100vw - 32px);
+        margin: 0;
+        padding: 9px 16px;
+        transform: translateX(-50%);
+        border: 1px solid #ffb65c88;
+        border-radius: 999px;
+        background: #281608ee;
+        box-shadow: 0 5px 24px #0009;
+        color: #ffd7a3;
+        font-size: .82rem;
+        text-align: center;
+      }
+      .connection-warning[hidden] { display: none; }
       .marquee-frame {
         position: relative;
         width: min(1180px, 96vw);
