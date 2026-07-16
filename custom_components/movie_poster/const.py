@@ -29,6 +29,8 @@ CONF_BODY_FONT: Final = "body_font"
 CONF_NOW_PLAYING_TEXT: Final = "now_playing_text"
 CONF_COMING_SOON_TEXT: Final = "coming_soon_text"
 CONF_EYEBROW_TEXT: Final = "eyebrow_text"
+CONF_LOGO_URL: Final = "logo_url"
+CONF_LOGO_POSITION: Final = "logo_position"
 
 THEME_CLASSIC: Final = "classic"
 THEME_ART_DECO: Final = "art_deco"
@@ -91,6 +93,15 @@ FONTS: Final[tuple[str, ...]] = (
     FONT_CONDENSED,
 )
 
+LOGO_LEFT: Final = "left"
+LOGO_CENTER: Final = "center"
+LOGO_RIGHT: Final = "right"
+LOGO_POSITIONS: Final[tuple[str, ...]] = (
+    LOGO_LEFT,
+    LOGO_CENTER,
+    LOGO_RIGHT,
+)
+
 DEFAULT_VERIFY_SSL: Final = True
 DEFAULT_GRACE_SECONDS: Final = 30
 DEFAULT_ROTATION_SECONDS: Final = 15
@@ -111,4 +122,6 @@ DEFAULT_BODY_FONT: Final = FONT_SYSTEM
 DEFAULT_NOW_PLAYING_TEXT: Final = "Now Playing"
 DEFAULT_COMING_SOON_TEXT: Final = "Coming Soon"
 DEFAULT_EYEBROW_TEXT: Final = "Theater Presentation"
+DEFAULT_LOGO_URL: Final = ""
+DEFAULT_LOGO_POSITION: Final = LOGO_RIGHT
 PLATFORMS: Final[list[str]] = []

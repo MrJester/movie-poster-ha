@@ -66,6 +66,8 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         now_playing_text: str = "Now Playing",
         coming_soon_text: str = "Coming Soon",
         eyebrow_text: str = "Theater Presentation",
+        logo_url: str = "",
+        logo_position: str = "right",
         entry_id: str = "",
     ) -> None:
         """Initialize the coordinator."""
@@ -93,6 +95,8 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self.now_playing_text = now_playing_text
         self.coming_soon_text = coming_soon_text
         self.eyebrow_text = eyebrow_text
+        self.logo_url = logo_url
+        self.logo_position = logo_position
         self.presentation_revision = 0
         self._client = client
         self._policy = policy

@@ -51,6 +51,8 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
         now_playing_text="Feature Presentation",
         coming_soon_text="Up Next",
         eyebrow_text="The Jester Theater",
+        logo_url="/local/jester-logo.png",
+        logo_position="left",
         presentation_revision=presentation_revision,
         data=SimpleNamespace(
             mode=ModeSnapshot(
@@ -88,6 +90,8 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
         "eyebrow_text": "The Jester Theater",
         "now_playing_text": "Feature Presentation",
         "coming_soon_text": "Up Next",
+        "logo_url": "/local/jester-logo.png",
+        "logo_position": "left",
     }
     assert state["presentation_revision"] == presentation_revision
     assert state["heading"] == "Feature Presentation"
@@ -118,6 +122,8 @@ def test_state_contract_reports_plex_outage_without_exposing_exception() -> None
         now_playing_text="Now Playing",
         coming_soon_text="Coming Soon",
         eyebrow_text="Theater Presentation",
+        logo_url="",
+        logo_position="right",
         presentation_revision=0,
         last_update_success=False,
         last_exception=RuntimeError("secret internal detail"),
@@ -168,6 +174,8 @@ def test_studio_save_preserves_behavior_options() -> None:
         "now_playing_text": "Now Showing",
         "coming_soon_text": "Coming Attractions",
         "eyebrow_text": "Jester Cinema",
+        "logo_url": "/local/logo.svg",
+        "logo_position": "center",
     }
 
     result = _updated_presentation_options(current, updates)

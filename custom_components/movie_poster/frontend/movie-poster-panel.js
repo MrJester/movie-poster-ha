@@ -30,6 +30,8 @@ const normalizeFont = (value) => FONTS.has(value) ? value : "system";
 const normalizeColor = (value, fallback) => /^#[0-9a-f]{6}$/i.test(value ?? "")
   ? value : fallback;
 const normalizeText = (value, fallback) => String(value ?? "").trim() || fallback;
+const LOGO_POSITIONS = new Set(["left", "center", "right"]);
+const normalizeLogoPosition = (value) => LOGO_POSITIONS.has(value) ? value : "right";
 
 const previewPoster = () => {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900">
@@ -60,6 +62,7 @@ const studioState = () => ({
     heading_font: "cinematic", body_font: "system",
     now_playing_text: "Now Playing", coming_soon_text: "Coming Soon",
     eyebrow_text: "Theater Presentation",
+    logo_url: "", logo_position: "right",
   },
   mode: "coming_soon",
   heading: "Coming Soon",
@@ -163,6 +166,8 @@ class MoviePosterPanel extends HTMLElement {
       state.presentation?.orientation,
       state.presentation?.layout,
       state.presentation?.frame_theme,
+      state.presentation?.logo_url,
+      state.presentation?.logo_position,
       state.presentation_revision,
       state.session?.player,
       state.session?.user,
@@ -282,6 +287,8 @@ class MoviePosterPanel extends HTMLElement {
     const bodyFont = normalizeFont(presentation.body_font);
     const accentColor = normalizeColor(presentation.accent_color, "#f6cf70");
     const backgroundColor = normalizeColor(presentation.background_color, "#090706");
+    const logoUrl = String(presentation.logo_url || "").trim();
+    const logoPosition = normalizeLogoPosition(presentation.logo_position);
     const backdrop = media.backdrop_url
       ? `url('${escapeHtml(media.backdrop_url)}')` : "none";
     const presentationStyle = `style="--backdrop:${backdrop};--gold:${accentColor};--ink:${backgroundColor}"`;
@@ -293,7 +300,10 @@ class MoviePosterPanel extends HTMLElement {
         <p class="connection-warning" role="status"
           ${state.health?.connected === false ? "" : "hidden"}>
           ${escapeHtml(state.health?.message)}</p>
-        <section class="marquee-frame">
+        <section class="marquee-frame${logoUrl ? ` has-logo logo-at-${logoPosition}` : ""}">
+          ${logoUrl ? `<div class="brand-logo logo-${logoPosition}">
+            <img src="${escapeHtml(logoUrl)}" alt="Theater logo">
+          </div>` : ""}
           <div class="frame-ornaments" aria-hidden="true">
             <i class="ornament ornament-left"></i><i class="ornament ornament-right"></i>
           </div>
@@ -309,7 +319,6 @@ class MoviePosterPanel extends HTMLElement {
                 : '<div class="poster poster-missing">No poster available</div>'}
             </div>
             <article class="details">
-              <span class="status">${escapeHtml(media.type)}</span>
               <h2>${escapeHtml(media.title)}</h2>
               ${media.subtitle ? `<p class="subtitle">${escapeHtml(media.subtitle)}</p>` : ""}
               ${meta ? `<p class="meta">${escapeHtml(meta)}</p>` : ""}
@@ -383,6 +392,14 @@ class MoviePosterPanel extends HTMLElement {
       <label class="studio-wide">Marquee label<input type="text"
         maxlength="80" data-studio="eyebrow_text"
         value="${escapeHtml(presentation.eyebrow_text || "Theater Presentation")}"></label>
+      <label class="studio-wide">Optional logo URL<input type="text"
+        maxlength="500" placeholder="/local/movie-poster-logo.png"
+        data-studio="logo_url" value="${escapeHtml(presentation.logo_url || "")}"></label>
+      <label>Logo placement<select data-studio="logo_position">
+        ${["left", "center", "right"].map((value) =>
+          `<option value="${value}" ${normalizeLogoPosition(presentation.logo_position) === value ? "selected" : ""}>top ${value}</option>`
+        ).join("")}
+      </select></label>
       ${[["show_summary", "Summary"], ["show_progress", "Progress"],
         ["show_session", "Session"], ["enable_motion", "Motion"]].map(([field, label]) =>
           `<label class="studio-check"><input type="checkbox" data-studio="${field}"
@@ -441,6 +458,8 @@ class MoviePosterPanel extends HTMLElement {
         now_playing_text: normalizeText(presentation.now_playing_text, "Now Playing"),
         coming_soon_text: normalizeText(presentation.coming_soon_text, "Coming Soon"),
         eyebrow_text: normalizeText(presentation.eyebrow_text, "Theater Presentation"),
+        logo_url: String(presentation.logo_url || "").trim(),
+        logo_position: normalizeLogoPosition(presentation.logo_position),
       });
       status.textContent = "Saved. Returning to integration settings…";
       window.setTimeout(() => this._returnToSettings(), 350);
@@ -618,6 +637,19 @@ class MoviePosterPanel extends HTMLElement {
         animation: reveal .55s ease-out both;
       }
       .frame-ornaments { position: absolute; inset: 0; pointer-events: none; }
+      .brand-logo {
+        position: absolute;
+        z-index: 5;
+        top: clamp(18px, 2.5vw, 34px);
+        width: min(160px, 22%);
+        height: 64px;
+        pointer-events: none;
+      }
+      .brand-logo.logo-left { left: clamp(25px, 4vw, 58px); }
+      .brand-logo.logo-center { left: 50%; transform: translateX(-50%); }
+      .brand-logo.logo-right { right: clamp(25px, 4vw, 58px); }
+      .brand-logo img { width: 100%; height: 100%; object-fit: contain; }
+      .marquee-frame.logo-at-center .marquee { padding-top: 84px; }
       .ornament { position: absolute; z-index: 2; top: 18%; bottom: 12%; width: 22px; }
       .ornament-left { left: 10px; }
       .ornament-right { right: 10px; }
@@ -771,7 +803,7 @@ class MoviePosterPanel extends HTMLElement {
       .motion-off .ambient { filter: brightness(.18) saturate(.8); }
       @keyframes bulbs { from { opacity: .48; } to { opacity: 1; } }
       .marquee { text-align: center; padding: 14px 20px 28px; }
-      .eyebrow, .status {
+      .eyebrow {
         color: var(--gold);
         font-size: .72rem;
         font-weight: 700;

@@ -21,6 +21,8 @@ from .const import (
     CONF_LAYOUT,
     CONF_LIBRARY,
     CONF_LIBRARY_REFRESH_SECONDS,
+    CONF_LOGO_POSITION,
+    CONF_LOGO_URL,
     CONF_NOW_PLAYING_TEXT,
     CONF_ORIENTATION,
     CONF_PLAYER_ID,
@@ -45,6 +47,8 @@ from .const import (
     DEFAULT_KIOSK_MODE,
     DEFAULT_LAYOUT,
     DEFAULT_LIBRARY_REFRESH_SECONDS,
+    DEFAULT_LOGO_POSITION,
+    DEFAULT_LOGO_URL,
     DEFAULT_NOW_PLAYING_TEXT,
     DEFAULT_ORIENTATION,
     DEFAULT_ROTATION_SECONDS,
@@ -132,6 +136,10 @@ async def async_setup_entry(
             CONF_COMING_SOON_TEXT, DEFAULT_COMING_SOON_TEXT
         ),
         eyebrow_text=entry.options.get(CONF_EYEBROW_TEXT, DEFAULT_EYEBROW_TEXT),
+        logo_url=entry.options.get(CONF_LOGO_URL, DEFAULT_LOGO_URL),
+        logo_position=entry.options.get(
+            CONF_LOGO_POSITION, DEFAULT_LOGO_POSITION
+        ),
         entry_id=entry.entry_id,
     )
     await coordinator.async_initialize()

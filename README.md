@@ -23,6 +23,8 @@ so a poster-focused or split-details layout can be combined with any frame:
 Marquee, Cyber Noir, Comic Hero, Theater Classic, Indie Nature, Golden Age, or
 Steampunk. Display Studio also saves heading and body fonts, accent and background
 colors, and custom wording for Now Playing, Coming Soon, and the marquee label.
+An optional theater logo can be loaded from an HTTPS URL or Home Assistant's
+`/local/` directory and placed at the top left, center, or right.
 Saved presentation changes are broadcast to open poster panels, which reconnect
 automatically after the integration reloads.
 

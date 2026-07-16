@@ -24,6 +24,8 @@ from .const import (
     CONF_LAYOUT,
     CONF_LIBRARY,
     CONF_LIBRARY_REFRESH_SECONDS,
+    CONF_LOGO_POSITION,
+    CONF_LOGO_URL,
     CONF_NOW_PLAYING_TEXT,
     CONF_ORIENTATION,
     CONF_PLAYER_ID,
@@ -48,6 +50,8 @@ from .const import (
     DEFAULT_KIOSK_MODE,
     DEFAULT_LAYOUT,
     DEFAULT_LIBRARY_REFRESH_SECONDS,
+    DEFAULT_LOGO_POSITION,
+    DEFAULT_LOGO_URL,
     DEFAULT_NOW_PLAYING_TEXT,
     DEFAULT_ORIENTATION,
     DEFAULT_ROTATION_SECONDS,
@@ -60,6 +64,7 @@ from .const import (
     FONTS,
     FRAME_THEMES,
     LAYOUTS,
+    LOGO_POSITIONS,
     ORIENTATIONS,
     THEMES,
 )
@@ -432,6 +437,16 @@ class MoviePosterOptionsFlow(config_entries.OptionsFlow):
                         CONF_EYEBROW_TEXT, DEFAULT_EYEBROW_TEXT
                     ),
                 ): vol.All(str, vol.Length(min=1, max=80)),
+                vol.Optional(
+                    CONF_LOGO_URL,
+                    default=entry.options.get(CONF_LOGO_URL, DEFAULT_LOGO_URL),
+                ): vol.All(str, vol.Length(max=500)),
+                vol.Required(
+                    CONF_LOGO_POSITION,
+                    default=entry.options.get(
+                        CONF_LOGO_POSITION, DEFAULT_LOGO_POSITION
+                    ),
+                ): vol.In(LOGO_POSITIONS),
                 vol.Required(
                     CONF_SHOW_SUMMARY,
                     default=entry.options.get(

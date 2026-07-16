@@ -24,6 +24,8 @@ from .const import (
     CONF_HEADING_FONT,
     CONF_KIOSK_MODE,
     CONF_LAYOUT,
+    CONF_LOGO_POSITION,
+    CONF_LOGO_URL,
     CONF_NOW_PLAYING_TEXT,
     CONF_ORIENTATION,
     CONF_SHOW_PROGRESS,
@@ -34,6 +36,7 @@ from .const import (
     FONTS,
     FRAME_THEMES,
     LAYOUTS,
+    LOGO_POSITIONS,
     ORIENTATIONS,
     THEMES,
 )
@@ -46,7 +49,7 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-dev.3"
+_FRONTEND_VERSION = "0.1.0-dev.5"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
@@ -132,6 +135,8 @@ def websocket_subscribe(
             str, vol.Length(min=1, max=60)
         ),
         vol.Required(CONF_EYEBROW_TEXT): vol.All(str, vol.Length(min=1, max=80)),
+        vol.Required(CONF_LOGO_URL): vol.All(str, vol.Length(max=500)),
+        vol.Required(CONF_LOGO_POSITION): vol.In(LOGO_POSITIONS),
     }
 )
 @websocket_api.async_response
@@ -188,6 +193,8 @@ _PRESENTATION_KEYS = {
     CONF_NOW_PLAYING_TEXT,
     CONF_COMING_SOON_TEXT,
     CONF_EYEBROW_TEXT,
+    CONF_LOGO_URL,
+    CONF_LOGO_POSITION,
 }
 
 
@@ -258,6 +265,8 @@ def _serialize_state(
             "eyebrow_text": coordinator.eyebrow_text,
             "now_playing_text": coordinator.now_playing_text,
             "coming_soon_text": coordinator.coming_soon_text,
+            "logo_url": coordinator.logo_url,
+            "logo_position": coordinator.logo_position,
         },
         "mode": data.mode.mode,
         "heading": coordinator.now_playing_text

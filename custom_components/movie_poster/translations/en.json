@@ -63,6 +63,8 @@
           "eyebrow_text": "Marquee label",
           "grace_seconds": "Wait after playback stops (seconds)",
           "library_refresh_seconds": "Refresh movie library every (seconds)",
+          "logo_position": "Logo placement",
+          "logo_url": "Optional logo URL",
           "kiosk_mode": "Hide Home Assistant navigation on the poster panel",
           "layout": "Display layout",
           "frame_theme": "Poster frame",
