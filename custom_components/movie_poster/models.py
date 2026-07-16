@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Any
 
 
 class DisplayMode(StrEnum):
@@ -59,6 +60,14 @@ class MediaPresentation:
     position_ms: int | None = None
     poster_path: str | None = None
     backdrop_path: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PlexMoviePage:
+    """One bounded page from a Plex movie source."""
+
+    items: tuple[Any, ...]
+    complete: bool
 
 
 @dataclass(frozen=True, slots=True)

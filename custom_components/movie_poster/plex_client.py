@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any
 from plexapi.server import PlexServer
 from requests import Session
 
+from .models import PlexMoviePage
+
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
@@ -130,6 +132,25 @@ class MoviePosterPlexClient:
             self._movies, library_title, collection_title
         )
 
+    async def async_movies_page(
+        self,
+        library_title: str,
+        collection_title: str | None,
+        *,
+        offset: int,
+        size: int,
+    ) -> PlexMoviePage:
+        """Return a bounded page so large libraries hydrate incrementally."""
+        if self._server is None:
+            await self.async_connect()
+        return await self._hass.async_add_executor_job(
+            self._movies_page,
+            library_title,
+            collection_title,
+            offset,
+            size,
+        )
+
     def _movies(
         self, library_title: str, collection_title: str | None
     ) -> list[Any]:
@@ -142,6 +163,31 @@ class MoviePosterPlexClient:
             return section.all()
         except Exception as err:
             raise PlexConnectionError from err
+
+    def _movies_page(
+        self,
+        library_title: str,
+        collection_title: str | None,
+        offset: int,
+        size: int,
+    ) -> PlexMoviePage:
+        if self._server is None:
+            raise PlexConnectionError
+        try:
+            section = self._server.library.section(library_title)
+            if collection_title:
+                items = tuple(section.collection(collection_title).items())
+                return PlexMoviePage(items=items, complete=True)
+            items = tuple(
+                section.search(
+                    container_start=offset,
+                    container_size=size,
+                    maxresults=size,
+                )
+            )
+        except Exception as err:
+            raise PlexConnectionError from err
+        return PlexMoviePage(items=items, complete=len(items) < size)
 
     async def async_artwork(self, path: str) -> tuple[bytes, str]:
         """Fetch Plex artwork using the server-side authenticated session."""

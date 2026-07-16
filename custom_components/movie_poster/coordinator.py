@@ -17,6 +17,8 @@ from .resolver import select_session
 from .rotation import ShuffleBag
 from .state_machine import DisplayModeMachine, ModeSnapshot
 
+_MOVIE_PAGE_SIZE = 100
+
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
@@ -70,6 +72,9 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._library_refresh_due = 0.0
         self._rotation_due = 0.0
         self._movies: dict[str, MediaPresentation] = {}
+        self._movie_refresh_buffer: dict[str, MediaPresentation] = {}
+        self._movie_refresh_offset = 0
+        self._movie_refresh_in_progress = False
         self._bag = ShuffleBag[str]()
         self._coming_soon: MediaPresentation | None = None
         self._defer_library_refresh = True
@@ -139,23 +144,49 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         return CoordinatorData(mode=mode, selected_session=selected, media=media)
 
     async def _async_refresh_movies(self, now: float) -> None:
-        if self._library_title is None or now < self._library_refresh_due:
+        if self._library_title is None or (
+            not self._movie_refresh_in_progress and now < self._library_refresh_due
+        ):
             return
+        if not self._movie_refresh_in_progress:
+            self._movie_refresh_in_progress = True
+            self._movie_refresh_offset = 0
+            self._movie_refresh_buffer = {}
         try:
-            raw_movies = await self._client.async_movies(
-                self._library_title, self._collection_title
+            page = await self._client.async_movies_page(
+                self._library_title,
+                self._collection_title,
+                offset=self._movie_refresh_offset,
+                size=_MOVIE_PAGE_SIZE,
             )
         except Exception as err:
+            self._movie_refresh_in_progress = False
             message = f"Unable to retrieve Plex movie library: {err}"
             raise UpdateFailed(message) from err
-        movies = [normalize_movie(movie) for movie in raw_movies]
-        self._movies = {movie.key: movie for movie in movies}
+        movies = [normalize_movie(movie) for movie in page.items]
+        movie_page = {movie.key: movie for movie in movies}
+        self._movie_refresh_buffer.update(movie_page)
+        self._movies.update(movie_page)
         self._bag.replace(self._movies)
-        if (restored_rotation := getattr(self, "_restored_rotation", None)) is not None:
-            remaining, last = restored_rotation
-            self._bag.restore(remaining, last)
-            self._restored_rotation = None
-        self._library_refresh_due = now + self._library_refresh_seconds
+        if page.complete:
+            self._movies = self._movie_refresh_buffer
+            self._bag.replace(self._movies)
+            if (
+                restored_rotation := getattr(self, "_restored_rotation", None)
+            ) is not None:
+                remaining, last = restored_rotation
+                if (coming_soon := getattr(self, "_coming_soon", None)) is not None:
+                    remaining = [
+                        key for key in remaining if key != coming_soon.key
+                    ]
+                    last = coming_soon.key
+                self._bag.restore(remaining, last)
+                self._restored_rotation = None
+            self._movie_refresh_in_progress = False
+            self._movie_refresh_offset = 0
+            self._library_refresh_due = now + self._library_refresh_seconds
+        else:
+            self._movie_refresh_offset += len(page.items)
 
     def _rotation_state(self) -> dict[str, object]:
         """Return JSON-safe rotation state for delayed persistence."""
