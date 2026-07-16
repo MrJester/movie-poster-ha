@@ -24,6 +24,8 @@ class MoviePosterPanel extends HTMLElement {
     this._state = null;
     this._unsubscribePromise = null;
     this._retryTimer = null;
+    this._renderIdentity = null;
+    this._transitionRevision = 0;
   }
 
   set hass(value) {
@@ -58,8 +60,7 @@ class MoviePosterPanel extends HTMLElement {
           state.media.poster_url = previous.poster_url;
           state.media.backdrop_url = previous.backdrop_url;
         }
-        this._state = state;
-        this._render();
+        this._applyState(state);
       },
       { type: "movie_poster/subscribe" },
     ).catch((error) => {
@@ -71,6 +72,49 @@ class MoviePosterPanel extends HTMLElement {
         this._subscribe();
       }, 5000);
     });
+  }
+
+  async _applyState(state) {
+    this._state = state;
+    const identity = [
+      state.mode,
+      state.media?.key,
+      state.presentation?.theme,
+      state.session?.player,
+      state.session?.user,
+    ].join("|");
+    if (identity === this._renderIdentity) {
+      this._updateLiveState();
+      return;
+    }
+
+    const revision = ++this._transitionRevision;
+    const urls = [state.media?.poster_url, state.media?.backdrop_url].filter(Boolean);
+    await Promise.allSettled(urls.map((url) => this._preload(url)));
+    if (revision !== this._transitionRevision || !this.isConnected) return;
+    this._renderIdentity = identity;
+    this._render();
+  }
+
+  _preload(url) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = resolve;
+      image.onerror = reject;
+      image.src = url;
+    });
+  }
+
+  _updateLiveState() {
+    const media = this._state?.media;
+    const progress = this.shadowRoot.querySelector(".progress");
+    if (!media || !progress || !media.duration_ms) return;
+    const percentage = Math.min(
+      100,
+      Math.max(0, ((media.position_ms ?? 0) / media.duration_ms) * 100),
+    );
+    progress.querySelector("i").style.width = `${percentage}%`;
+    progress.setAttribute("aria-valuenow", String(Math.round(percentage)));
   }
 
   _render() {
@@ -91,8 +135,9 @@ class MoviePosterPanel extends HTMLElement {
       return;
     }
 
-    const progress = media.duration_ms && media.position_ms
-      ? Math.min(100, (media.position_ms / media.duration_ms) * 100)
+    const hasProgress = media.duration_ms && media.position_ms !== null;
+    const progress = hasProgress
+      ? Math.min(100, Math.max(0, (media.position_ms / media.duration_ms) * 100))
       : 0;
     const meta = [media.year, formatRuntime(media.duration_ms)]
       .filter(Boolean)
@@ -125,7 +170,9 @@ class MoviePosterPanel extends HTMLElement {
               ${media.summary ? `<p class="summary">${escapeHtml(media.summary)}</p>` : ""}
               ${state.session ? `<p class="session">${escapeHtml(state.session.user)}
                 · ${escapeHtml(state.session.player)}</p>` : ""}
-              ${progress ? `<div class="progress" aria-label="Playback progress">
+              ${hasProgress ? `<div class="progress" role="progressbar"
+                aria-label="Playback progress" aria-valuemin="0" aria-valuemax="100"
+                aria-valuenow="${Math.round(progress)}">
                 <i style="width:${progress}%"></i></div>` : ""}
             </article>
           </div>
@@ -215,6 +262,11 @@ class MoviePosterPanel extends HTMLElement {
         border-radius: 28px;
         background: linear-gradient(135deg, #130b08ee, #050403f5);
         box-shadow: 0 0 0 3px var(--gold-deep), 0 28px 90px #000;
+        animation: reveal .55s ease-out both;
+      }
+      @keyframes reveal {
+        from { opacity: 0; transform: scale(.992); }
+        to { opacity: 1; transform: scale(1); }
       }
       .marquee-frame::before {
         content: "";
@@ -311,7 +363,8 @@ class MoviePosterPanel extends HTMLElement {
         .summary { display: none; }
       }
       @media (prefers-reduced-motion: reduce) {
-        .marquee-frame::before { animation: none; opacity: .8; }
+        .marquee-frame, .marquee-frame::before { animation: none; }
+        .marquee-frame::before { opacity: .8; }
       }
     </style>`;
   }
