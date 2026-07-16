@@ -32,6 +32,10 @@ const normalizeColor = (value, fallback) => /^#[0-9a-f]{6}$/i.test(value ?? "")
 const normalizeText = (value, fallback) => String(value ?? "").trim() || fallback;
 const LOGO_POSITIONS = new Set(["left", "center", "right"]);
 const normalizeLogoPosition = (value) => LOGO_POSITIONS.has(value) ? value : "right";
+const bulbRow = (count) => Array.from(
+  { length: count },
+  (_, index) => `<i style="--bulb-index:${index}" aria-hidden="true"></i>`,
+).join("");
 
 const previewPoster = () => {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900">
@@ -407,6 +411,12 @@ class MoviePosterPanel extends HTMLElement {
           ${state.health?.connected === false ? "" : "hidden"}>
           ${escapeHtml(state.health?.message)}</p>
         <section class="marquee-frame${logoUrl ? ` has-logo logo-at-${logoPosition}` : ""}">
+          <div class="marquee-bulbs" aria-hidden="true">
+            <div class="bulb-rail bulb-top">${bulbRow(24)}</div>
+            <div class="bulb-rail bulb-right">${bulbRow(16)}</div>
+            <div class="bulb-rail bulb-bottom">${bulbRow(24)}</div>
+            <div class="bulb-rail bulb-left">${bulbRow(16)}</div>
+          </div>
           ${logoUrl ? `<div class="brand-logo logo-${logoPosition}">
             <img src="${escapeHtml(logoUrl)}" alt="Theater logo">
           </div>` : ""}
@@ -1051,29 +1061,60 @@ class MoviePosterPanel extends HTMLElement {
         animation: bulbs 1.4s ease-in-out infinite alternate;
       }
       .frame-marquee .marquee-frame::before {
-        inset: 8px;
-        border: 0;
-        border-radius: 18px;
-        background:
-          radial-gradient(circle, #fffbe8 0 2px, #ffe58c 3px 5px,
-            #d18a20 6px 7px, #5d3109 8px 9px, transparent 10px)
-            top left / 30px 20px repeat-x,
-          radial-gradient(circle, #fffbe8 0 2px, #ffe58c 3px 5px,
-            #d18a20 6px 7px, #5d3109 8px 9px, transparent 10px)
-            bottom left / 30px 20px repeat-x,
-          radial-gradient(circle, #fffbe8 0 2px, #ffe58c 3px 5px,
-            #d18a20 6px 7px, #5d3109 8px 9px, transparent 10px)
-            top left / 20px 30px repeat-y,
-          radial-gradient(circle, #fffbe8 0 2px, #ffe58c 3px 5px,
-            #d18a20 6px 7px, #5d3109 8px 9px, transparent 10px)
-            top right / 20px 30px repeat-y;
-        filter: drop-shadow(0 0 4px #ffc84d)
-          drop-shadow(0 0 9px #e78b1d99);
-        animation: marqueeBulbs 1.8s ease-in-out infinite alternate;
+        display: none;
       }
-      .motion-off.frame-marquee .marquee-frame::before {
-        animation: none;
-        opacity: .9;
+      .marquee-bulbs { display: none; }
+      .frame-marquee .marquee-bulbs {
+        position: absolute;
+        z-index: 4;
+        inset: 9px;
+        display: block;
+        pointer-events: none;
+      }
+      .bulb-rail {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+      }
+      .bulb-top, .bulb-bottom { right: 22px; left: 22px; height: 18px; }
+      .bulb-top { top: 0; }
+      .bulb-bottom { bottom: 0; }
+      .bulb-left, .bulb-right {
+        top: 22px; bottom: 22px; width: 18px; flex-direction: column;
+      }
+      .bulb-left { left: 0; }
+      .bulb-right { right: 0; }
+      .bulb-rail i {
+        position: relative;
+        display: block;
+        width: clamp(10px, 1.05vw, 16px);
+        aspect-ratio: 1;
+        flex: 0 0 auto;
+        border: 2px solid #4b290d;
+        border-radius: 50%;
+        background: radial-gradient(circle at 38% 32%,
+          #fff 0 9%, #fff7c9 12% 25%, #ffd35f 30% 48%,
+          #bc6f16 54% 68%, #60320d 74% 100%);
+        box-shadow: inset -2px -2px 3px #3b1b08aa,
+          inset 2px 2px 2px #fff8c9aa, 0 0 4px #ffd35f,
+          0 0 10px #e88a1d99;
+        animation: individualBulb 1.9s ease-in-out infinite alternate;
+        animation-delay: calc(var(--bulb-index) * -55ms);
+      }
+      .bulb-rail i::after {
+        content: "";
+        position: absolute;
+        top: 15%; left: 19%;
+        width: 28%; height: 20%;
+        border-radius: 50%;
+        background: #fff;
+        opacity: .85;
+        filter: blur(.4px);
+      }
+      .motion-off .bulb-rail i { animation: none; opacity: .94; }
+      .theme-minimal .marquee-bulbs, .theme-oled .marquee-bulbs {
+        display: none;
       }
       .theme-minimal .marquee-frame::before,
       .theme-oled .marquee-frame::before { display: none; }
@@ -1093,13 +1134,9 @@ class MoviePosterPanel extends HTMLElement {
       .motion-off .marquee-frame::before { opacity: .8; }
       .motion-off .ambient { filter: brightness(.18) saturate(.8); }
       @keyframes bulbs { from { opacity: .48; } to { opacity: 1; } }
-      @keyframes marqueeBulbs {
-        from { opacity: .72; filter: drop-shadow(0 0 3px #ffc84d); }
-        to {
-          opacity: 1;
-          filter: drop-shadow(0 0 6px #ffe08a)
-            drop-shadow(0 0 12px #e78b1dcc);
-        }
+      @keyframes individualBulb {
+        from { opacity: .72; filter: brightness(.82); }
+        to { opacity: 1; filter: brightness(1.16); }
       }
       .marquee { text-align: center; padding: 14px 20px 28px; }
       .eyebrow {

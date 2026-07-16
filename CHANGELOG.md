@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.3
+
+- Replace gradient-based Marquee dots with individual dimensional bulb elements
+  on four collision-free rails with sockets, highlights, and staggered glow.
+
 ## 0.1.0-beta.2
 
 - Replace the Marquee frame's dotted border with layered theater bulbs, visible
