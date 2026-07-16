@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.4
+
+- Space Marquee bulbs evenly along the measured frame perimeter and animate one
+  continuous clockwise theater-light chase across every side and orientation.
+
 ## 0.1.0-beta.3
 
 - Replace gradient-based Marquee dots with individual dimensional bulb elements

@@ -32,11 +32,6 @@ const normalizeColor = (value, fallback) => /^#[0-9a-f]{6}$/i.test(value ?? "")
 const normalizeText = (value, fallback) => String(value ?? "").trim() || fallback;
 const LOGO_POSITIONS = new Set(["left", "center", "right"]);
 const normalizeLogoPosition = (value) => LOGO_POSITIONS.has(value) ? value : "right";
-const bulbRow = (count) => Array.from(
-  { length: count },
-  (_, index) => `<i style="--bulb-index:${index}" aria-hidden="true"></i>`,
-).join("");
-
 const previewPoster = () => {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900">
     <defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#48110d"/>
@@ -100,6 +95,7 @@ class MoviePosterPanel extends HTMLElement {
     this._resumeHandler = () => {
       if (document.visibilityState === "visible") this._scheduleReconnect();
     };
+    this._bulbObserver = null;
     this._externalBusId = Date.now();
     this._studio = new URLSearchParams(window.location.search).get("studio") === "1";
     this._studioLoaded = false;
@@ -127,6 +123,8 @@ class MoviePosterPanel extends HTMLElement {
     clearTimeout(this._retryTimer);
     clearTimeout(this._reloadTimer);
     clearTimeout(this._controlsTimer);
+    this._bulbObserver?.disconnect();
+    this._bulbObserver = null;
     document.removeEventListener("visibilitychange", this._resumeHandler);
     window.removeEventListener("online", this._resumeHandler);
     this._retryTimer = null;
@@ -412,10 +410,6 @@ class MoviePosterPanel extends HTMLElement {
           ${escapeHtml(state.health?.message)}</p>
         <section class="marquee-frame${logoUrl ? ` has-logo logo-at-${logoPosition}` : ""}">
           <div class="marquee-bulbs" aria-hidden="true">
-            <div class="bulb-rail bulb-top">${bulbRow(24)}</div>
-            <div class="bulb-rail bulb-right">${bulbRow(16)}</div>
-            <div class="bulb-rail bulb-bottom">${bulbRow(24)}</div>
-            <div class="bulb-rail bulb-left">${bulbRow(16)}</div>
           </div>
           ${logoUrl ? `<div class="brand-logo logo-${logoPosition}">
             <img src="${escapeHtml(logoUrl)}" alt="Theater logo">
@@ -458,6 +452,49 @@ class MoviePosterPanel extends HTMLElement {
       </main>`;
     this._bindStudioControls();
     this._bindDisplayControls();
+    this._bindMarqueeBulbs();
+  }
+
+  _bindMarqueeBulbs() {
+    this._bulbObserver?.disconnect();
+    const frame = this.shadowRoot.querySelector(".frame-marquee .marquee-frame");
+    if (!frame) return;
+    const layout = () => this._layoutMarqueeBulbs(frame);
+    layout();
+    this._bulbObserver = new ResizeObserver(layout);
+    this._bulbObserver.observe(frame);
+  }
+
+  _layoutMarqueeBulbs(frame) {
+    const container = frame.querySelector(".marquee-bulbs");
+    if (!container) return;
+    const inset = 4;
+    const width = Math.max(0, frame.clientWidth - inset * 2);
+    const height = Math.max(0, frame.clientHeight - inset * 2);
+    const perimeter = 2 * (width + height);
+    const count = Math.max(16, Math.round(perimeter / 42));
+    if (Number(container.dataset.count) !== count) {
+      container.replaceChildren(...Array.from({ length: count }, () =>
+        document.createElement("i")));
+      container.dataset.count = String(count);
+    }
+    [...container.children].forEach((bulb, index) => {
+      const distance = index * perimeter / count;
+      let x;
+      let y;
+      if (distance < width) {
+        x = distance; y = 0;
+      } else if (distance < width + height) {
+        x = width; y = distance - width;
+      } else if (distance < width * 2 + height) {
+        x = width - (distance - width - height); y = height;
+      } else {
+        x = 0; y = height - (distance - width * 2 - height);
+      }
+      bulb.style.left = `${x + inset}px`;
+      bulb.style.top = `${y + inset}px`;
+      bulb.style.setProperty("--bulb-delay", `${-index * 4.8 / count}s`);
+    });
   }
 
   _displayControls() {
@@ -1067,26 +1104,11 @@ class MoviePosterPanel extends HTMLElement {
       .frame-marquee .marquee-bulbs {
         position: absolute;
         z-index: 4;
-        inset: 9px;
+        inset: 0;
         display: block;
         pointer-events: none;
       }
-      .bulb-rail {
-        position: absolute;
-        display: flex;
-        align-items: center;
-        justify-content: space-around;
-      }
-      .bulb-top, .bulb-bottom { right: 22px; left: 22px; height: 18px; }
-      .bulb-top { top: 0; }
-      .bulb-bottom { bottom: 0; }
-      .bulb-left, .bulb-right {
-        top: 22px; bottom: 22px; width: 18px; flex-direction: column;
-      }
-      .bulb-left { left: 0; }
-      .bulb-right { right: 0; }
-      .bulb-rail i {
-        position: relative;
+      .marquee-bulbs i {
         display: block;
         width: clamp(10px, 1.05vw, 16px);
         aspect-ratio: 1;
@@ -1099,10 +1121,12 @@ class MoviePosterPanel extends HTMLElement {
         box-shadow: inset -2px -2px 3px #3b1b08aa,
           inset 2px 2px 2px #fff8c9aa, 0 0 4px #ffd35f,
           0 0 10px #e88a1d99;
-        animation: individualBulb 1.9s ease-in-out infinite alternate;
-        animation-delay: calc(var(--bulb-index) * -55ms);
+        position: absolute;
+        transform: translate(-50%, -50%);
+        animation: bulbChase 4.8s linear infinite;
+        animation-delay: var(--bulb-delay);
       }
-      .bulb-rail i::after {
+      .marquee-bulbs i::after {
         content: "";
         position: absolute;
         top: 15%; left: 19%;
@@ -1112,7 +1136,7 @@ class MoviePosterPanel extends HTMLElement {
         opacity: .85;
         filter: blur(.4px);
       }
-      .motion-off .bulb-rail i { animation: none; opacity: .94; }
+      .motion-off .marquee-bulbs i { animation: none; opacity: .94; }
       .theme-minimal .marquee-bulbs, .theme-oled .marquee-bulbs {
         display: none;
       }
@@ -1134,9 +1158,11 @@ class MoviePosterPanel extends HTMLElement {
       .motion-off .marquee-frame::before { opacity: .8; }
       .motion-off .ambient { filter: brightness(.18) saturate(.8); }
       @keyframes bulbs { from { opacity: .48; } to { opacity: 1; } }
-      @keyframes individualBulb {
-        from { opacity: .72; filter: brightness(.82); }
-        to { opacity: 1; filter: brightness(1.16); }
+      @keyframes bulbChase {
+        0%, 18%, 100% { opacity: .48; filter: brightness(.68); }
+        4% { opacity: .72; filter: brightness(.9); }
+        8% { opacity: 1; filter: brightness(1.35); }
+        12% { opacity: .78; filter: brightness(1); }
       }
       .marquee { text-align: center; padding: 14px 20px 28px; }
       .eyebrow {
