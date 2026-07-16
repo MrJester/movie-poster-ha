@@ -12,7 +12,6 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import DOMAIN
 from .models import DisplayMode
-from .normalizer import normalize_movie, normalize_session
 from .resolver import select_session
 from .rotation import ShuffleBag
 from .state_machine import DisplayModeMachine, ModeSnapshot
@@ -113,7 +112,7 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
             message = f"Unable to retrieve Plex sessions: {err}"
             raise UpdateFailed(message) from err
 
-        normalized = [normalize_session(session) for session in raw_sessions]
+        normalized = raw_sessions
         media_by_session = {
             candidate.session_id: media for candidate, media in normalized
         }
@@ -163,8 +162,7 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._movie_refresh_in_progress = False
             message = f"Unable to retrieve Plex movie library: {err}"
             raise UpdateFailed(message) from err
-        movies = [normalize_movie(movie) for movie in page.items]
-        movie_page = {movie.key: movie for movie in movies}
+        movie_page = {movie.key: movie for movie in page.items}
         self._movie_refresh_buffer.update(movie_page)
         self._movies.update(movie_page)
         self._bag.replace(self._movies)

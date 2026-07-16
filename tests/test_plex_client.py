@@ -1,0 +1,60 @@
+"""Tests for the Plex adapter's async boundary."""
+
+import asyncio
+import threading
+from collections.abc import Callable
+from types import SimpleNamespace
+from typing import ClassVar
+
+import pytest
+
+pytest.importorskip("plexapi")
+
+from custom_components.movie_poster.plex_client import MoviePosterPlexClient
+
+
+class FakeHass:
+    """Run executor jobs in a real worker thread."""
+
+    async def async_add_executor_job(
+        self, target: Callable[..., object], *args: object
+    ) -> object:
+        """Match Home Assistant's executor helper for this boundary test."""
+        return await asyncio.to_thread(target, *args)
+
+
+class LazySession:
+    """Fail if a Plex-style lazy attribute is read on the event-loop thread."""
+
+    sessionKey = "session-1"  # noqa: N815
+    ratingKey = "movie-1"  # noqa: N815
+    type = "movie"
+    title = "Example"
+    usernames: ClassVar[list[str]] = ["Ryan"]
+    player: ClassVar[SimpleNamespace] = SimpleNamespace(
+        machineIdentifier="theater", title="Theater", state="playing"
+    )
+
+    def __init__(self, event_loop_thread: int) -> None:
+        """Remember which thread must never perform lazy I/O."""
+        self._event_loop_thread = event_loop_thread
+
+    @property
+    def tagline(self) -> str:
+        """Represent a PlexPartialObject property that may trigger HTTP I/O."""
+        assert threading.get_ident() != self._event_loop_thread
+        return "Loaded lazily"
+
+
+async def test_session_normalization_stays_inside_executor() -> None:
+    """Potentially lazy Plex properties never run on Home Assistant's loop."""
+    client = MoviePosterPlexClient(
+        FakeHass(), "http://plex:32400", "test-token", verify_ssl=False
+    )
+    client._server = SimpleNamespace(
+        sessions=lambda: [LazySession(threading.get_ident())]
+    )
+
+    normalized = await client.async_sessions()
+
+    assert normalized[0][1].subtitle == "Loaded lazily"

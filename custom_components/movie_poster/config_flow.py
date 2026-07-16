@@ -208,7 +208,6 @@ class MoviePosterOptionsFlow(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Discover Plex choices and save display behavior options."""
-        from .normalizer import normalize_session  # noqa: PLC0415
         from .plex_client import MoviePosterPlexClient  # noqa: PLC0415
 
         entry = self.config_entry
@@ -221,8 +220,7 @@ class MoviePosterOptionsFlow(config_entries.OptionsFlow):
         try:
             libraries = await client.async_movie_libraries()
             sessions = [
-                normalize_session(session)[0]
-                for session in await client.async_sessions()
+                candidate for candidate, _media in await client.async_sessions()
             ]
         except Exception:  # noqa: BLE001 - external library boundary
             return self.async_abort(reason="cannot_connect")

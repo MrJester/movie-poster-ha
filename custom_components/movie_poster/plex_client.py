@@ -9,6 +9,7 @@ from plexapi.server import PlexServer
 from requests import Session
 
 from .models import PlexMoviePage
+from .normalizer import normalize_movie, normalize_session
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -81,17 +82,17 @@ class MoviePosterPlexClient:
             version=server.version,
         )
 
-    async def async_sessions(self) -> list[Any]:
-        """Return active sessions; normalization occurs outside this adapter."""
+    async def async_sessions(self) -> list[tuple[Any, Any]]:
+        """Return active sessions normalized inside the executor boundary."""
         if self._server is None:
             await self.async_connect()
         return await self._hass.async_add_executor_job(self._sessions)
 
-    def _sessions(self) -> list[Any]:
+    def _sessions(self) -> list[tuple[Any, Any]]:
         if self._server is None:
             raise PlexConnectionError
         try:
-            return self._server.sessions()
+            return [normalize_session(session) for session in self._server.sessions()]
         except Exception as err:
             raise PlexConnectionError from err
 
@@ -176,9 +177,12 @@ class MoviePosterPlexClient:
         try:
             section = self._server.library.section(library_title)
             if collection_title:
-                items = tuple(section.collection(collection_title).items())
+                items = tuple(
+                    normalize_movie(item)
+                    for item in section.collection(collection_title).items()
+                )
                 return PlexMoviePage(items=items, complete=True)
-            items = tuple(
+            raw_items = tuple(
                 section.search(
                     container_start=offset,
                     container_size=size,
@@ -187,7 +191,10 @@ class MoviePosterPlexClient:
             )
         except Exception as err:
             raise PlexConnectionError from err
-        return PlexMoviePage(items=items, complete=len(items) < size)
+        return PlexMoviePage(
+            items=tuple(normalize_movie(item) for item in raw_items),
+            complete=len(raw_items) < size,
+        )
 
     async def async_artwork(self, path: str) -> tuple[bytes, str]:
         """Fetch Plex artwork using the server-side authenticated session."""

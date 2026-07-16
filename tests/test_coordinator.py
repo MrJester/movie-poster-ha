@@ -3,7 +3,11 @@
 from types import SimpleNamespace
 
 from custom_components.movie_poster.coordinator import MoviePosterCoordinator
-from custom_components.movie_poster.models import PlaybackPolicy, PlexMoviePage
+from custom_components.movie_poster.models import (
+    MediaPresentation,
+    PlaybackPolicy,
+    PlexMoviePage,
+)
 from custom_components.movie_poster.rotation import ShuffleBag
 from custom_components.movie_poster.state_machine import DisplayModeMachine
 
@@ -35,11 +39,12 @@ class FakePlexClient:
         assert size == MOVIE_PAGE_SIZE
         return PlexMoviePage(
             items=(
-                SimpleNamespace(
-                    ratingKey=1,
+                MediaPresentation(
+                    key="1",
+                    media_type="movie",
                     title="Example",
-                    thumb="/thumb/1",
-                    art="/art/1",
+                    poster_path="/thumb/1",
+                    backdrop_path="/art/1",
                 ),
             ),
             complete=True,
@@ -77,7 +82,9 @@ class PagedPlexClient:
         self.offsets.append(offset)
         end = min(offset + size, PAGED_MOVIE_TOTAL)
         items = tuple(
-            SimpleNamespace(ratingKey=index, title=f"Movie {index}")
+            MediaPresentation(
+                key=str(index), media_type="movie", title=f"Movie {index}"
+            )
             for index in range(offset, end)
         )
         return PlexMoviePage(items=items, complete=end == PAGED_MOVIE_TOTAL)

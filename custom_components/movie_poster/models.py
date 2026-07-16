@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
 
 
 class DisplayMode(StrEnum):
@@ -66,7 +65,7 @@ class MediaPresentation:
 class PlexMoviePage:
     """One bounded page from a Plex movie source."""
 
-    items: tuple[Any, ...]
+    items: tuple[MediaPresentation, ...]
     complete: bool
 
 
