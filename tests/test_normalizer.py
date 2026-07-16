@@ -21,8 +21,11 @@ def test_episode_session_is_normalized_without_account_lookup() -> None:
         year=2026,
         duration=3_600_000,
         viewOffset=expected_position,
-        thumb="/thumb/42",
-        art="/art/42",
+        grandparentThumb="/shows/example/poster",
+        parentThumb="/shows/example/seasons/2/poster",
+        thumb="/episodes/42/still",
+        grandparentArt="/shows/example/art",
+        art="/episodes/42/art",
         usernames=["Ryan"],
         player=SimpleNamespace(
             machineIdentifier="theater-id",
@@ -37,6 +40,28 @@ def test_episode_session_is_normalized_without_account_lookup() -> None:
     assert media.key == "42"
     assert media.subtitle == "Example Show · S02E04"
     assert media.position_ms == expected_position
+    assert media.poster_path == "/shows/example/poster"
+    assert media.backdrop_path == "/shows/example/art"
+
+
+def test_episode_artwork_falls_back_to_season_then_episode() -> None:
+    """Episodes without show artwork still receive a poster and backdrop."""
+    session = SimpleNamespace(
+        sessionKey=8,
+        ratingKey=43,
+        type="episode",
+        title="The Follow-up",
+        grandparentThumb=None,
+        parentThumb="/shows/example/seasons/2/poster",
+        thumb="/episodes/43/still",
+        grandparentArt=None,
+        art="/episodes/43/art",
+        usernames=["Ryan"],
+        player=SimpleNamespace(state="playing"),
+    )
+    _candidate, media = normalize_session(session)
+    assert media.poster_path == "/shows/example/seasons/2/poster"
+    assert media.backdrop_path == "/episodes/43/art"
 
 
 def test_unknown_state_is_safely_treated_as_stopped() -> None:

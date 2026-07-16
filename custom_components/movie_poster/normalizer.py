@@ -33,6 +33,7 @@ def normalize_session(
         str(getattr(player, "state", "stopped")).lower(), PlaybackState.STOPPED
     )
     media_type = _text(session, "type", session.__class__.__name__.lower())
+    poster_path, backdrop_path = _session_artwork(session, media_type)
     session_key = str(session.sessionKey)
     rating_key = _text(session, "ratingKey", session_key)
     candidate = SessionCandidate(
@@ -53,8 +54,8 @@ def normalize_session(
         year=getattr(session, "year", None),
         duration_ms=getattr(session, "duration", None),
         position_ms=getattr(session, "viewOffset", None),
-        poster_path=getattr(session, "thumb", None),
-        backdrop_path=getattr(session, "art", None),
+        poster_path=poster_path,
+        backdrop_path=backdrop_path,
     )
     return candidate, presentation
 
@@ -88,6 +89,25 @@ def _subtitle(session: object, media_type: str) -> str | None:
     if media_type == "track":
         return getattr(session, "grandparentTitle", None)
     return getattr(session, "tagline", None)
+
+
+def _session_artwork(session: object, media_type: str) -> tuple[str | None, str | None]:
+    """Choose poster-shaped artwork appropriate for the playing media."""
+    if media_type == "episode":
+        return (
+            _first_attribute(session, "grandparentThumb", "parentThumb", "thumb"),
+            _first_attribute(session, "grandparentArt", "art"),
+        )
+    return _first_attribute(session, "thumb"), _first_attribute(session, "art")
+
+
+def _first_attribute(value: object, *attributes: str) -> str | None:
+    """Return the first populated attribute as text."""
+    for attribute in attributes:
+        result = getattr(value, attribute, None)
+        if result:
+            return str(result)
+    return None
 
 
 def _text(value: object, attribute: str, default: str) -> str:
