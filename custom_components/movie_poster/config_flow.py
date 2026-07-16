@@ -238,16 +238,31 @@ class MoviePosterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, discovery_info: ZeroconfServiceInfo
     ) -> FlowResult:
         """Handle local Plex Media Server discovery."""
+        if self._async_current_entries():
+            return self.async_abort(reason="already_configured")
         host = str(discovery_info.host)
         self._discovered_url = f"http://{host}:{discovery_info.port}"
         await self.async_set_unique_id(
-            discovery_info.properties.get("machineIdentifier")
+            _discovery_identifier(discovery_info.properties)
         )
         self._abort_if_unique_id_configured(updates={CONF_HOST: host})
         self.context["title_placeholders"] = {
             "name": discovery_info.name.removesuffix("._plexmediasvr._tcp.local.")
         }
         return await self.async_step_user()
+
+
+def _discovery_identifier(properties: dict[str, Any]) -> str | None:
+    """Read Plex's server identifier across known TXT-record key variants."""
+    normalized = {
+        str(key).casefold().replace("-", "").replace("_", ""): value
+        for key, value in properties.items()
+        if key != "_raw"
+    }
+    for key in ("machineidentifier", "resourceidentifier"):
+        if value := normalized.get(key):
+            return str(value)
+    return None
 
 
 class MoviePosterOptionsFlow(config_entries.OptionsFlow):

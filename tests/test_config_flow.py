@@ -5,7 +5,10 @@ from types import SimpleNamespace
 
 from homeassistant.data_entry_flow import FlowResultType
 
-from custom_components.movie_poster.config_flow import MoviePosterConfigFlow
+from custom_components.movie_poster.config_flow import (
+    MoviePosterConfigFlow,
+    _discovery_identifier,
+)
 
 
 class FakeAuth:
@@ -47,3 +50,9 @@ async def test_completed_reauth_returns_to_existing_server() -> None:
 
     assert result["type"] is FlowResultType.SHOW_PROGRESS_DONE
     assert result["step_id"] == "reauth_complete"
+
+
+def test_discovery_identifier_accepts_plex_txt_key_variants() -> None:
+    """Discovery matches configured Plex identity despite TXT key spelling."""
+    assert _discovery_identifier({"MachineIdentifier": "server-1"}) == "server-1"
+    assert _discovery_identifier({"Resource-Identifier": "server-2"}) == "server-2"
