@@ -52,11 +52,12 @@ class LazySession:
 
 async def test_session_normalization_stays_inside_executor() -> None:
     """Potentially lazy Plex properties never run on Home Assistant's loop."""
+    event_loop_thread = threading.get_ident()
     client = MoviePosterPlexClient(
         FakeHass(), "http://plex:32400", "test-token", verify_ssl=False
     )
     client._server = SimpleNamespace(
-        sessions=lambda: [LazySession(threading.get_ident())]
+        sessions=lambda: [LazySession(event_loop_thread)]
     )
 
     normalized = await client.async_sessions()
