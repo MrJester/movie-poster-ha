@@ -1,0 +1,70 @@
+"""Tests for Plex session normalization."""
+
+from types import SimpleNamespace
+
+from custom_components.movie_poster.models import PlaybackState
+from custom_components.movie_poster.normalizer import normalize_movie, normalize_session
+
+
+def test_episode_session_is_normalized_without_account_lookup() -> None:
+    """Episode identity, player, user, and progress are retained."""
+    expected_position = 900_000
+    session = SimpleNamespace(
+        sessionKey=7,
+        ratingKey=42,
+        type="episode",
+        title="The Test",
+        grandparentTitle="Example Show",
+        parentIndex=2,
+        index=4,
+        summary="Summary",
+        year=2026,
+        duration=3_600_000,
+        viewOffset=expected_position,
+        thumb="/thumb/42",
+        art="/art/42",
+        usernames=["Ryan"],
+        player=SimpleNamespace(
+            machineIdentifier="theater-id",
+            title="Theater",
+            state="playing",
+        ),
+    )
+    candidate, media = normalize_session(session)
+    assert candidate.state is PlaybackState.PLAYING
+    assert candidate.player_id == "theater-id"
+    assert candidate.user_id == "ryan"
+    assert media.key == "42"
+    assert media.subtitle == "Example Show · S02E04"
+    assert media.position_ms == expected_position
+
+
+def test_unknown_state_is_safely_treated_as_stopped() -> None:
+    """New Plex state strings do not accidentally activate Now Playing."""
+    session = SimpleNamespace(
+        sessionKey="session",
+        type="clip",
+        title="Trailer",
+        usernames=[],
+        player=SimpleNamespace(state="mystery"),
+    )
+    candidate, _media = normalize_session(session)
+    assert candidate.state is PlaybackState.STOPPED
+
+
+def test_movie_is_normalized_for_coming_soon() -> None:
+    """Coming Soon retains display metadata and artwork paths."""
+    movie = SimpleNamespace(
+        ratingKey=99,
+        title="Feature Film",
+        tagline="The tagline",
+        summary="The summary",
+        year=2025,
+        duration=7_200_000,
+        thumb="/thumb/99",
+        art="/art/99",
+    )
+    media = normalize_movie(movie)
+    assert media.key == "99"
+    assert media.title == "Feature Film"
+    assert media.poster_path == "/thumb/99"

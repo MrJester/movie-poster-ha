@@ -1,0 +1,68 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "This Plex server is already configured.",
+      "auth_timeout": "Plex authorization expired. Start setup again to retry.",
+      "cannot_connect": "Unable to connect to Plex.",
+      "no_servers": "No accessible Plex Media Servers were found on this account."
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to Plex.",
+      "invalid_auth": "Plex authentication failed.",
+      "unknown": "Unexpected error."
+    },
+    "step": {
+      "manual": {
+        "data": {
+          "server_url": "Plex server URL",
+          "token": "Plex token",
+          "verify_ssl": "Verify TLS certificate"
+        },
+        "description": "Connect directly with an existing Plex token.",
+        "title": "Manual Plex connection"
+      },
+      "plex_auth": {
+        "description": "[Open Plex authorization]({authorization_url}), approve Movie Poster, then return here.",
+        "title": "Sign in with Plex"
+      },
+      "select_server": {
+        "data": {
+          "server": "Plex server"
+        },
+        "description": "Select the Plex Media Server Movie Poster should use.",
+        "title": "Select Plex server"
+      },
+      "user": {
+        "menu_options": {
+          "manual": "Enter a server and token manually",
+          "plex_auth": "Discover and sign in with Plex"
+        },
+        "title": "Connect Plex"
+      }
+    },
+    "progress": {
+      "authorize_plex": "[Open Plex authorization]({authorization_url}), approve Movie Poster, then return here."
+    }
+  },
+  "options": {
+    "abort": {
+      "cannot_connect": "Unable to retrieve configuration choices from Plex.",
+      "no_movie_libraries": "This Plex server has no accessible movie libraries."
+    },
+    "step": {
+      "init": {
+        "data": {
+          "grace_seconds": "Wait after playback stops (seconds)",
+          "library_refresh_seconds": "Refresh movie library every (seconds)",
+          "player_id": "Preferred Plex player",
+          "rotation_seconds": "Rotate Coming Soon poster every (seconds)",
+          "source": "Coming Soon source",
+          "user_id": "Preferred Plex user"
+        },
+        "description": "Choose the Coming Soon source and which Plex playback should control the display.",
+        "title": "Movie Poster behavior"
+      }
+    }
+  },
+  "title": "Movie Poster"
+}

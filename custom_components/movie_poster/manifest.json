@@ -1,0 +1,15 @@
+{
+  "domain": "movie_poster",
+  "name": "Movie Poster",
+  "codeowners": ["@MrJester"],
+  "config_flow": true,
+  "dependencies": ["frontend", "http", "websocket_api", "zeroconf"],
+  "documentation": "https://github.com/MrJester/movie-poster-ha",
+  "integration_type": "service",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/MrJester/movie-poster-ha/issues",
+  "loggers": ["plexapi"],
+  "requirements": ["PlexAPI>=4.17.0"],
+  "version": "0.1.0-dev.0",
+  "zeroconf": ["_plexmediasvr._tcp.local."]
+}
