@@ -135,3 +135,26 @@ class MoviePosterPlexClient:
             return section.all()
         except Exception as err:
             raise PlexConnectionError from err
+
+    async def async_artwork(self, path: str) -> tuple[bytes, str]:
+        """Fetch Plex artwork using the server-side authenticated session."""
+        if self._server is None:
+            await self.async_connect()
+        return await self._hass.async_add_executor_job(self._artwork, path)
+
+    def _artwork(self, path: str) -> tuple[bytes, str]:
+        if self._server is None or not path.startswith("/"):
+            raise PlexConnectionError
+        try:
+            response = self._server._session.get(  # noqa: SLF001
+                f"{self._server._baseurl}{path}",  # noqa: SLF001
+                params={"X-Plex-Token": self._token},
+                timeout=30,
+            )
+            response.raise_for_status()
+        except Exception as err:
+            raise PlexConnectionError from err
+        content_type = response.headers.get("Content-Type", "image/jpeg").split(
+            ";", 1
+        )[0]
+        return response.content, content_type

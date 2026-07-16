@@ -3,13 +3,13 @@
   "name": "Movie Poster",
   "codeowners": ["@MrJester"],
   "config_flow": true,
-  "dependencies": ["frontend", "http", "websocket_api", "zeroconf"],
+  "dependencies": ["frontend", "http", "panel_custom", "websocket_api", "zeroconf"],
   "documentation": "https://github.com/MrJester/movie-poster-ha",
   "integration_type": "service",
-  "iot_class": "local_push",
+  "iot_class": "local_polling",
   "issue_tracker": "https://github.com/MrJester/movie-poster-ha/issues",
   "loggers": ["plexapi"],
-  "requirements": ["PlexAPI>=4.17.0"],
-  "version": "0.1.0-dev.0",
+  "requirements": ["PlexAPI==4.18.1"],
+  "version": "0.1.0-dev.1",
   "zeroconf": ["_plexmediasvr._tcp.local."]
 }

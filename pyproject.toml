@@ -4,17 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "movie-poster-ha"
-version = "0.1.0.dev0"
+version = "0.1.0.dev1"
 description = "Plex-powered movie poster display for Home Assistant"
 requires-python = ">=3.13,<3.14"
 license = "MIT"
 authors = [{ name = "MrJester" }]
+dependencies = ["PlexAPI==4.18.1"]
 
 [project.optional-dependencies]
 test = [
   "pytest>=8.3",
   "pytest-asyncio>=0.25",
-  "pytest-homeassistant-custom-component>=0.13.200",
   "ruff>=0.11",
 ]
 

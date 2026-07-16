@@ -7,8 +7,14 @@ rotates movies from a configured Plex library or collection.
 
 ## Project status
 
-Architecture and initial integration scaffold. It is not ready for production
-installation yet.
+Pre-alpha integration with Plex setup, automatic Now Playing/Coming Soon state,
+and a first full-screen theater panel. Install only for testing.
+
+After configuring the integration, open the display at:
+
+```text
+https://<your-home-assistant-host>/movie-poster
+```
 
 ## Product principles
 

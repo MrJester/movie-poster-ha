@@ -29,6 +29,14 @@ if TYPE_CHECKING:
 type MoviePosterConfigEntry = ConfigEntry[dict]
 
 
+async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
+    """Set up integration-level frontend and APIs."""
+    from .api import async_setup_frontend  # noqa: PLC0415
+
+    await async_setup_frontend(hass)
+    return True
+
+
 async def async_setup_entry(
     hass: HomeAssistant, entry: MoviePosterConfigEntry
 ) -> bool:
@@ -66,6 +74,7 @@ async def async_setup_entry(
         library_refresh_seconds=entry.options.get(
             CONF_LIBRARY_REFRESH_SECONDS, DEFAULT_LIBRARY_REFRESH_SECONDS
         ),
+        entry_id=entry.entry_id,
     )
     await coordinator.async_config_entry_first_refresh()
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator

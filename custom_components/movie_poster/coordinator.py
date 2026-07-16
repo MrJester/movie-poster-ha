@@ -45,6 +45,7 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         collection_title: str | None = None,
         rotation_seconds: float = 15,
         library_refresh_seconds: float = 900,
+        entry_id: str = "",
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(
@@ -52,7 +53,9 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
             logger=__import__("logging").getLogger(__name__),
             name="Movie Poster",
             update_interval=timedelta(seconds=5),
+            always_update=False,
         )
+        self.entry_id = entry_id
         self._client = client
         self._policy = policy
         self._mode = DisplayModeMachine(grace_seconds)
@@ -65,6 +68,16 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._movies: dict[str, MediaPresentation] = {}
         self._bag = ShuffleBag[str]()
         self._coming_soon: MediaPresentation | None = None
+
+    async def async_artwork(self, kind: str) -> tuple[bytes, str] | None:
+        """Fetch artwork for the currently displayed media."""
+        media = self.data.media if self.data is not None else None
+        if media is None:
+            return None
+        path = media.poster_path if kind == "poster" else media.backdrop_path
+        if path is None:
+            return None
+        return await self._client.async_artwork(path)
 
     async def _async_update_data(self) -> CoordinatorData:
         try:
