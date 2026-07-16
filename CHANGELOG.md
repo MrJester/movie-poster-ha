@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.10
+
+- Measure each rendered frame and fit the poster to its actual remaining height
+  after marquee, padding, plaque, and below-poster details are accounted for.
+
 ## 0.1.0-beta.9
 
 - Scale poster height, frame padding, marquee, metadata, plaque, and summary

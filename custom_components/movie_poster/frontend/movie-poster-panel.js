@@ -457,7 +457,7 @@ class MoviePosterPanel extends HTMLElement {
 
   _bindMarqueeBulbs() {
     this._bulbObserver?.disconnect();
-    const frame = this.shadowRoot.querySelector(".frame-marquee .marquee-frame");
+    const frame = this.shadowRoot.querySelector(".marquee-frame");
     if (!frame) return;
     const layout = () => this._layoutMarqueeBulbs(frame);
     layout();
@@ -466,6 +466,8 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   _layoutMarqueeBulbs(frame) {
+    this._fitPosterToFrame(frame);
+    if (!frame.closest(".frame-marquee")) return;
     const container = frame.querySelector(".marquee-bulbs");
     if (!container) return;
     const inset = 4;
@@ -499,6 +501,28 @@ class MoviePosterPanel extends HTMLElement {
       bulb.style.top = `${y + inset}px`;
       bulb.style.setProperty("--bulb-delay", `${-index * 4.8 / count}s`);
     });
+  }
+
+  _fitPosterToFrame(frame) {
+    const poster = frame.querySelector(".poster");
+    const marquee = frame.querySelector(".marquee");
+    const content = frame.querySelector(".content");
+    if (!poster || !marquee || !content) return;
+    const frameStyle = getComputedStyle(frame);
+    const contentStyle = getComputedStyle(content);
+    const verticalPadding = parseFloat(frameStyle.paddingTop)
+      + parseFloat(frameStyle.paddingBottom)
+      + parseFloat(contentStyle.paddingTop)
+      + parseFloat(contentStyle.paddingBottom);
+    const plaque = frame.querySelector(".frame-plaque");
+    const plaqueHeight = plaque && getComputedStyle(plaque).display !== "none"
+      ? plaque.offsetHeight + parseFloat(getComputedStyle(plaque).marginTop) : 0;
+    const details = frame.querySelector(".details");
+    const detailsHeight = frame.closest(".layout-poster") && details
+      ? details.offsetHeight + parseFloat(getComputedStyle(details).marginTop) : 0;
+    const available = frame.clientHeight - verticalPadding - marquee.offsetHeight
+      - plaqueHeight - detailsHeight - 12;
+    frame.style.setProperty("--fitted-poster-height", `${Math.max(160, available)}px`);
   }
 
   _displayControls() {
@@ -1420,6 +1444,13 @@ class MoviePosterPanel extends HTMLElement {
         .orientation-auto .frame-plaque strong {
           font-size: clamp(.95rem, 2.4vh, 1.4rem);
         }
+      }
+      .marquee-frame .poster {
+        width: auto !important;
+        height: min(var(--fitted-poster-height, 70vh), 84vh) !important;
+        max-width: 100% !important;
+        max-height: var(--fitted-poster-height, 70vh) !important;
+        margin-inline: auto;
       }
       @media (max-width: 720px) {
         .orientation-portrait h1, .orientation-auto h1 {
