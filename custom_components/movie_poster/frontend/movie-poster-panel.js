@@ -1115,8 +1115,8 @@ class MoviePosterPanel extends HTMLElement {
           0 28px 90px #000;
       }
       .theme-art_deco .marquee {
-        margin: 8px clamp(20px, 5vw, 80px) 24px;
-        padding: 18px 24px 23px;
+        margin: 8px clamp(4px, 2vw, 24px) 24px;
+        padding: 18px clamp(28px, 5vw, 72px) 23px;
         border: 1px solid #d8c17c;
         border-inline-width: 5px;
         background: linear-gradient(90deg, transparent, #17332ee8 20% 80%, transparent);
@@ -1125,7 +1125,9 @@ class MoviePosterPanel extends HTMLElement {
       .theme-art_deco h1 {
         color: #f0dfaa;
         font-family: Georgia, "Times New Roman", serif;
-        letter-spacing: .16em;
+        font-size: clamp(1.15rem, 4.8vw, 4.2rem);
+        letter-spacing: .1em;
+        line-height: 1;
         text-shadow: 0 2px 0 #57461f, 0 0 20px #d9bd6555;
       }
       .theme-art_deco .eyebrow { color: #cbb36f; letter-spacing: .42em; }
@@ -1349,6 +1351,11 @@ class MoviePosterPanel extends HTMLElement {
       @media (max-width: 720px) {
         .orientation-portrait h1, .orientation-auto h1 {
           font-size: clamp(1.25rem, 7.5vw, 2.3rem);
+        }
+        .theme-art_deco.orientation-portrait h1,
+        .theme-art_deco.orientation-auto h1 {
+          font-size: clamp(1.05rem, 5.8vw, 1.9rem);
+          letter-spacing: .06em;
         }
       }
       @media (prefers-reduced-motion: reduce) {

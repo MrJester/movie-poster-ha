@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.7
+
+- Keep Art Deco headings such as Coming Soon on one line by widening the safe
+  marquee area and using responsive period-appropriate type scaling.
+
 ## 0.1.0-beta.6
 
 - Give Classic, Art Deco, Minimal, and OLED distinct backgrounds, typography,
