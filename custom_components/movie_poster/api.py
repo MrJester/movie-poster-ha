@@ -13,7 +13,22 @@ from homeassistant.components.http import HomeAssistantView, StaticPathConfig
 from homeassistant.components.http.auth import async_sign_path
 from homeassistant.core import callback
 
-from .const import DOMAIN
+from .const import (
+    CONF_ENABLE_MOTION,
+    CONF_FRAME_THEME,
+    CONF_KIOSK_MODE,
+    CONF_LAYOUT,
+    CONF_ORIENTATION,
+    CONF_SHOW_PROGRESS,
+    CONF_SHOW_SESSION,
+    CONF_SHOW_SUMMARY,
+    CONF_THEME,
+    DOMAIN,
+    FRAME_THEMES,
+    LAYOUTS,
+    ORIENTATIONS,
+    THEMES,
+)
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -23,6 +38,7 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
+_FRONTEND_VERSION = "0.1.0-dev.2"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
@@ -37,11 +53,12 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
         webcomponent_name="movie-poster-panel",
         sidebar_title="Movie Poster",
         sidebar_icon="mdi:movie-open-star",
-        module_url=f"{STATIC_URL}/movie-poster-panel.js",
+        module_url=f"{STATIC_URL}/movie-poster-panel.js?v={_FRONTEND_VERSION}",
         require_admin=False,
     )
     hass.http.register_view(MoviePosterArtworkView())
     websocket_api.async_register_command(hass, websocket_subscribe)
+    websocket_api.async_register_command(hass, websocket_update_presentation)
 
 
 @websocket_api.websocket_command(
@@ -80,6 +97,66 @@ def websocket_subscribe(
     connection.subscriptions[msg["id"]] = coordinator.async_add_listener(send_state)
     connection.send_result(msg["id"])
     send_state()
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "movie_poster/update_presentation",
+        vol.Optional("entry_id"): str,
+        vol.Required(CONF_THEME): vol.In(THEMES),
+        vol.Required(CONF_ORIENTATION): vol.In(ORIENTATIONS),
+        vol.Required(CONF_LAYOUT): vol.In(LAYOUTS),
+        vol.Required(CONF_FRAME_THEME): vol.In(FRAME_THEMES),
+        vol.Required(CONF_SHOW_SUMMARY): bool,
+        vol.Required(CONF_SHOW_PROGRESS): bool,
+        vol.Required(CONF_SHOW_SESSION): bool,
+        vol.Required(CONF_ENABLE_MOTION): bool,
+        vol.Required(CONF_KIOSK_MODE): bool,
+    }
+)
+@websocket_api.async_response
+async def websocket_update_presentation(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Persist Display Studio presentation settings."""
+    coordinator = _coordinator(hass, msg.get("entry_id"))
+    entry = (
+        hass.config_entries.async_get_entry(coordinator.entry_id)
+        if coordinator is not None
+        else None
+    )
+    if entry is None:
+        connection.send_error(
+            msg["id"], websocket_api.ERR_NOT_FOUND, "Movie Poster is not configured"
+        )
+        return
+    options = _updated_presentation_options(entry.options, msg)
+    hass.config_entries.async_update_entry(entry, options=options)
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id})
+
+
+def _updated_presentation_options(
+    current: dict[str, Any], updates: dict[str, Any]
+) -> dict[str, Any]:
+    """Merge Studio fields without replacing behavioral options."""
+    presentation_keys = {
+        CONF_THEME,
+        CONF_ORIENTATION,
+        CONF_LAYOUT,
+        CONF_FRAME_THEME,
+        CONF_SHOW_SUMMARY,
+        CONF_SHOW_PROGRESS,
+        CONF_SHOW_SESSION,
+        CONF_ENABLE_MOTION,
+        CONF_KIOSK_MODE,
+    }
+    return {
+        **current,
+        **{key: updates[key] for key in presentation_keys},
+    }
 
 
 def _coordinator(
@@ -124,6 +201,7 @@ def _serialize_state(
     session = data.selected_session
     return {
         "schema_version": 1,
+        "entry_id": coordinator.entry_id,
         "health": {
             "connected": getattr(coordinator, "last_update_success", True),
             "message": None

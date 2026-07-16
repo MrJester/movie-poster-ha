@@ -11,6 +11,6 @@
   "loggers": ["plexapi"],
   "requirements": ["PlexAPI==4.18.1"],
   "single_config_entry": true,
-  "version": "0.1.0-dev.1",
+  "version": "0.1.0-dev.2",
   "zeroconf": ["_plexmediasvr._tcp.local."]
 }

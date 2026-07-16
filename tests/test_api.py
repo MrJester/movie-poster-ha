@@ -2,7 +2,10 @@
 
 from types import SimpleNamespace
 
-from custom_components.movie_poster.api import _serialize_state
+from custom_components.movie_poster.api import (
+    _serialize_state,
+    _updated_presentation_options,
+)
 from custom_components.movie_poster.models import (
     DisplayMode,
     MediaPresentation,
@@ -57,6 +60,7 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
     )
 
     assert state["schema_version"] == 1
+    assert state["entry_id"] == "entry-1"
     assert state["health"] == {"connected": True, "message": None}
     assert state["presentation"] == {
         "theme": "neon",
@@ -112,3 +116,31 @@ def test_state_contract_reports_plex_outage_without_exposing_exception() -> None
     assert state["health"]["connected"] is False
     assert "Retrying automatically" in state["health"]["message"]
     assert "secret internal detail" not in str(state)
+
+
+def test_studio_save_preserves_behavior_options() -> None:
+    """Display Studio updates visuals without replacing Plex behavior."""
+    rotation_seconds = 30
+    current = {
+        "library": "Movies",
+        "rotation_seconds": rotation_seconds,
+        "theme": "classic",
+    }
+    updates = {
+        "theme": "neon",
+        "orientation": "landscape",
+        "layout": "split",
+        "frame_theme": "cyber_noir",
+        "show_summary": False,
+        "show_progress": True,
+        "show_session": False,
+        "enable_motion": True,
+        "kiosk_mode": True,
+    }
+
+    result = _updated_presentation_options(current, updates)
+
+    assert result["library"] == "Movies"
+    assert result["rotation_seconds"] == rotation_seconds
+    assert result["theme"] == "neon"
+    assert result["frame_theme"] == "cyber_noir"

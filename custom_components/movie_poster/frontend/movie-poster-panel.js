@@ -76,12 +76,13 @@ class MoviePosterPanel extends HTMLElement {
     this._kioskEnabled = false;
     this._externalBusId = Date.now();
     this._studio = new URLSearchParams(window.location.search).get("studio") === "1";
+    this._studioLoaded = false;
     if (this._studio) this._state = studioState();
   }
 
   set hass(value) {
     this._hass = value;
-    if (!this._studio) this._subscribe();
+    this._subscribe();
   }
 
   set panel(value) {
@@ -90,7 +91,7 @@ class MoviePosterPanel extends HTMLElement {
 
   connectedCallback() {
     this._render();
-    if (!this._studio) this._subscribe();
+    this._subscribe();
   }
 
   disconnectedCallback() {
@@ -104,11 +105,23 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   _subscribe() {
-    if (this._studio || !this.isConnected || !this._hass || this._unsubscribePromise) return;
+    if (!this.isConnected || !this._hass || this._unsubscribePromise) return;
     this._unsubscribePromise = this._hass.connection.subscribeMessage(
       (state) => {
+        if (this._studio) {
+          if (this._studioLoaded) return;
+          const sample = studioState();
+          this._state = {
+            ...sample,
+            entry_id: state.entry_id,
+            presentation: { ...sample.presentation, ...state.presentation },
+          };
+          this._studioLoaded = true;
+          this._render();
+          return;
+        }
         const previous = this._state?.media;
-        if (previous?.key === state.media?.key) {
+        if (previous && state.media && previous.key === state.media.key) {
           state.media.poster_url = previous.poster_url;
           state.media.backdrop_url = previous.backdrop_url;
         }
@@ -314,7 +327,11 @@ class MoviePosterPanel extends HTMLElement {
           `<label class="studio-check"><input type="checkbox" data-studio="${field}"
           ${presentation[field] !== false ? "checked" : ""}>${label}</label>`
         ).join("")}
-      <small>Preview only — apply these choices in the integration options.</small>
+      <div class="studio-actions">
+        <button type="button" data-studio-action="back">Back to settings</button>
+        <button type="button" class="primary" data-studio-action="save">Save & return</button>
+      </div>
+      <small class="studio-status">Changes are saved to this Movie Poster configuration.</small>
     </aside>`;
   }
 
@@ -329,6 +346,48 @@ class MoviePosterPanel extends HTMLElement {
         this._render();
       });
     });
+    this.shadowRoot.querySelector('[data-studio-action="back"]')
+      ?.addEventListener("click", () => this._returnToSettings());
+    this.shadowRoot.querySelector('[data-studio-action="save"]')
+      ?.addEventListener("click", () => this._saveStudio());
+  }
+
+  async _saveStudio() {
+    const button = this.shadowRoot.querySelector('[data-studio-action="save"]');
+    const status = this.shadowRoot.querySelector(".studio-status");
+    if (!this._hass || !this._state?.entry_id || !button) return;
+    button.disabled = true;
+    button.textContent = "Saving…";
+    try {
+      const presentation = this._state.presentation;
+      await this._hass.callWS({
+        type: "movie_poster/update_presentation",
+        entry_id: this._state.entry_id,
+        theme: normalizeTheme(presentation.theme),
+        orientation: normalizeOrientation(presentation.orientation),
+        layout: normalizeLayout(presentation.layout),
+        frame_theme: normalizeFrame(presentation.frame_theme),
+        show_summary: presentation.show_summary !== false,
+        show_progress: presentation.show_progress !== false,
+        show_session: presentation.show_session !== false,
+        enable_motion: presentation.enable_motion !== false,
+        kiosk_mode: presentation.kiosk_mode !== false,
+      });
+      status.textContent = "Saved. Returning to integration settings…";
+      window.setTimeout(() => this._returnToSettings(), 350);
+    } catch (error) {
+      status.textContent = error?.message || "Unable to save display settings.";
+      button.disabled = false;
+      button.textContent = "Save & return";
+    }
+  }
+
+  _returnToSettings() {
+    if (document.referrer.startsWith(`${window.location.origin}/config/integrations`)) {
+      window.history.back();
+      return;
+    }
+    window.location.assign("/config/integrations/integration/movie_poster");
   }
 
   _renderError(message) {
@@ -441,7 +500,7 @@ class MoviePosterPanel extends HTMLElement {
         font-size: .78rem;
         backdrop-filter: blur(12px);
       }
-      .studio strong, .studio small { grid-column: 1 / -1; }
+      .studio strong, .studio small, .studio-actions { grid-column: 1 / -1; }
       .studio label { display: grid; gap: 4px; text-transform: capitalize; }
       .studio select {
         min-height: 31px;
@@ -452,6 +511,18 @@ class MoviePosterPanel extends HTMLElement {
       }
       .studio .studio-check { display: flex; align-items: center; gap: 6px; }
       .studio small { color: #c6b99f; }
+      .studio-actions { display: flex; justify-content: flex-end; gap: 8px; }
+      .studio button {
+        min-height: 34px;
+        padding: 0 12px;
+        border: 1px solid #ffffff35;
+        border-radius: 6px;
+        background: #241915;
+        color: inherit;
+        cursor: pointer;
+      }
+      .studio button.primary { border-color: var(--gold); background: #8b571d; }
+      .studio button:disabled { cursor: wait; opacity: .65; }
       .marquee-frame {
         position: relative;
         width: min(1180px, 96vw);
