@@ -2,7 +2,11 @@
 
 from types import SimpleNamespace
 
+import pytest
+from homeassistant.config_entries import ConfigEntryAuthFailed
+
 from custom_components.movie_poster.coordinator import MoviePosterCoordinator
+from custom_components.movie_poster.exceptions import PlexAuthenticationError
 from custom_components.movie_poster.models import (
     MediaPresentation,
     PlaybackPolicy,
@@ -90,6 +94,14 @@ class PagedPlexClient:
         return PlexMoviePage(items=items, complete=end == PAGED_MOVIE_TOTAL)
 
 
+class RejectedPlexClient:
+    """Represent a server that rejected the stored Plex token."""
+
+    async def async_sessions(self) -> list[object]:
+        """Raise the adapter's explicit authentication signal."""
+        raise PlexAuthenticationError
+
+
 async def test_library_refresh_uses_independent_cache_deadline() -> None:
     """Frequent playback polls do not repeatedly enumerate the movie library."""
     expected_refresh_due = 1000.0
@@ -175,3 +187,12 @@ async def test_library_hydrates_in_pages_and_reconciles_removed_movies() -> None
     assert not coordinator._movie_refresh_in_progress
     assert "stale" not in coordinator._movies
     assert len(coordinator._movies) == PAGED_MOVIE_TOTAL
+
+
+async def test_rejected_token_requests_home_assistant_reauthentication() -> None:
+    """A revoked Plex token starts reauth instead of retrying as an outage."""
+    coordinator = object.__new__(MoviePosterCoordinator)
+    coordinator._client = RejectedPlexClient()
+
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()

@@ -31,3 +31,19 @@ async def test_completed_plex_auth_finishes_progress_before_server_form() -> Non
     assert result["type"] is FlowResultType.SHOW_PROGRESS_DONE
     assert result["step_id"] == "select_server"
     assert flow._servers == {"server-1": flow._servers["server-1"]}
+
+
+async def test_completed_reauth_returns_to_existing_server() -> None:
+    """Reauthentication updates the existing entry instead of creating another."""
+    flow = MoviePosterConfigFlow()
+    flow.flow_id = "test-flow"
+    flow.context = {}
+    flow._auth = FakeAuth()
+    flow._reauth_entry = SimpleNamespace(unique_id="server-1")
+    flow._auth_task = asyncio.create_task(asyncio.sleep(0, result="approved-token"))
+    await flow._auth_task
+
+    result = await flow.async_step_plex_auth()
+
+    assert result["type"] is FlowResultType.SHOW_PROGRESS_DONE
+    assert result["step_id"] == "reauth_complete"

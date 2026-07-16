@@ -5,9 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from plexapi.exceptions import Unauthorized
 from plexapi.server import PlexServer
 from requests import Session
 
+from .exceptions import PlexAuthenticationError, PlexConnectionError
 from .models import PlexMoviePage
 from .normalizer import normalize_movie, normalize_session
 
@@ -34,14 +36,6 @@ class PlexLibraryChoice:
     collections: tuple[str, ...]
 
 
-class PlexAuthenticationError(Exception):
-    """Raised when Plex rejects the configured token."""
-
-
-class PlexConnectionError(Exception):
-    """Raised when a Plex server cannot be reached or queried."""
-
-
 class MoviePosterPlexClient:
     """Keep all blocking Plex calls outside Home Assistant's event loop."""
 
@@ -60,8 +54,6 @@ class MoviePosterPlexClient:
         return await self._hass.async_add_executor_job(self._connect)
 
     def _connect(self) -> PlexConnectionInfo:
-        from plexapi.exceptions import Unauthorized  # noqa: PLC0415
-
         session = Session()
         session.verify = self._verify_ssl
         try:
@@ -93,6 +85,8 @@ class MoviePosterPlexClient:
             raise PlexConnectionError
         try:
             return [normalize_session(session) for session in self._server.sessions()]
+        except Unauthorized as err:
+            raise PlexAuthenticationError from err
         except Exception as err:
             raise PlexConnectionError from err
 
@@ -120,6 +114,8 @@ class MoviePosterPlexClient:
                 for section in sections
                 if section.type == "movie"
             ]
+        except Unauthorized as err:
+            raise PlexAuthenticationError from err
         except Exception as err:
             raise PlexConnectionError from err
 
@@ -162,6 +158,8 @@ class MoviePosterPlexClient:
             if collection_title:
                 return section.collection(collection_title).items()
             return section.all()
+        except Unauthorized as err:
+            raise PlexAuthenticationError from err
         except Exception as err:
             raise PlexConnectionError from err
 
@@ -189,6 +187,8 @@ class MoviePosterPlexClient:
                     maxresults=size,
                 )
             )
+        except Unauthorized as err:
+            raise PlexAuthenticationError from err
         except Exception as err:
             raise PlexConnectionError from err
         return PlexMoviePage(

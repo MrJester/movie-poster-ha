@@ -29,12 +29,14 @@ from .const import (
     DOMAIN,
     THEMES,
 )
+from .exceptions import PlexAuthenticationError, PlexConnectionError
 from .plex_auth import PlexAuthError, PlexAuthSession, PlexServerChoice
 
 if TYPE_CHECKING:
     import asyncio
 
     from homeassistant.components.zeroconf import ZeroconfServiceInfo
+    from homeassistant.config_entries import ConfigEntry
     from homeassistant.data_entry_flow import FlowResult
 
 
@@ -58,6 +60,7 @@ class MoviePosterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._auth: PlexAuthSession | None = None
         self._auth_task: asyncio.Task[str] | None = None
         self._auth_error: str | None = None
+        self._reauth_entry: ConfigEntry | None = None
         self._token: str | None = None
         self._servers: dict[str, PlexServerChoice] = {}
 
@@ -102,6 +105,11 @@ class MoviePosterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if not self._servers:
             self._auth_error = "no_servers"
             return self.async_show_progress_done(next_step_id="auth_result")
+        if self._reauth_entry is not None:
+            if self._reauth_entry.unique_id not in self._servers:
+                self._auth_error = "no_servers"
+                return self.async_show_progress_done(next_step_id="auth_result")
+            return self.async_show_progress_done(next_step_id="reauth_complete")
         return self.async_show_progress_done(next_step_id="select_server")
 
     async def async_step_auth_result(
@@ -109,6 +117,39 @@ class MoviePosterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Report an error discovered after the Plex progress task completed."""
         return self.async_abort(reason=self._auth_error or "cannot_connect")
+
+    async def async_step_reauth(
+        self, _entry_data: dict[str, Any]
+    ) -> FlowResult:
+        """Start reauthentication for an existing Plex server."""
+        self._reauth_entry = self._get_reauth_entry()
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Confirm that the user wants to replace the expired Plex token."""
+        if user_input is not None:
+            return await self.async_step_plex_auth()
+        return self.async_show_form(
+            step_id="reauth_confirm", data_schema=vol.Schema({})
+        )
+
+    async def async_step_reauth_complete(
+        self, _user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Update and reload the existing entry after Plex approval."""
+        if self._reauth_entry is None or self._token is None:
+            return self.async_abort(reason="cannot_connect")
+        server = self._servers[self._reauth_entry.unique_id]
+        return self.async_update_reload_and_abort(
+            self._reauth_entry,
+            data_updates={
+                CONF_SERVER_URL: server.url,
+                CONF_TOKEN: self._token,
+                CONF_VERIFY_SSL: server.url.startswith("https://"),
+            },
+        )
 
     def _show_auth_progress(self, authorization_url: str | None) -> FlowResult:
         """Show Plex authorization progress using the active task."""
@@ -152,8 +193,6 @@ class MoviePosterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             from .plex_client import (  # noqa: PLC0415
                 MoviePosterPlexClient,
-                PlexAuthenticationError,
-                PlexConnectionError,
             )
 
             client = MoviePosterPlexClient(

@@ -7,10 +7,12 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
+from homeassistant.config_entries import ConfigEntryAuthFailed
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import DOMAIN
+from .exceptions import PlexAuthenticationError
 from .models import DisplayMode
 from .resolver import select_session
 from .rotation import ShuffleBag
@@ -108,6 +110,8 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
     async def _async_update_data(self) -> CoordinatorData:
         try:
             raw_sessions = await self._client.async_sessions()
+        except PlexAuthenticationError as err:
+            raise ConfigEntryAuthFailed from err
         except Exception as err:
             message = f"Unable to retrieve Plex sessions: {err}"
             raise UpdateFailed(message) from err
@@ -158,6 +162,9 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 offset=self._movie_refresh_offset,
                 size=_MOVIE_PAGE_SIZE,
             )
+        except PlexAuthenticationError as err:
+            self._movie_refresh_in_progress = False
+            raise ConfigEntryAuthFailed from err
         except Exception as err:
             self._movie_refresh_in_progress = False
             message = f"Unable to retrieve Plex movie library: {err}"

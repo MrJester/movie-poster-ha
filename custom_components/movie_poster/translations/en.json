@@ -25,6 +25,10 @@
         "description": "[Open Plex authorization]({authorization_url}), approve Movie Poster, then return here.",
         "title": "Sign in with Plex"
       },
+      "reauth_confirm": {
+        "description": "The Plex authorization has expired or was revoked. Sign in again to reconnect Movie Poster.",
+        "title": "Reconnect Plex"
+      },
       "select_server": {
         "data": {
           "server": "Plex server"
