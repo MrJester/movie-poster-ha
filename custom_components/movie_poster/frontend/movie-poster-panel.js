@@ -803,17 +803,36 @@ class MoviePosterPanel extends HTMLElement {
 
       /* Layered comic-book energy frame. */
       .frame-comic_hero .marquee-frame {
-        border: 10px solid #ef2f24;
+        padding: clamp(34px, 4.5vw, 68px);
+        border: 14px solid #ef2f24;
         border-radius: 4px;
-        background: radial-gradient(circle, #ffffff10 0 2px, transparent 3px) 0 0/18px 18px,
+        background:
+          linear-gradient(135deg, #f7ba20 0 9%, transparent 9% 91%, #1768c4 91%),
+          linear-gradient(45deg, #1768c4 0 8%, transparent 8% 92%, #f7ba20 92%),
+          radial-gradient(circle, #ffffff18 0 3px, transparent 4px) 0 0/20px 20px,
           linear-gradient(135deg, #101423, #070914);
-        box-shadow: 14px -14px 0 #f7ba20, -14px 14px 0 #1768c4, 0 30px 80px #000;
+        box-shadow: inset 18px 0 0 #1768c4, inset -18px 0 0 #f7ba20,
+          0 30px 80px #000;
+        filter: drop-shadow(18px -14px 0 #f7ba20)
+          drop-shadow(-18px 16px 0 #1768c4);
         clip-path: polygon(4% 0, 96% 3%, 100% 94%, 94% 100%, 3% 97%, 0 7%);
       }
       .frame-comic_hero .marquee-frame::before {
-        inset: 8px; border: 5px solid #fff; border-radius: 0; filter: none;
+        inset: 14px; border: 7px solid #fff; border-radius: 0; filter: none;
         clip-path: polygon(3% 0, 100% 4%, 97% 100%, 0 95%);
       }
+      .frame-comic_hero .content {
+        padding-inline: clamp(34px, 5vw, 82px);
+      }
+      .frame-comic_hero .ornament {
+        top: 21%; bottom: 16%; width: clamp(30px, 3vw, 52px);
+        background: repeating-linear-gradient(135deg, #f7ba20 0 18px,
+          #ef2f24 18px 36px, #1768c4 36px 54px);
+        clip-path: polygon(50% 0, 100% 12%, 65% 26%, 100% 42%, 58% 58%,
+          100% 76%, 48% 100%, 0 88%, 35% 68%, 0 50%, 38% 32%, 0 15%);
+      }
+      .frame-comic_hero .ornament-left { left: 18px; }
+      .frame-comic_hero .ornament-right { right: 18px; transform: scaleX(-1); }
       .frame-comic_hero h1, .frame-comic_hero .details h2 {
         font-family: var(--heading-font, Impact, sans-serif); font-style: italic;
         text-shadow: 3px 3px 0 #1265bd, 6px 6px 0 #111;
