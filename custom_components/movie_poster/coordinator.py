@@ -72,6 +72,7 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._movies: dict[str, MediaPresentation] = {}
         self._bag = ShuffleBag[str]()
         self._coming_soon: MediaPresentation | None = None
+        self._defer_library_refresh = True
         self._store = Store[dict](hass, 1, f"{DOMAIN}.{entry_id}.rotation")
         self._restored_rotation: tuple[list[str], str | None] | None = None
 
@@ -121,7 +122,10 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
             media_by_session.get(selected.session_id) if selected is not None else None
         )
         if mode.mode is DisplayMode.COMING_SOON:
-            await self._async_refresh_movies(now)
+            if self._defer_library_refresh:
+                self._defer_library_refresh = False
+            else:
+                await self._async_refresh_movies(now)
             if self._coming_soon is None or now >= self._rotation_due:
                 key = self._bag.next()
                 self._coming_soon = self._movies.get(key) if key else None

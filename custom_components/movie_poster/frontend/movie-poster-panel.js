@@ -130,7 +130,8 @@ class MoviePosterPanel extends HTMLElement {
     if (!media) {
       this.shadowRoot.innerHTML = `${this._styles()}
         <main class="empty"><div><h1>${escapeHtml(state.heading)}</h1>
-        <p>Select a Plex movie library or collection in the integration options.</p>
+        <p>Loading movies from Plex… If this persists, check the integration options
+        and Home Assistant logs.</p>
         </div></main>`;
       return;
     }

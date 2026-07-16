@@ -11,6 +11,8 @@ from requests import Session
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
+_REQUEST_TIMEOUT = 10
+
 
 @dataclass(slots=True)
 class PlexConnectionInfo:
@@ -60,7 +62,12 @@ class MoviePosterPlexClient:
         session = Session()
         session.verify = self._verify_ssl
         try:
-            server = PlexServer(self._base_url, self._token, session=session)
+            server = PlexServer(
+                self._base_url,
+                self._token,
+                session=session,
+                timeout=_REQUEST_TIMEOUT,
+            )
         except Unauthorized as err:
             raise PlexAuthenticationError from err
         except Exception as err:
