@@ -7,8 +7,10 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from .const import DOMAIN
 from .models import DisplayMode
 from .normalizer import normalize_movie, normalize_session
 from .resolver import select_session
@@ -70,6 +72,23 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._movies: dict[str, MediaPresentation] = {}
         self._bag = ShuffleBag[str]()
         self._coming_soon: MediaPresentation | None = None
+        self._store = Store[dict](hass, 1, f"{DOMAIN}.{entry_id}.rotation")
+        self._restored_rotation: tuple[list[str], str | None] | None = None
+
+    async def async_initialize(self) -> None:
+        """Restore the Coming Soon cycle before the first refresh."""
+        stored = await self._store.async_load()
+        if not isinstance(stored, dict):
+            return
+        remaining = stored.get("remaining")
+        last = stored.get("last")
+        if isinstance(remaining, list) and all(
+            isinstance(item, str) for item in remaining
+        ):
+            self._restored_rotation = (
+                remaining,
+                last if isinstance(last, str) else None,
+            )
 
     async def async_artwork(self, kind: str) -> tuple[bytes, str] | None:
         """Fetch artwork for the currently displayed media."""
@@ -107,6 +126,7 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 key = self._bag.next()
                 self._coming_soon = self._movies.get(key) if key else None
                 self._rotation_due = now + self._rotation_seconds
+                self._store.async_delay_save(self._rotation_state, delay=30)
         media = (
             playing_media
             if mode.mode is DisplayMode.NOW_PLAYING
@@ -127,4 +147,12 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         movies = [normalize_movie(movie) for movie in raw_movies]
         self._movies = {movie.key: movie for movie in movies}
         self._bag.replace(self._movies)
+        if (restored_rotation := getattr(self, "_restored_rotation", None)) is not None:
+            remaining, last = restored_rotation
+            self._bag.restore(remaining, last)
+            self._restored_rotation = None
         self._library_refresh_due = now + self._library_refresh_seconds
+
+    def _rotation_state(self) -> dict[str, object]:
+        """Return JSON-safe rotation state for delayed persistence."""
+        return {"remaining": list(self._bag.snapshot()), "last": self._bag.last}

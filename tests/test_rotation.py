@@ -24,3 +24,17 @@ def test_shuffle_bag_avoids_cycle_boundary_repeat() -> None:
 def test_shuffle_bag_handles_empty_pool() -> None:
     """An empty library has no rotation candidate."""
     assert ShuffleBag[str]().next() is None
+
+
+def test_shuffle_bag_restores_cycle_without_repeating_last() -> None:
+    """A restored empty cycle remembers its boundary selection."""
+    bag = ShuffleBag[str](random.Random(2))
+    bag.replace(["a", "b", "c"])
+    last = [bag.next() for _ in range(3)][-1]
+
+    restored = ShuffleBag[str](random.Random(2))
+    restored.replace(["a", "b", "c"])
+    restored.restore([], last)
+
+    assert restored.last == last
+    assert restored.next() != last

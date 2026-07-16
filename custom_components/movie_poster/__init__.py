@@ -79,6 +79,7 @@ async def async_setup_entry(
         theme=entry.options.get(CONF_THEME, DEFAULT_THEME),
         entry_id=entry.entry_id,
     )
+    await coordinator.async_initialize()
     await coordinator.async_config_entry_first_refresh()
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

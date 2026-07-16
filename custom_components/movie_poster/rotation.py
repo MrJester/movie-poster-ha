@@ -44,6 +44,11 @@ class ShuffleBag[T]:
         """Return remaining items for persistence and diagnostics."""
         return tuple(self._remaining)
 
+    @property
+    def last(self) -> T | None:
+        """Return the most recent selection for cycle-boundary protection."""
+        return self._last
+
     def restore(self, remaining: Sequence[T], last: T | None = None) -> None:
         """Restore a prior cycle after filtering invalid entries."""
         eligible = set(self._source)
