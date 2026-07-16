@@ -1,16 +1,20 @@
 """Tests for the Plex adapter's async boundary."""
 
+from __future__ import annotations
+
 import asyncio
 import threading
-from collections.abc import Callable
 from types import SimpleNamespace
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 import pytest
 
 pytest.importorskip("plexapi")
 
 from custom_components.movie_poster.plex_client import MoviePosterPlexClient
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class FakeHass:

@@ -41,10 +41,10 @@ See [Architecture](docs/ARCHITECTURE.md) and the [roadmap](docs/ROADMAP.md).
 
 ## Development
 
-Development requires Python 3.13, matching the supported Home Assistant runtime.
+Development requires Python 3.14.2, matching the supported Home Assistant runtime.
 
 ```bash
-python3.13 -m venv .venv
+python3.14 -m venv .venv
 . .venv/bin/activate
 pip install -e '.[test]'
 pytest

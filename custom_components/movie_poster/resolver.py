@@ -1,8 +1,13 @@
 """Resolve simultaneous Plex sessions using explicit user policy."""
 
-from collections.abc import Iterable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from .models import PlaybackPolicy, PlaybackState, SessionCandidate
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 _STATE_SCORE = {
     PlaybackState.PLAYING: 3,
