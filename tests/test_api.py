@@ -73,6 +73,7 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
     assert state["schema_version"] == 1
     assert state["entry_id"] == "entry-1"
     assert state["health"] == {"connected": True, "message": None}
+    assert state["operations"]["can_control"] is True
     assert state["presentation"] == {
         "theme": "neon",
         "show_summary": False,

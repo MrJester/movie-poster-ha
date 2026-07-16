@@ -47,6 +47,12 @@ class ShuffleBag[T]:
         """Return remaining items for persistence and diagnostics."""
         return tuple(self._remaining)
 
+    def reset(self, last: T | None = None) -> None:
+        """Start a fresh randomized cycle while avoiding an immediate repeat."""
+        self._remaining = []
+        self._last = last if last in set(self._source) else None
+        self._refill()
+
     @property
     def last(self) -> T | None:
         """Return the most recent selection for cycle-boundary protection."""

@@ -49,7 +49,7 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-dev.14"
+_FRONTEND_VERSION = "0.1.0-dev.15"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
@@ -70,6 +70,7 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     hass.http.register_view(MoviePosterArtworkView())
     websocket_api.async_register_command(hass, websocket_subscribe)
     websocket_api.async_register_command(hass, websocket_update_presentation)
+    websocket_api.async_register_command(hass, websocket_display_control)
 
 
 @websocket_api.websocket_command(
@@ -101,6 +102,7 @@ def websocket_subscribe(
                     hass,
                     coordinator,
                     refresh_token_id=connection.refresh_token_id,
+                    can_control=connection.user.is_admin,
                 ),
             )
         )
@@ -176,6 +178,36 @@ def _updated_presentation_options(
     }
 
 
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "movie_poster/control",
+        vol.Optional("entry_id"): str,
+        vol.Required("action"): vol.In({"next", "refresh", "reset"}),
+    }
+)
+@websocket_api.async_response
+async def websocket_display_control(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Run an authenticated operational display action."""
+    coordinator = _coordinator(hass, msg.get("entry_id"))
+    if coordinator is None:
+        connection.send_error(
+            msg["id"], websocket_api.ERR_NOT_FOUND, "Movie Poster is not configured"
+        )
+        return
+    action = msg["action"]
+    changed = True
+    if action == "refresh":
+        await coordinator.async_refresh_library()
+    else:
+        changed = await coordinator.async_next_poster(reset_cycle=action == "reset")
+    connection.send_result(msg["id"], {"action": action, "changed": changed})
+
+
 _PRESENTATION_KEYS = {
     CONF_THEME,
     CONF_ORIENTATION,
@@ -212,6 +244,7 @@ def _serialize_state(
     coordinator: MoviePosterCoordinator,
     *,
     refresh_token_id: str | None,
+    can_control: bool = True,
 ) -> dict[str, Any]:
     data: CoordinatorData = coordinator.data
     media = data.media
@@ -247,6 +280,18 @@ def _serialize_state(
             "message": None
             if getattr(coordinator, "last_update_success", True)
             else "Plex is temporarily unavailable. Retrying automatically.",
+        },
+        "operations": {
+            "can_control": can_control,
+            "library": getattr(coordinator, "_library_title", None),
+            "collection": getattr(coordinator, "_collection_title", None),
+            "loaded_movies": len(getattr(coordinator, "_movies", {})),
+            "remaining_movies": len(
+                getattr(coordinator, "_bag", ()).snapshot()
+                if hasattr(getattr(coordinator, "_bag", None), "snapshot")
+                else ()
+            ),
+            "hydrating": getattr(coordinator, "_movie_refresh_in_progress", False),
         },
         "presentation": {
             "theme": coordinator.theme,

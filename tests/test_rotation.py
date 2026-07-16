@@ -49,3 +49,12 @@ def test_shuffle_bag_restores_cycle_without_repeating_last() -> None:
 
     assert restored.last == last
     assert restored.next() != last
+
+
+def test_shuffle_bag_reset_avoids_current_poster() -> None:
+    """A manual reset starts a new cycle without immediately showing the same item."""
+    bag = ShuffleBag[str](random.Random(8))
+    bag.replace(["a", "b", "c"])
+    current = bag.next()
+    bag.reset(current)
+    assert bag.next() != current

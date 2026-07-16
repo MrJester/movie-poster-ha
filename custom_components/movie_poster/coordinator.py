@@ -142,6 +142,33 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
             return None
         return await self._client.async_artwork(path)
 
+    async def async_next_poster(self, *, reset_cycle: bool = False) -> bool:
+        """Advance Coming Soon immediately, optionally starting a new shuffle cycle."""
+        if self.data is None or self.data.mode.mode is not DisplayMode.COMING_SOON:
+            return False
+        if reset_cycle:
+            self._bag.reset(self._coming_soon.key if self._coming_soon else None)
+        key = self._bag.next()
+        media = self._movies.get(key) if key else None
+        if media is None:
+            return False
+        self._coming_soon = media
+        self._rotation_due = time.monotonic() + self._rotation_seconds
+        self._store.async_delay_save(self._rotation_state, delay=30)
+        self.async_set_updated_data(
+            CoordinatorData(
+                mode=self.data.mode,
+                selected_session=self.data.selected_session,
+                media=media,
+            )
+        )
+        return True
+
+    async def async_refresh_library(self) -> None:
+        """Make the Plex library eligible for refresh on the next update."""
+        self._library_refresh_due = 0.0
+        await self.async_request_refresh()
+
     async def _async_update_data(self) -> CoordinatorData:
         try:
             raw_sessions = await self._client.async_sessions()

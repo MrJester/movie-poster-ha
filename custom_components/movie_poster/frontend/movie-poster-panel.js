@@ -84,6 +84,7 @@ class MoviePosterPanel extends HTMLElement {
     this._unsubscribePromise = null;
     this._retryTimer = null;
     this._reloadTimer = null;
+    this._controlsTimer = null;
     this._renderIdentity = null;
     this._transitionRevision = 0;
     this._kioskEnabled = false;
@@ -91,6 +92,7 @@ class MoviePosterPanel extends HTMLElement {
     this._kioskProperties = new Map();
     this._kioskObserver = null;
     this._nativeKioskPrevious = null;
+    this._kioskSuppressed = false;
     this._externalBusId = Date.now();
     this._studio = new URLSearchParams(window.location.search).get("studio") === "1";
     this._studioLoaded = false;
@@ -115,6 +117,7 @@ class MoviePosterPanel extends HTMLElement {
     this._setKiosk(false);
     clearTimeout(this._retryTimer);
     clearTimeout(this._reloadTimer);
+    clearTimeout(this._controlsTimer);
     this._retryTimer = null;
     if (this._unsubscribePromise) {
       this._unsubscribePromise.then((unsubscribe) => unsubscribe());
@@ -162,7 +165,9 @@ class MoviePosterPanel extends HTMLElement {
   async _applyState(state) {
     const previousRevision = this._state?.presentation_revision;
     this._state = state;
-    if (!this._studio) this._setKiosk(state.presentation?.kiosk_mode !== false);
+    if (!this._studio) {
+      this._setKiosk(state.presentation?.kiosk_mode !== false && !this._kioskSuppressed);
+    }
     const identity = [
       state.mode,
       state.media?.key,
@@ -390,6 +395,7 @@ class MoviePosterPanel extends HTMLElement {
       <main class="theater theme-${theme} mode-${escapeHtml(state.mode)}${motionClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
         ${presentationStyle}>
         <div class="ambient"></div>
+        ${this._displayControls()}
         <p class="connection-warning" role="status"
           ${state.health?.connected === false ? "" : "hidden"}>
           ${escapeHtml(state.health?.message)}</p>
@@ -434,6 +440,85 @@ class MoviePosterPanel extends HTMLElement {
         </section>
       </main>`;
     this._bindStudioControls();
+    this._bindDisplayControls();
+  }
+
+  _displayControls() {
+    if (this._studio) return "";
+    const operations = this._state?.operations ?? {};
+    const source = operations.collection || operations.library || "Plex library";
+    const hydration = operations.hydrating ? " · loading" : "";
+    const adminActions = operations.can_control ? `
+      <button type="button" data-display-action="next">Next poster</button>
+      <button type="button" data-display-action="refresh">Refresh library</button>
+      <button type="button" data-display-action="reset">Reset shuffle</button>` : "";
+    return `<aside class="display-controls" aria-label="Movie Poster controls">
+      <div class="display-status">
+        <strong>${escapeHtml(this._state.mode === "now_playing" ? "Now Playing" : "Coming Soon")}</strong>
+        <span>${escapeHtml(source)}${hydration}</span>
+        <span>${Number(operations.loaded_movies || 0).toLocaleString()} loaded ·
+          ${Number(operations.remaining_movies || 0).toLocaleString()} remaining</span>
+      </div>
+      <div class="display-actions">${adminActions}
+        <button type="button" data-display-action="exit">Exit kiosk</button>
+      </div>
+      <small class="display-action-status" role="status"></small>
+    </aside>`;
+  }
+
+  _bindDisplayControls() {
+    if (this._studio) return;
+    const theater = this.shadowRoot.querySelector(".theater");
+    if (!theater) return;
+    const reveal = () => this._revealDisplayControls();
+    theater.addEventListener("pointermove", reveal, { passive: true });
+    theater.addEventListener("pointerdown", reveal, { passive: true });
+    theater.addEventListener("keydown", reveal);
+    this.shadowRoot.querySelectorAll("[data-display-action]").forEach((button) => {
+      button.addEventListener("click", () => this._runDisplayAction(button));
+    });
+  }
+
+  _revealDisplayControls() {
+    const controls = this.shadowRoot.querySelector(".display-controls");
+    if (!controls) return;
+    controls.classList.add("visible");
+    clearTimeout(this._controlsTimer);
+    this._controlsTimer = setTimeout(() => {
+      if (!controls.matches(":focus-within, :hover")) controls.classList.remove("visible");
+    }, 3500);
+  }
+
+  async _runDisplayAction(button) {
+    const action = button.dataset.displayAction;
+    const status = this.shadowRoot.querySelector(".display-action-status");
+    this._revealDisplayControls();
+    if (action === "exit") {
+      this._kioskSuppressed = true;
+      this._setKiosk(false);
+      if (status) status.textContent = "Kiosk hidden until this page is reloaded.";
+      return;
+    }
+    if (!this._hass || !this._state?.entry_id) return;
+    button.disabled = true;
+    if (status) status.textContent = `${button.textContent}…`;
+    try {
+      const result = await this._hass.callWS({
+        type: "movie_poster/control",
+        entry_id: this._state.entry_id,
+        action,
+      });
+      if (status) {
+        status.textContent = result.changed === false
+          ? "This action is available in Coming Soon mode."
+          : "Done";
+      }
+    } catch (error) {
+      if (status) status.textContent = error?.message || "Action failed";
+    } finally {
+      button.disabled = false;
+      this._revealDisplayControls();
+    }
   }
 
   _studioControls() {
@@ -674,6 +759,40 @@ class MoviePosterPanel extends HTMLElement {
         text-align: center;
       }
       .connection-warning[hidden] { display: none; }
+      .display-controls {
+        position: fixed;
+        z-index: 30;
+        right: max(14px, env(safe-area-inset-right));
+        bottom: max(14px, env(safe-area-inset-bottom));
+        width: min(520px, calc(100vw - 28px));
+        padding: 14px;
+        border: 1px solid #ffffff2e;
+        border-radius: 12px;
+        background: #090706ed;
+        box-shadow: 0 14px 45px #000c;
+        color: #fff7df;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(14px);
+        transition: opacity .2s ease, transform .2s ease;
+        backdrop-filter: blur(14px);
+      }
+      .display-controls.visible, .display-controls:focus-within, .display-controls:hover {
+        opacity: 1; pointer-events: auto; transform: translateY(0);
+      }
+      .display-status { display: grid; gap: 3px; margin-bottom: 11px; }
+      .display-status strong { color: var(--gold); text-transform: uppercase; letter-spacing: .12em; }
+      .display-status span { color: #d7cbb6; font-size: .78rem; }
+      .display-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+      .display-actions button {
+        min-height: 36px; padding: 0 12px; border: 1px solid #ffffff35;
+        border-radius: 6px; background: #241915; color: inherit; cursor: pointer;
+      }
+      .display-actions button:hover, .display-actions button:focus-visible {
+        border-color: var(--gold); outline: none;
+      }
+      .display-actions button:disabled { cursor: wait; opacity: .55; }
+      .display-action-status { display: block; min-height: 1em; margin-top: 8px; color: #c6b99f; }
       .studio {
         position: fixed;
         z-index: 20;
