@@ -16,6 +16,46 @@ const formatRuntime = (milliseconds) => {
 const THEMES = new Set(["classic", "art_deco", "neon", "minimal", "oled"]);
 
 const normalizeTheme = (value) => THEMES.has(value) ? value : "classic";
+const ORIENTATIONS = new Set(["auto", "landscape", "portrait"]);
+const normalizeOrientation = (value) => ORIENTATIONS.has(value) ? value : "auto";
+
+const previewPoster = () => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900">
+    <defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#48110d"/>
+    <stop offset=".55" stop-color="#120807"/><stop offset="1" stop-color="#b77a24"/></linearGradient></defs>
+    <rect width="600" height="900" fill="url(#g)"/><circle cx="300" cy="295" r="170"
+    fill="none" stroke="#f6cf70" stroke-width="7" opacity=".7"/>
+    <path d="M0 690L210 430l100 135 85-105 205 230v210H0z" fill="#090706" opacity=".86"/>
+    <text x="300" y="155" fill="#f6cf70" font-family="sans-serif" font-size="25"
+    text-anchor="middle" letter-spacing="9">MOVIE POSTER</text>
+    <text x="300" y="730" fill="#fff7df" font-family="serif" font-size="66"
+    font-weight="bold" text-anchor="middle">THE GRAND</text>
+    <text x="300" y="795" fill="#fff7df" font-family="serif" font-size="66"
+    font-weight="bold" text-anchor="middle">PREMIERE</text>
+    <text x="300" y="845" fill="#f6cf70" font-family="sans-serif" font-size="18"
+    text-anchor="middle" letter-spacing="7">COMING SOON</text></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+};
+
+const studioState = () => ({
+  schema_version: 1,
+  health: { connected: true, message: null },
+  presentation: {
+    theme: "classic", orientation: "auto", show_summary: true,
+    show_progress: true, show_session: true, enable_motion: true,
+    kiosk_mode: false,
+  },
+  mode: "coming_soon",
+  heading: "Coming Soon",
+  media: {
+    key: "studio-preview", type: "movie", title: "The Grand Premiere",
+    subtitle: "Every night deserves a little magic", year: 2026,
+    duration_ms: 7380000, position_ms: 2570000, poster_url: previewPoster(),
+    backdrop_url: null,
+    summary: "A cinematic preview showing how Movie Poster will look on your Home Assistant display.",
+  },
+  session: { player: "Home Theater", user: "Movie Fan", state: "playing" },
+});
 
 class MoviePosterPanel extends HTMLElement {
   constructor() {
@@ -28,11 +68,13 @@ class MoviePosterPanel extends HTMLElement {
     this._transitionRevision = 0;
     this._kioskEnabled = false;
     this._externalBusId = Date.now();
+    this._studio = new URLSearchParams(window.location.search).get("studio") === "1";
+    if (this._studio) this._state = studioState();
   }
 
   set hass(value) {
     this._hass = value;
-    this._subscribe();
+    if (!this._studio) this._subscribe();
   }
 
   set panel(value) {
@@ -41,7 +83,7 @@ class MoviePosterPanel extends HTMLElement {
 
   connectedCallback() {
     this._render();
-    this._subscribe();
+    if (!this._studio) this._subscribe();
   }
 
   disconnectedCallback() {
@@ -55,7 +97,7 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   _subscribe() {
-    if (!this.isConnected || !this._hass || this._unsubscribePromise) return;
+    if (this._studio || !this.isConnected || !this._hass || this._unsubscribePromise) return;
     this._unsubscribePromise = this._hass.connection.subscribeMessage(
       (state) => {
         const previous = this._state?.media;
@@ -79,11 +121,12 @@ class MoviePosterPanel extends HTMLElement {
 
   async _applyState(state) {
     this._state = state;
-    this._setKiosk(state.presentation?.kiosk_mode !== false);
+    if (!this._studio) this._setKiosk(state.presentation?.kiosk_mode !== false);
     const identity = [
       state.mode,
       state.media?.key,
       state.presentation?.theme,
+      state.presentation?.orientation,
       state.session?.player,
       state.session?.user,
     ].join("|");
@@ -179,9 +222,10 @@ class MoviePosterPanel extends HTMLElement {
     const theme = normalizeTheme(state.presentation?.theme);
     const presentation = state.presentation ?? {};
     const motionClass = presentation.enable_motion === false ? " motion-off" : "";
+    const orientation = normalizeOrientation(presentation.orientation);
 
-    this.shadowRoot.innerHTML = `${this._styles()}
-      <main class="theater theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}"
+    this.shadowRoot.innerHTML = `${this._styles()}${this._studioControls()}
+      <main class="theater theme-${theme} mode-${escapeHtml(state.mode)}${motionClass} orientation-${orientation}"
         ${backdropStyle}>
         <div class="ambient"></div>
         <p class="connection-warning" role="status"
@@ -218,6 +262,44 @@ class MoviePosterPanel extends HTMLElement {
           </div>
         </section>
       </main>`;
+    this._bindStudioControls();
+  }
+
+  _studioControls() {
+    if (!this._studio) return "";
+    const presentation = this._state?.presentation ?? {};
+    return `<aside class="studio" aria-label="Display Studio controls">
+      <strong>Display Studio</strong>
+      <label>Theme<select data-studio="theme">
+        ${["classic", "art_deco", "neon", "minimal", "oled"].map((value) =>
+          `<option value="${value}" ${presentation.theme === value ? "selected" : ""}>${value.replace("_", " ")}</option>`
+        ).join("")}
+      </select></label>
+      <label>Orientation<select data-studio="orientation">
+        ${["auto", "landscape", "portrait"].map((value) =>
+          `<option value="${value}" ${presentation.orientation === value ? "selected" : ""}>${value}</option>`
+        ).join("")}
+      </select></label>
+      ${[["show_summary", "Summary"], ["show_progress", "Progress"],
+        ["show_session", "Session"], ["enable_motion", "Motion"]].map(([field, label]) =>
+          `<label class="studio-check"><input type="checkbox" data-studio="${field}"
+          ${presentation[field] !== false ? "checked" : ""}>${label}</label>`
+        ).join("")}
+      <small>Preview only — apply these choices in the integration options.</small>
+    </aside>`;
+  }
+
+  _bindStudioControls() {
+    if (!this._studio) return;
+    this.shadowRoot.querySelectorAll("[data-studio]").forEach((control) => {
+      control.addEventListener("change", () => {
+        const field = control.dataset.studio;
+        this._state.presentation[field] = control.type === "checkbox"
+          ? control.checked : control.value;
+        this._renderIdentity = null;
+        this._render();
+      });
+    });
   }
 
   _renderError(message) {
@@ -312,6 +394,35 @@ class MoviePosterPanel extends HTMLElement {
         text-align: center;
       }
       .connection-warning[hidden] { display: none; }
+      .studio {
+        position: fixed;
+        z-index: 20;
+        top: max(12px, env(safe-area-inset-top));
+        right: max(12px, env(safe-area-inset-right));
+        display: grid;
+        grid-template-columns: repeat(2, minmax(105px, 1fr));
+        gap: 9px 12px;
+        width: min(390px, calc(100vw - 24px));
+        padding: 14px;
+        border: 1px solid #ffffff30;
+        border-radius: 12px;
+        background: #090706ee;
+        box-shadow: 0 12px 35px #000b;
+        color: #fff7df;
+        font-size: .78rem;
+        backdrop-filter: blur(12px);
+      }
+      .studio strong, .studio small { grid-column: 1 / -1; }
+      .studio label { display: grid; gap: 4px; text-transform: capitalize; }
+      .studio select {
+        min-height: 31px;
+        border: 1px solid #ffffff33;
+        border-radius: 5px;
+        background: #221713;
+        color: inherit;
+      }
+      .studio .studio-check { display: flex; align-items: center; gap: 6px; }
+      .studio small { color: #c6b99f; }
       .marquee-frame {
         position: relative;
         width: min(1180px, 96vw);
@@ -418,12 +529,24 @@ class MoviePosterPanel extends HTMLElement {
       .empty { text-align: center; }
       .empty p { color: #c6b99f; font-size: 1.1rem; }
       .error p { color: #ff9c8e; }
+      .orientation-portrait .marquee-frame { width: min(96vw, 620px); }
+      .orientation-portrait .content { grid-template-columns: 1fr; gap: 22px; }
+      .orientation-portrait .poster {
+        width: min(60vw, 330px); margin: auto; max-height: 54vh;
+      }
+      .orientation-portrait .details { text-align: center; }
+      .orientation-portrait .summary { display: none; }
       @media (max-width: 720px), (orientation: portrait) {
-        .marquee-frame { width: min(96vw, 620px); }
-        .content { grid-template-columns: 1fr; gap: 22px; }
-        .poster { width: min(60vw, 330px); margin: auto; max-height: 54vh; }
-        .details { text-align: center; }
-        .summary { display: none; }
+        .orientation-auto .marquee-frame { width: min(96vw, 620px); }
+        .orientation-auto .content { grid-template-columns: 1fr; gap: 22px; }
+        .orientation-auto .poster {
+          width: min(60vw, 330px); margin: auto; max-height: 54vh;
+        }
+        .orientation-auto .details { text-align: center; }
+        .orientation-auto .summary { display: none; }
+      }
+      @media (max-width: 720px) {
+        .orientation-portrait h1, .orientation-auto h1 { font-size: 2.3rem; }
       }
       @media (prefers-reduced-motion: reduce) {
         .marquee-frame, .marquee-frame::before { animation: none; }

@@ -19,6 +19,7 @@ CONF_SHOW_SUMMARY: Final = "show_summary"
 CONF_SHOW_PROGRESS: Final = "show_progress"
 CONF_SHOW_SESSION: Final = "show_session"
 CONF_ENABLE_MOTION: Final = "enable_motion"
+CONF_ORIENTATION: Final = "orientation"
 
 THEME_CLASSIC: Final = "classic"
 THEME_ART_DECO: Final = "art_deco"
@@ -33,6 +34,15 @@ THEMES: Final[tuple[str, ...]] = (
     THEME_OLED,
 )
 
+ORIENTATION_AUTO: Final = "auto"
+ORIENTATION_LANDSCAPE: Final = "landscape"
+ORIENTATION_PORTRAIT: Final = "portrait"
+ORIENTATIONS: Final[tuple[str, ...]] = (
+    ORIENTATION_AUTO,
+    ORIENTATION_LANDSCAPE,
+    ORIENTATION_PORTRAIT,
+)
+
 DEFAULT_VERIFY_SSL: Final = True
 DEFAULT_GRACE_SECONDS: Final = 30
 DEFAULT_ROTATION_SECONDS: Final = 15
@@ -43,4 +53,5 @@ DEFAULT_SHOW_SUMMARY: Final = True
 DEFAULT_SHOW_PROGRESS: Final = True
 DEFAULT_SHOW_SESSION: Final = True
 DEFAULT_ENABLE_MOTION: Final = True
+DEFAULT_ORIENTATION: Final = ORIENTATION_AUTO
 PLATFORMS: Final[list[str]] = []

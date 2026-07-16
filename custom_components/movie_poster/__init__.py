@@ -13,6 +13,7 @@ from .const import (
     CONF_KIOSK_MODE,
     CONF_LIBRARY,
     CONF_LIBRARY_REFRESH_SECONDS,
+    CONF_ORIENTATION,
     CONF_PLAYER_ID,
     CONF_ROTATION_SECONDS,
     CONF_SERVER_URL,
@@ -27,6 +28,7 @@ from .const import (
     DEFAULT_GRACE_SECONDS,
     DEFAULT_KIOSK_MODE,
     DEFAULT_LIBRARY_REFRESH_SECONDS,
+    DEFAULT_ORIENTATION,
     DEFAULT_ROTATION_SECONDS,
     DEFAULT_SHOW_PROGRESS,
     DEFAULT_SHOW_SESSION,
@@ -96,6 +98,7 @@ async def async_setup_entry(
         show_session=entry.options.get(CONF_SHOW_SESSION, DEFAULT_SHOW_SESSION),
         enable_motion=entry.options.get(CONF_ENABLE_MOTION, DEFAULT_ENABLE_MOTION),
         kiosk_mode=entry.options.get(CONF_KIOSK_MODE, DEFAULT_KIOSK_MODE),
+        orientation=entry.options.get(CONF_ORIENTATION, DEFAULT_ORIENTATION),
         entry_id=entry.entry_id,
     )
     await coordinator.async_initialize()

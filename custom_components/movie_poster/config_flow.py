@@ -16,6 +16,7 @@ from .const import (
     CONF_KIOSK_MODE,
     CONF_LIBRARY,
     CONF_LIBRARY_REFRESH_SECONDS,
+    CONF_ORIENTATION,
     CONF_PLAYER_ID,
     CONF_ROTATION_SECONDS,
     CONF_SERVER_URL,
@@ -30,6 +31,7 @@ from .const import (
     DEFAULT_GRACE_SECONDS,
     DEFAULT_KIOSK_MODE,
     DEFAULT_LIBRARY_REFRESH_SECONDS,
+    DEFAULT_ORIENTATION,
     DEFAULT_ROTATION_SECONDS,
     DEFAULT_SHOW_PROGRESS,
     DEFAULT_SHOW_SESSION,
@@ -37,6 +39,7 @@ from .const import (
     DEFAULT_THEME,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
+    ORIENTATIONS,
     THEMES,
 )
 from .exceptions import PlexAuthenticationError, PlexConnectionError
@@ -352,6 +355,12 @@ class MoviePosterOptionsFlow(config_entries.OptionsFlow):
                     CONF_THEME,
                     default=entry.options.get(CONF_THEME, DEFAULT_THEME),
                 ): vol.In(THEMES),
+                vol.Required(
+                    CONF_ORIENTATION,
+                    default=entry.options.get(
+                        CONF_ORIENTATION, DEFAULT_ORIENTATION
+                    ),
+                ): vol.In(ORIENTATIONS),
                 vol.Required(
                     CONF_SHOW_SUMMARY,
                     default=entry.options.get(
