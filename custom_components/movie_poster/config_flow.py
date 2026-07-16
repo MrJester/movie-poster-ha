@@ -407,13 +407,13 @@ class MoviePosterOptionsFlow(config_entries.OptionsFlow):
                     default=entry.options.get(
                         CONF_ACCENT_COLOR, DEFAULT_ACCENT_COLOR
                     ),
-                ): vol.Match(r"^#[0-9a-fA-F]{6}$"),
+                ): str,
                 vol.Required(
                     CONF_BACKGROUND_COLOR,
                     default=entry.options.get(
                         CONF_BACKGROUND_COLOR, DEFAULT_BACKGROUND_COLOR
                     ),
-                ): vol.Match(r"^#[0-9a-fA-F]{6}$"),
+                ): str,
                 vol.Required(
                     CONF_NOW_PLAYING_TEXT,
                     default=entry.options.get(
