@@ -33,6 +33,11 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - run: pip install -e '.[test]' "homeassistant~=${{ matrix.home-assistant }}.0"
-      - run: ruff check .
-      - run: pytest
+      - name: Install test environment
+        run: pip install -e '.[test]' "homeassistant~=${{ matrix.home-assistant }}.0"
+      - name: Verify dependency environment
+        run: pip check
+      - name: Lint Python
+        run: ruff check .
+      - name: Run tests
+        run: pytest -ra

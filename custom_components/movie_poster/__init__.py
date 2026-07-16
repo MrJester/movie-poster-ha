@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from homeassistant.helpers import config_validation as cv
+
 from .const import (
     CONF_COLLECTION,
     CONF_GRACE_SECONDS,
@@ -29,6 +31,8 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 type MoviePosterConfigEntry = ConfigEntry[dict]
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
