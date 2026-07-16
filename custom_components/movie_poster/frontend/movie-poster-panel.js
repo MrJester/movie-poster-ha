@@ -209,6 +209,7 @@ class MoviePosterPanel extends HTMLElement {
 
   _setKiosk(enable) {
     if (enable === this._kioskEnabled) return;
+    if (enable && this._ensureKioskQuery()) return;
     if (typeof window.externalBus === "function") {
       try {
         window.externalBus(JSON.stringify({
@@ -222,6 +223,16 @@ class MoviePosterPanel extends HTMLElement {
     }
     this._setBrowserKiosk(enable);
     this._kioskEnabled = enable;
+  }
+
+  _ensureKioskQuery() {
+    const query = new URLSearchParams(window.location.search);
+    if (query.has("kiosk")) return false;
+    const separator = window.location.search ? "&" : "?";
+    window.location.replace(
+      `${window.location.pathname}${window.location.search}${separator}kiosk${window.location.hash}`,
+    );
+    return true;
   }
 
   _setBrowserKiosk(enable) {
