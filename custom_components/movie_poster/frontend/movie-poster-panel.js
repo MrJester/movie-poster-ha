@@ -687,7 +687,7 @@ class MoviePosterPanel extends HTMLElement {
       .brand-logo.logo-center { left: 50%; transform: translateX(-50%); }
       .brand-logo.logo-right { right: clamp(25px, 4vw, 58px); }
       .brand-logo img { width: 100%; height: 100%; object-fit: contain; }
-      .marquee-frame.logo-at-center .marquee { padding-top: 84px; }
+      .marquee-frame.logo-at-center .marquee { padding-top: 68px; }
       .ornament { position: absolute; z-index: 2; top: 18%; bottom: 12%; width: 22px; }
       .ornament-left { left: 10px; }
       .ornament-right { right: 10px; }
