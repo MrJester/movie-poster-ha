@@ -57,6 +57,7 @@ class MoviePosterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._discovered_url: str | None = None
         self._auth: PlexAuthSession | None = None
         self._auth_task: asyncio.Task[str] | None = None
+        self._auth_error: str | None = None
         self._token: str | None = None
         self._servers: dict[str, PlexServerChoice] = {}
 
@@ -92,13 +93,22 @@ class MoviePosterConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._token = self._auth_task.result()
             servers = await self._auth.async_servers(self._token)
         except PlexAuthError:
-            return self.async_abort(reason="auth_timeout")
+            self._auth_error = "auth_timeout"
+            return self.async_show_progress_done(next_step_id="auth_result")
         except Exception:  # noqa: BLE001 - external library boundary
-            return self.async_abort(reason="cannot_connect")
+            self._auth_error = "cannot_connect"
+            return self.async_show_progress_done(next_step_id="auth_result")
         self._servers = {server.machine_identifier: server for server in servers}
         if not self._servers:
-            return self.async_abort(reason="no_servers")
-        return await self.async_step_select_server()
+            self._auth_error = "no_servers"
+            return self.async_show_progress_done(next_step_id="auth_result")
+        return self.async_show_progress_done(next_step_id="select_server")
+
+    async def async_step_auth_result(
+        self, _user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Report an error discovered after the Plex progress task completed."""
+        return self.async_abort(reason=self._auth_error or "cannot_connect")
 
     def _show_auth_progress(self, authorization_url: str | None) -> FlowResult:
         """Show Plex authorization progress using the active task."""
