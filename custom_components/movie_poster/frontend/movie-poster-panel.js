@@ -90,6 +90,7 @@ class MoviePosterPanel extends HTMLElement {
     this._kioskElements = new Map();
     this._kioskProperties = new Map();
     this._kioskObserver = null;
+    this._nativeKioskPrevious = null;
     this._externalBusId = Date.now();
     this._studio = new URLSearchParams(window.location.search).get("studio") === "1";
     this._studioLoaded = false;
@@ -209,7 +210,7 @@ class MoviePosterPanel extends HTMLElement {
 
   _setKiosk(enable) {
     if (enable === this._kioskEnabled) return;
-    if (enable && this._ensureKioskQuery()) return;
+    this._setNativeKiosk(enable);
     if (typeof window.externalBus === "function") {
       try {
         window.externalBus(JSON.stringify({
@@ -225,14 +226,20 @@ class MoviePosterPanel extends HTMLElement {
     this._kioskEnabled = enable;
   }
 
-  _ensureKioskQuery() {
-    const query = new URLSearchParams(window.location.search);
-    if (query.has("kiosk")) return false;
-    const separator = window.location.search ? "&" : "?";
-    window.location.replace(
-      `${window.location.pathname}${window.location.search}${separator}kiosk${window.location.hash}`,
-    );
-    return true;
+  _setNativeKiosk(enable) {
+    const homeAssistant = document.querySelector("home-assistant");
+    const main = homeAssistant?.shadowRoot?.querySelector("home-assistant-main");
+    const hass = this._hass || main?.hass || homeAssistant?.hass;
+    if (!hass) return;
+    if (enable && this._nativeKioskPrevious === null) {
+      this._nativeKioskPrevious = Boolean(hass.kioskMode);
+    }
+    hass.kioskMode = enable ? true : (this._nativeKioskPrevious ?? false);
+    if (!enable) this._nativeKioskPrevious = null;
+    if (main) {
+      main.hass = hass;
+      main.requestUpdate();
+    }
   }
 
   _setBrowserKiosk(enable) {
