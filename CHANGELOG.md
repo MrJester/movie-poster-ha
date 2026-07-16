@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.6
+
+- Give Classic, Art Deco, Minimal, and OLED distinct backgrounds, typography,
+  surfaces, borders, poster treatments, and metadata presentation.
+
 ## 0.1.0-beta.5
 
 - Add one calculated bulb to each horizontal Marquee rail while preserving

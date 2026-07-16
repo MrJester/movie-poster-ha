@@ -794,6 +794,17 @@ class MoviePosterPanel extends HTMLElement {
         --velvet: #000;
         background: var(--ink);
       }
+      .theme-classic {
+        background:
+          linear-gradient(90deg, #180405 0, #4a0b0e 8%, transparent 19% 81%,
+            #4a0b0e 92%, #180405 100%),
+          radial-gradient(ellipse at 50% -10%, #7a251d88, transparent 52%),
+          linear-gradient(#170706, #030202 72%);
+      }
+      .theme-classic .marquee {
+        background: linear-gradient(#32110de8, #160806e8);
+        border-block: 1px solid #b77a2466;
+      }
       .ambient {
         position: absolute;
         inset: -30px;
@@ -1087,6 +1098,100 @@ class MoviePosterPanel extends HTMLElement {
         border: 6px ridge #9a6542; border-radius: 50%; background: radial-gradient(circle, #ddd 0 8%, #8b735f 10% 48%, #2c211a 50%);
       }
       .frame-steampunk .frame-plaque { display: block; color: #2a160d; border: 5px ridge #a5613a; background: linear-gradient(#c98255, #8a4d31); }
+
+      /* Theme identities remain visible regardless of the selected frame. */
+      .theme-art_deco {
+        background:
+          conic-gradient(from 225deg at 50% 0%, transparent 0 8deg,
+            #d7bd7330 8deg 10deg, transparent 10deg 20deg,
+            #d7bd7328 20deg 22deg, transparent 22deg 32deg),
+          repeating-linear-gradient(135deg, #ffffff07 0 1px, transparent 1px 44px),
+          radial-gradient(ellipse at 50% 0%, #245e51, #071412 62%, #020807);
+      }
+      .theme-art_deco .marquee-frame {
+        border-radius: 0;
+        box-shadow: inset 0 0 0 2px #e2cb8b,
+          inset 0 0 0 9px #07100f, inset 0 0 0 11px #8e7b47,
+          0 28px 90px #000;
+      }
+      .theme-art_deco .marquee {
+        margin: 8px clamp(20px, 5vw, 80px) 24px;
+        padding: 18px 24px 23px;
+        border: 1px solid #d8c17c;
+        border-inline-width: 5px;
+        background: linear-gradient(90deg, transparent, #17332ee8 20% 80%, transparent);
+        clip-path: polygon(4% 0, 96% 0, 100% 50%, 96% 100%, 4% 100%, 0 50%);
+      }
+      .theme-art_deco h1 {
+        color: #f0dfaa;
+        font-family: Georgia, "Times New Roman", serif;
+        letter-spacing: .16em;
+        text-shadow: 0 2px 0 #57461f, 0 0 20px #d9bd6555;
+      }
+      .theme-art_deco .eyebrow { color: #cbb36f; letter-spacing: .42em; }
+      .theme-art_deco .poster { border-radius: 0; border-color: #d8c17c; }
+
+      .theme-minimal {
+        --gold: #171717;
+        color: #171717;
+        background: #e8e5de;
+      }
+      .theme-minimal .ambient, .theme-minimal .frame-ornaments { display: none; }
+      .theme-minimal .marquee-frame {
+        border: 1px solid #222;
+        border-radius: 0;
+        background: #f5f3ee;
+        box-shadow: 12px 12px 0 #bcb8ae;
+      }
+      .theme-minimal .marquee {
+        padding: 10px 0 20px;
+        border-bottom: 2px solid #191919;
+        text-align: left;
+      }
+      .theme-minimal h1, .theme-minimal .details h2 {
+        color: #111;
+        font-family: Avenir, Montserrat, Arial, sans-serif;
+        font-weight: 700;
+        letter-spacing: -.025em;
+        text-shadow: none;
+      }
+      .theme-minimal h1 { text-transform: none; }
+      .theme-minimal .eyebrow, .theme-minimal .meta,
+      .theme-minimal .session { color: #5b5954; }
+      .theme-minimal .subtitle { color: #24231f; }
+      .theme-minimal .summary { color: #383631; font-family: inherit; }
+      .theme-minimal .poster {
+        border: 1px solid #222; border-radius: 0; box-shadow: 7px 7px 0 #c5c1b8;
+      }
+      .theme-minimal .progress { background: #0002; }
+      .theme-minimal .progress i { background: #171717; }
+
+      .theme-oled {
+        --gold: #fff;
+        background: #000;
+      }
+      .theme-oled .ambient, .theme-oled .frame-ornaments,
+      .theme-oled .eyebrow { display: none; }
+      .theme-oled .marquee-frame {
+        border: 0;
+        border-radius: 0;
+        background: #000;
+        box-shadow: none;
+      }
+      .theme-oled .marquee { padding-block: 5px 22px; }
+      .theme-oled h1 {
+        color: #fff; letter-spacing: .12em; text-shadow: none;
+      }
+      .theme-oled .poster {
+        border: 1px solid #292929; border-radius: 2px;
+        box-shadow: 0 0 0 1px #000, 0 28px 80px #000;
+      }
+      .theme-oled .details h2 { color: #fff; }
+      .theme-oled .subtitle { color: #fff; }
+      .theme-oled .meta, .theme-oled .summary { color: #aaa; }
+      .theme-oled .session { color: #666; }
+      .theme-oled .progress { height: 2px; background: #222; }
+      .theme-oled .progress i { background: #fff; box-shadow: 0 0 8px #fff; }
       @keyframes reveal {
         from { opacity: 0; transform: scale(.992); }
         to { opacity: 1; transform: scale(1); }
@@ -1146,14 +1251,6 @@ class MoviePosterPanel extends HTMLElement {
       }
       .theme-minimal .marquee-frame::before,
       .theme-oled .marquee-frame::before { display: none; }
-      .theme-minimal .marquee-frame,
-      .theme-oled .marquee-frame {
-        border-width: 1px;
-        border-color: #ffffff2b;
-        border-radius: 4px;
-        box-shadow: none;
-      }
-      .theme-oled .ambient { opacity: .28; }
       .theme-neon .marquee-frame {
         box-shadow: 0 0 0 3px var(--gold-deep), 0 0 55px #b51fff66;
       }
