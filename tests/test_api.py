@@ -36,6 +36,7 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
         show_progress=True,
         show_session=False,
         enable_motion=False,
+        kiosk_mode=True,
         data=SimpleNamespace(
             mode=ModeSnapshot(
                 mode=DisplayMode.NOW_PLAYING,
@@ -60,6 +61,7 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
         "show_progress": True,
         "show_session": False,
         "enable_motion": False,
+        "kiosk_mode": True,
     }
     assert state["heading"] == "Now Playing"
     assert state["media"]["poster_url"].startswith(
@@ -78,6 +80,7 @@ def test_state_contract_reports_plex_outage_without_exposing_exception() -> None
         show_progress=True,
         show_session=True,
         enable_motion=True,
+        kiosk_mode=True,
         last_update_success=False,
         last_exception=RuntimeError("secret internal detail"),
         data=SimpleNamespace(

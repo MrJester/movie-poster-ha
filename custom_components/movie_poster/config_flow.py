@@ -13,6 +13,7 @@ from .const import (
     CONF_COLLECTION,
     CONF_ENABLE_MOTION,
     CONF_GRACE_SECONDS,
+    CONF_KIOSK_MODE,
     CONF_LIBRARY,
     CONF_LIBRARY_REFRESH_SECONDS,
     CONF_PLAYER_ID,
@@ -27,6 +28,7 @@ from .const import (
     CONF_VERIFY_SSL,
     DEFAULT_ENABLE_MOTION,
     DEFAULT_GRACE_SECONDS,
+    DEFAULT_KIOSK_MODE,
     DEFAULT_LIBRARY_REFRESH_SECONDS,
     DEFAULT_ROTATION_SECONDS,
     DEFAULT_SHOW_PROGRESS,
@@ -358,6 +360,10 @@ class MoviePosterOptionsFlow(config_entries.OptionsFlow):
                     default=entry.options.get(
                         CONF_ENABLE_MOTION, DEFAULT_ENABLE_MOTION
                     ),
+                ): bool,
+                vol.Required(
+                    CONF_KIOSK_MODE,
+                    default=entry.options.get(CONF_KIOSK_MODE, DEFAULT_KIOSK_MODE),
                 ): bool,
             }
         )

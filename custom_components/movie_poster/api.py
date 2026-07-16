@@ -136,6 +136,7 @@ def _serialize_state(
             "show_progress": coordinator.show_progress,
             "show_session": coordinator.show_session,
             "enable_motion": coordinator.enable_motion,
+            "kiosk_mode": coordinator.kiosk_mode,
         },
         "mode": data.mode.mode,
         "heading": "Now Playing"

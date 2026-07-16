@@ -58,6 +58,7 @@
         "data": {
           "grace_seconds": "Wait after playback stops (seconds)",
           "library_refresh_seconds": "Refresh movie library every (seconds)",
+          "kiosk_mode": "Hide Home Assistant navigation on the poster panel",
           "player_id": "Preferred Plex player",
           "rotation_seconds": "Rotate Coming Soon poster every (seconds)",
           "enable_motion": "Enable motion effects",

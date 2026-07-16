@@ -26,6 +26,8 @@ class MoviePosterPanel extends HTMLElement {
     this._retryTimer = null;
     this._renderIdentity = null;
     this._transitionRevision = 0;
+    this._kioskEnabled = false;
+    this._externalBusId = Date.now();
   }
 
   set hass(value) {
@@ -43,6 +45,7 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this._setKiosk(false);
     clearTimeout(this._retryTimer);
     this._retryTimer = null;
     if (this._unsubscribePromise) {
@@ -76,6 +79,7 @@ class MoviePosterPanel extends HTMLElement {
 
   async _applyState(state) {
     this._state = state;
+    this._setKiosk(state.presentation?.kiosk_mode !== false);
     const identity = [
       state.mode,
       state.media?.key,
@@ -94,6 +98,21 @@ class MoviePosterPanel extends HTMLElement {
     if (revision !== this._transitionRevision || !this.isConnected) return;
     this._renderIdentity = identity;
     this._render();
+  }
+
+  _setKiosk(enable) {
+    if (enable === this._kioskEnabled) return;
+    if (typeof window.externalBus !== "function") return;
+    try {
+      window.externalBus(JSON.stringify({
+        id: ++this._externalBusId,
+        type: "kiosk_mode/set",
+        payload: { enable },
+      }));
+      this._kioskEnabled = enable;
+    } catch (_error) {
+      // Some browsers expose the external bus only inside the HA companion app.
+    }
   }
 
   _preload(url) {
