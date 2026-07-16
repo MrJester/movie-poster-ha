@@ -18,6 +18,13 @@ const THEMES = new Set(["classic", "art_deco", "neon", "minimal", "oled"]);
 const normalizeTheme = (value) => THEMES.has(value) ? value : "classic";
 const ORIENTATIONS = new Set(["auto", "landscape", "portrait"]);
 const normalizeOrientation = (value) => ORIENTATIONS.has(value) ? value : "auto";
+const LAYOUTS = new Set(["cinematic", "poster", "split"]);
+const normalizeLayout = (value) => LAYOUTS.has(value) ? value : "cinematic";
+const FRAMES = new Set([
+  "marquee", "cyber_noir", "comic_hero", "theater_classic",
+  "indie_nature", "golden_age", "steampunk",
+]);
+const normalizeFrame = (value) => FRAMES.has(value) ? value : "marquee";
 
 const previewPoster = () => {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900">
@@ -43,7 +50,7 @@ const studioState = () => ({
   presentation: {
     theme: "classic", orientation: "auto", show_summary: true,
     show_progress: true, show_session: true, enable_motion: true,
-    kiosk_mode: false,
+    kiosk_mode: false, layout: "cinematic", frame_theme: "marquee",
   },
   mode: "coming_soon",
   heading: "Coming Soon",
@@ -127,6 +134,8 @@ class MoviePosterPanel extends HTMLElement {
       state.media?.key,
       state.presentation?.theme,
       state.presentation?.orientation,
+      state.presentation?.layout,
+      state.presentation?.frame_theme,
       state.session?.player,
       state.session?.user,
     ].join("|");
@@ -223,15 +232,20 @@ class MoviePosterPanel extends HTMLElement {
     const presentation = state.presentation ?? {};
     const motionClass = presentation.enable_motion === false ? " motion-off" : "";
     const orientation = normalizeOrientation(presentation.orientation);
+    const layout = normalizeLayout(presentation.layout);
+    const frame = normalizeFrame(presentation.frame_theme);
 
     this.shadowRoot.innerHTML = `${this._styles()}${this._studioControls()}
-      <main class="theater theme-${theme} mode-${escapeHtml(state.mode)}${motionClass} orientation-${orientation}"
+      <main class="theater theme-${theme} mode-${escapeHtml(state.mode)}${motionClass} orientation-${orientation} layout-${layout} frame-${frame}"
         ${backdropStyle}>
         <div class="ambient"></div>
         <p class="connection-warning" role="status"
           ${state.health?.connected === false ? "" : "hidden"}>
           ${escapeHtml(state.health?.message)}</p>
         <section class="marquee-frame">
+          <div class="frame-ornaments" aria-hidden="true">
+            <i class="ornament ornament-left"></i><i class="ornament ornament-right"></i>
+          </div>
           <header class="marquee">
             <span class="eyebrow">Theater Presentation</span>
             <h1>${escapeHtml(state.heading)}</h1>
@@ -260,6 +274,10 @@ class MoviePosterPanel extends HTMLElement {
                 <i style="width:${progress}%"></i></div>` : ""}
             </article>
           </div>
+          <footer class="frame-plaque">
+            <strong>${escapeHtml(media.title)}</strong>
+            <span>${escapeHtml(media.subtitle || state.heading)}</span>
+          </footer>
         </section>
       </main>`;
     this._bindStudioControls();
@@ -273,6 +291,17 @@ class MoviePosterPanel extends HTMLElement {
       <label>Theme<select data-studio="theme">
         ${["classic", "art_deco", "neon", "minimal", "oled"].map((value) =>
           `<option value="${value}" ${presentation.theme === value ? "selected" : ""}>${value.replace("_", " ")}</option>`
+        ).join("")}
+      </select></label>
+      <label>Layout<select data-studio="layout">
+        ${["cinematic", "poster", "split"].map((value) =>
+          `<option value="${value}" ${presentation.layout === value ? "selected" : ""}>${value}</option>`
+        ).join("")}
+      </select></label>
+      <label>Frame<select data-studio="frame_theme">
+        ${["marquee", "cyber_noir", "comic_hero", "theater_classic",
+          "indie_nature", "golden_age", "steampunk"].map((value) =>
+          `<option value="${value}" ${presentation.frame_theme === value ? "selected" : ""}>${value.replace("_", " ")}</option>`
         ).join("")}
       </select></label>
       <label>Orientation<select data-studio="orientation">
@@ -434,6 +463,127 @@ class MoviePosterPanel extends HTMLElement {
         box-shadow: 0 0 0 3px var(--gold-deep), 0 28px 90px #000;
         animation: reveal .55s ease-out both;
       }
+      .frame-ornaments { position: absolute; inset: 0; pointer-events: none; }
+      .ornament { position: absolute; z-index: 2; top: 18%; bottom: 12%; width: 22px; }
+      .ornament-left { left: 10px; }
+      .ornament-right { right: 10px; }
+      .frame-plaque {
+        position: relative;
+        z-index: 3;
+        display: none;
+        width: min(620px, 82%);
+        margin: 16px auto 0;
+        padding: 10px 20px;
+        text-align: center;
+        text-transform: uppercase;
+      }
+      .frame-plaque strong, .frame-plaque span { display: block; }
+      .frame-plaque strong { letter-spacing: .12em; }
+      .frame-plaque span { margin-top: 3px; font-size: .68rem; letter-spacing: .18em; }
+
+      /* Layouts stay independent from decorative frames. */
+      .layout-poster .marquee-frame { width: min(700px, 94vw); }
+      .layout-poster .content { display: block; padding-inline: clamp(20px, 7vw, 90px); }
+      .layout-poster .poster { width: min(48vh, 100%); margin: auto; }
+      .layout-poster .details { margin-top: 18px; text-align: center; }
+      .layout-poster .details h2 { font-size: clamp(1.7rem, 3vw, 3rem); }
+      .layout-poster .summary, .layout-poster .session { display: none; }
+      .layout-split .content { grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr); }
+      .layout-split .details {
+        align-self: stretch;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: clamp(20px, 3vw, 48px);
+        border-left: 1px solid color-mix(in srgb, var(--gold) 35%, transparent);
+        background: #0003;
+      }
+
+      /* Illuminated glass frame with a cyan title plinth. */
+      .frame-cyber_noir .marquee-frame {
+        border: 2px solid #bcefff88;
+        border-radius: 2px;
+        background: linear-gradient(145deg, #101820f5, #020507fa);
+        box-shadow: inset 0 0 0 10px #071016, inset 0 0 0 12px #55ddff55,
+          0 0 28px #41dfff88, 0 28px 90px #000;
+      }
+      .frame-cyber_noir .marquee-frame::before {
+        inset: 8px; border: 1px solid #6ee9ff; border-radius: 0;
+        filter: drop-shadow(0 0 8px #35dfff); animation: cyberPulse 2s ease-in-out infinite;
+      }
+      .frame-cyber_noir .frame-plaque {
+        display: block; border: 1px solid #8beeff; background: #73e5ff1f;
+        color: #bff7ff; box-shadow: inset 0 0 16px #42dbff45, 0 0 20px #42dbff55;
+      }
+      .frame-cyber_noir .ornament { background: linear-gradient(#55e5ff, transparent, #55e5ff); width: 2px; }
+      @keyframes cyberPulse { 50% { opacity: .52; filter: drop-shadow(0 0 3px #35dfff); } }
+
+      /* Layered comic-book energy frame. */
+      .frame-comic_hero .marquee-frame {
+        border: 10px solid #ef2f24;
+        border-radius: 4px;
+        background: radial-gradient(circle, #ffffff10 0 2px, transparent 3px) 0 0/18px 18px,
+          linear-gradient(135deg, #101423, #070914);
+        box-shadow: 14px -14px 0 #f7ba20, -14px 14px 0 #1768c4, 0 30px 80px #000;
+        clip-path: polygon(4% 0, 96% 3%, 100% 94%, 94% 100%, 3% 97%, 0 7%);
+      }
+      .frame-comic_hero .marquee-frame::before {
+        inset: 8px; border: 5px solid #fff; border-radius: 0; filter: none;
+        clip-path: polygon(3% 0, 100% 4%, 97% 100%, 0 95%);
+      }
+      .frame-comic_hero h1, .frame-comic_hero .details h2 {
+        font-family: Impact, sans-serif; font-style: italic;
+        text-shadow: 3px 3px 0 #1265bd, 6px 6px 0 #111;
+      }
+      .frame-comic_hero .frame-plaque { display: block; color: #fff; background: #d9271f; transform: skew(-5deg); }
+
+      /* Restrained lobby signage in walnut and brass. */
+      .frame-theater_classic .marquee-frame {
+        border: 14px ridge #6d4527; border-radius: 3px;
+        background: linear-gradient(90deg, #2d160b, #53301c 8%, #120b08 18% 82%, #53301c 92%, #2d160b);
+        box-shadow: inset 0 0 0 3px #d2a85b, 0 26px 70px #000;
+      }
+      .frame-theater_classic .marquee-frame::before { inset: 10px; border: 2px solid #c89d52; border-radius: 0; filter: none; animation: none; }
+      .frame-theater_classic .marquee { border: 2px solid #a77b3d; background: #24150de8; }
+      .frame-theater_classic .eyebrow::before { content: "THEATRE 1 · "; }
+      .frame-theater_classic .frame-plaque { display: block; color: #f3d89b; border: 1px solid #a77b3d; background: #21130d; }
+
+      /* Bamboo, warm wood, glass, and subtle foliage. */
+      .frame-indie_nature .marquee-frame {
+        border: 16px solid transparent; border-image: repeating-linear-gradient(90deg, #c79c55 0 18px, #6d4d23 18px 22px) 16;
+        border-radius: 0; background: linear-gradient(135deg, #182317f2, #090d08f7);
+        box-shadow: inset 0 0 35px #79a75f33, 0 28px 80px #000;
+      }
+      .frame-indie_nature .marquee-frame::before { inset: 7px; border: 1px solid #b8d18d88; border-radius: 0; filter: none; animation: none; }
+      .frame-indie_nature .ornament { width: 34px; opacity: .7; background: radial-gradient(ellipse at 20% 20%, #81a85d 0 20%, transparent 22%) 0 0/25px 40px; }
+      .frame-indie_nature .frame-plaque { display: block; color: #dcecc3; border: 1px solid #8aa46b; background: #415236cc; }
+
+      /* Golden-age proscenium with columns and velvet. */
+      .frame-golden_age .marquee-frame {
+        border: 13px ridge #8c4b24; border-radius: 24px 24px 3px 3px;
+        background: linear-gradient(90deg, #350a0d, #6f1720 10%, #1a0809 22% 78%, #6f1720 90%, #350a0d);
+        box-shadow: inset 0 0 0 4px #d9a64f, inset 0 0 40px #7f1018, 0 30px 90px #000;
+      }
+      .frame-golden_age .marquee-frame::before { inset: 10px; border: 3px double #f2c66b; border-radius: 14px 14px 0 0; filter: drop-shadow(0 0 4px #d49b3a); }
+      .frame-golden_age .ornament { width: 26px; border: 3px ridge #d5a64e; background: repeating-linear-gradient(90deg, #8c551d 0 3px, #e0b85d 4px 7px); }
+      .frame-golden_age .frame-plaque { display: block; color: #3b170c; border: 4px ridge #d4a24b; border-radius: 50%; background: #e4c77d; }
+
+      /* Riveted copper, pipes, gauges, and warm bulbs. */
+      .frame-steampunk .marquee-frame {
+        border: 13px solid #443126; border-radius: 5px;
+        background: repeating-linear-gradient(90deg, #ffffff08 0 1px, transparent 1px 34px),
+          linear-gradient(135deg, #3b2b22, #120e0b 45%, #302018);
+        box-shadow: inset 0 0 0 4px #a75e35, inset 0 0 35px #000, 0 28px 80px #000;
+      }
+      .frame-steampunk .marquee-frame::before {
+        inset: 8px; border: 6px dotted #b4774f; border-radius: 0; filter: drop-shadow(0 0 5px #ff9b42);
+      }
+      .frame-steampunk .ornament { width: 18px; border: 5px solid #895739; border-block-width: 10px; border-radius: 12px; background: #241912; }
+      .frame-steampunk .ornament-left::before, .frame-steampunk .ornament-right::before {
+        content: ""; position: absolute; top: -68px; left: -22px; width: 52px; height: 52px;
+        border: 6px ridge #9a6542; border-radius: 50%; background: radial-gradient(circle, #ddd 0 8%, #8b735f 10% 48%, #2c211a 50%);
+      }
+      .frame-steampunk .frame-plaque { display: block; color: #2a160d; border: 5px ridge #a5613a; background: linear-gradient(#c98255, #8a4d31); }
       @keyframes reveal {
         from { opacity: 0; transform: scale(.992); }
         to { opacity: 1; transform: scale(1); }

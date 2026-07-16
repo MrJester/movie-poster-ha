@@ -57,6 +57,8 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         enable_motion: bool = True,
         kiosk_mode: bool = True,
         orientation: str = "auto",
+        layout: str = "cinematic",
+        frame_theme: str = "marquee",
         entry_id: str = "",
     ) -> None:
         """Initialize the coordinator."""
@@ -75,6 +77,8 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self.enable_motion = enable_motion
         self.kiosk_mode = kiosk_mode
         self.orientation = orientation
+        self.layout = layout
+        self.frame_theme = frame_theme
         self._client = client
         self._policy = policy
         self._mode = DisplayModeMachine(grace_seconds)

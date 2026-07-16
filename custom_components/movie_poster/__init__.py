@@ -9,8 +9,10 @@ from homeassistant.helpers import config_validation as cv
 from .const import (
     CONF_COLLECTION,
     CONF_ENABLE_MOTION,
+    CONF_FRAME_THEME,
     CONF_GRACE_SECONDS,
     CONF_KIOSK_MODE,
+    CONF_LAYOUT,
     CONF_LIBRARY,
     CONF_LIBRARY_REFRESH_SECONDS,
     CONF_ORIENTATION,
@@ -25,8 +27,10 @@ from .const import (
     CONF_USER_ID,
     CONF_VERIFY_SSL,
     DEFAULT_ENABLE_MOTION,
+    DEFAULT_FRAME_THEME,
     DEFAULT_GRACE_SECONDS,
     DEFAULT_KIOSK_MODE,
+    DEFAULT_LAYOUT,
     DEFAULT_LIBRARY_REFRESH_SECONDS,
     DEFAULT_ORIENTATION,
     DEFAULT_ROTATION_SECONDS,
@@ -99,6 +103,8 @@ async def async_setup_entry(
         enable_motion=entry.options.get(CONF_ENABLE_MOTION, DEFAULT_ENABLE_MOTION),
         kiosk_mode=entry.options.get(CONF_KIOSK_MODE, DEFAULT_KIOSK_MODE),
         orientation=entry.options.get(CONF_ORIENTATION, DEFAULT_ORIENTATION),
+        layout=entry.options.get(CONF_LAYOUT, DEFAULT_LAYOUT),
+        frame_theme=entry.options.get(CONF_FRAME_THEME, DEFAULT_FRAME_THEME),
         entry_id=entry.entry_id,
     )
     await coordinator.async_initialize()

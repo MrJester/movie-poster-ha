@@ -20,6 +20,8 @@ CONF_SHOW_PROGRESS: Final = "show_progress"
 CONF_SHOW_SESSION: Final = "show_session"
 CONF_ENABLE_MOTION: Final = "enable_motion"
 CONF_ORIENTATION: Final = "orientation"
+CONF_LAYOUT: Final = "layout"
+CONF_FRAME_THEME: Final = "frame_theme"
 
 THEME_CLASSIC: Final = "classic"
 THEME_ART_DECO: Final = "art_deco"
@@ -43,6 +45,32 @@ ORIENTATIONS: Final[tuple[str, ...]] = (
     ORIENTATION_PORTRAIT,
 )
 
+LAYOUT_CINEMATIC: Final = "cinematic"
+LAYOUT_POSTER: Final = "poster"
+LAYOUT_SPLIT: Final = "split"
+LAYOUTS: Final[tuple[str, ...]] = (
+    LAYOUT_CINEMATIC,
+    LAYOUT_POSTER,
+    LAYOUT_SPLIT,
+)
+
+FRAME_MARQUEE: Final = "marquee"
+FRAME_CYBER_NOIR: Final = "cyber_noir"
+FRAME_COMIC_HERO: Final = "comic_hero"
+FRAME_THEATER_CLASSIC: Final = "theater_classic"
+FRAME_INDIE_NATURE: Final = "indie_nature"
+FRAME_GOLDEN_AGE: Final = "golden_age"
+FRAME_STEAMPUNK: Final = "steampunk"
+FRAME_THEMES: Final[tuple[str, ...]] = (
+    FRAME_MARQUEE,
+    FRAME_CYBER_NOIR,
+    FRAME_COMIC_HERO,
+    FRAME_THEATER_CLASSIC,
+    FRAME_INDIE_NATURE,
+    FRAME_GOLDEN_AGE,
+    FRAME_STEAMPUNK,
+)
+
 DEFAULT_VERIFY_SSL: Final = True
 DEFAULT_GRACE_SECONDS: Final = 30
 DEFAULT_ROTATION_SECONDS: Final = 15
@@ -54,4 +82,6 @@ DEFAULT_SHOW_PROGRESS: Final = True
 DEFAULT_SHOW_SESSION: Final = True
 DEFAULT_ENABLE_MOTION: Final = True
 DEFAULT_ORIENTATION: Final = ORIENTATION_AUTO
+DEFAULT_LAYOUT: Final = LAYOUT_CINEMATIC
+DEFAULT_FRAME_THEME: Final = FRAME_MARQUEE
 PLATFORMS: Final[list[str]] = []

@@ -12,8 +12,10 @@ from homeassistant.core import callback
 from .const import (
     CONF_COLLECTION,
     CONF_ENABLE_MOTION,
+    CONF_FRAME_THEME,
     CONF_GRACE_SECONDS,
     CONF_KIOSK_MODE,
+    CONF_LAYOUT,
     CONF_LIBRARY,
     CONF_LIBRARY_REFRESH_SECONDS,
     CONF_ORIENTATION,
@@ -28,8 +30,10 @@ from .const import (
     CONF_USER_ID,
     CONF_VERIFY_SSL,
     DEFAULT_ENABLE_MOTION,
+    DEFAULT_FRAME_THEME,
     DEFAULT_GRACE_SECONDS,
     DEFAULT_KIOSK_MODE,
+    DEFAULT_LAYOUT,
     DEFAULT_LIBRARY_REFRESH_SECONDS,
     DEFAULT_ORIENTATION,
     DEFAULT_ROTATION_SECONDS,
@@ -39,6 +43,8 @@ from .const import (
     DEFAULT_THEME,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
+    FRAME_THEMES,
+    LAYOUTS,
     ORIENTATIONS,
     THEMES,
 )
@@ -361,6 +367,16 @@ class MoviePosterOptionsFlow(config_entries.OptionsFlow):
                         CONF_ORIENTATION, DEFAULT_ORIENTATION
                     ),
                 ): vol.In(ORIENTATIONS),
+                vol.Required(
+                    CONF_LAYOUT,
+                    default=entry.options.get(CONF_LAYOUT, DEFAULT_LAYOUT),
+                ): vol.In(LAYOUTS),
+                vol.Required(
+                    CONF_FRAME_THEME,
+                    default=entry.options.get(
+                        CONF_FRAME_THEME, DEFAULT_FRAME_THEME
+                    ),
+                ): vol.In(FRAME_THEMES),
                 vol.Required(
                     CONF_SHOW_SUMMARY,
                     default=entry.options.get(

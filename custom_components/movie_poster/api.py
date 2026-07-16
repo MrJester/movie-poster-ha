@@ -138,6 +138,8 @@ def _serialize_state(
             "enable_motion": coordinator.enable_motion,
             "kiosk_mode": coordinator.kiosk_mode,
             "orientation": coordinator.orientation,
+            "layout": coordinator.layout,
+            "frame_theme": coordinator.frame_theme,
         },
         "mode": data.mode.mode,
         "heading": "Now Playing"
