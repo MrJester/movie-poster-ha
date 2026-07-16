@@ -87,6 +87,8 @@ class MoviePosterPanel extends HTMLElement {
     this._renderIdentity = null;
     this._transitionRevision = 0;
     this._kioskEnabled = false;
+    this._kioskElements = new Map();
+    this._kioskObserver = null;
     this._externalBusId = Date.now();
     this._studio = new URLSearchParams(window.location.search).get("studio") === "1";
     this._studioLoaded = false;
@@ -206,16 +208,52 @@ class MoviePosterPanel extends HTMLElement {
 
   _setKiosk(enable) {
     if (enable === this._kioskEnabled) return;
-    if (typeof window.externalBus !== "function") return;
-    try {
-      window.externalBus(JSON.stringify({
-        id: ++this._externalBusId,
-        type: "kiosk_mode/set",
-        payload: { enable },
-      }));
-      this._kioskEnabled = enable;
-    } catch (_error) {
-      // Some browsers expose the external bus only inside the HA companion app.
+    if (typeof window.externalBus === "function") {
+      try {
+        window.externalBus(JSON.stringify({
+          id: ++this._externalBusId,
+          type: "kiosk_mode/set",
+          payload: { enable },
+        }));
+      } catch (_error) {
+        // Fall through to the browser shell handling below.
+      }
+    }
+    this._setBrowserKiosk(enable);
+    this._kioskEnabled = enable;
+  }
+
+  _setBrowserKiosk(enable) {
+    if (!enable) {
+      this._kioskObserver?.disconnect();
+      this._kioskObserver = null;
+      for (const [element, display] of this._kioskElements) {
+        element.style.display = display;
+      }
+      this._kioskElements.clear();
+      return;
+    }
+    this._hideHomeAssistantChrome();
+    this._kioskObserver = new MutationObserver(() => this._hideHomeAssistantChrome());
+    this._kioskObserver.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  _hideHomeAssistantChrome() {
+    const selectors = ["ha-sidebar", "app-header"];
+    const roots = [document];
+    for (let index = 0; index < roots.length; index += 1) {
+      const root = roots[index];
+      for (const element of root.querySelectorAll("*")) {
+        if (element.shadowRoot) roots.push(element.shadowRoot);
+      }
+      for (const selector of selectors) {
+        for (const element of root.querySelectorAll(selector)) {
+          if (!this._kioskElements.has(element)) {
+            this._kioskElements.set(element, element.style.display);
+          }
+          element.style.setProperty("display", "none", "important");
+        }
+      }
     }
   }
 
@@ -627,8 +665,8 @@ class MoviePosterPanel extends HTMLElement {
       .studio button:disabled { cursor: wait; opacity: .65; }
       .marquee-frame {
         position: relative;
-        width: min(1320px, 97vw);
-        min-height: min(95vh, 1020px);
+        width: min(1500px, 99vw);
+        min-height: min(98vh, 1120px);
         padding: clamp(20px, 3vw, 46px);
         border: 8px solid #2b1608;
         border-radius: 28px;
@@ -690,9 +728,9 @@ class MoviePosterPanel extends HTMLElement {
       .frame-steampunk .details .subtitle { display: none; }
 
       /* Layouts stay independent from decorative frames. */
-      .layout-poster .marquee-frame { width: min(820px, 97vw); }
+      .layout-poster .marquee-frame { width: min(940px, 99vw); }
       .layout-poster .content { display: block; padding-inline: clamp(20px, 7vw, 90px); }
-      .layout-poster .poster { width: min(56vh, 100%); margin: auto; }
+      .layout-poster .poster { width: min(66vh, 100%); max-height: 82vh; margin: auto; }
       .layout-poster .details { margin-top: 18px; text-align: center; }
       .layout-poster .details h2 { font-size: clamp(1.7rem, 3vw, 3rem); }
       .layout-poster .summary, .layout-poster .session { display: none; }
@@ -849,8 +887,8 @@ class MoviePosterPanel extends HTMLElement {
         position: relative;
         z-index: 1;
         display: grid;
-        grid-template-columns: minmax(240px, .78fr) minmax(300px, 1.22fr);
-        gap: clamp(25px, 5vw, 75px);
+        grid-template-columns: minmax(320px, 1fr) minmax(300px, 1fr);
+        gap: clamp(22px, 3.5vw, 60px);
         align-items: center;
         padding: 8px clamp(14px, 3vw, 40px) 24px;
       }
@@ -858,7 +896,7 @@ class MoviePosterPanel extends HTMLElement {
       .poster {
         display: block;
         width: 100%;
-        max-height: 70vh;
+        max-height: 84vh;
         aspect-ratio: 2 / 3;
         object-fit: cover;
         border: 3px solid #dba84e;
@@ -889,18 +927,18 @@ class MoviePosterPanel extends HTMLElement {
       .empty { text-align: center; }
       .empty p { color: #c6b99f; font-size: 1.1rem; }
       .error p { color: #ff9c8e; }
-      .orientation-portrait .marquee-frame { width: min(96vw, 620px); }
+      .orientation-portrait .marquee-frame { width: min(99vw, 720px); }
       .orientation-portrait .content { grid-template-columns: 1fr; gap: 22px; }
       .orientation-portrait .poster {
-        width: min(68vw, 390px); margin: auto; max-height: 60vh;
+        width: min(78vw, 500px); margin: auto; max-height: 72vh;
       }
       .orientation-portrait .details { text-align: center; }
       .orientation-portrait .summary { display: none; }
       @media (max-width: 720px), (orientation: portrait) {
-        .orientation-auto .marquee-frame { width: min(96vw, 620px); }
+        .orientation-auto .marquee-frame { width: min(99vw, 720px); }
         .orientation-auto .content { grid-template-columns: 1fr; gap: 22px; }
         .orientation-auto .poster {
-          width: min(68vw, 390px); margin: auto; max-height: 60vh;
+          width: min(78vw, 500px); margin: auto; max-height: 72vh;
         }
         .orientation-auto .details { text-align: center; }
         .orientation-auto .summary { display: none; }
