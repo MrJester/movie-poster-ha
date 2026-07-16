@@ -22,6 +22,13 @@ CONF_ENABLE_MOTION: Final = "enable_motion"
 CONF_ORIENTATION: Final = "orientation"
 CONF_LAYOUT: Final = "layout"
 CONF_FRAME_THEME: Final = "frame_theme"
+CONF_ACCENT_COLOR: Final = "accent_color"
+CONF_BACKGROUND_COLOR: Final = "background_color"
+CONF_HEADING_FONT: Final = "heading_font"
+CONF_BODY_FONT: Final = "body_font"
+CONF_NOW_PLAYING_TEXT: Final = "now_playing_text"
+CONF_COMING_SOON_TEXT: Final = "coming_soon_text"
+CONF_EYEBROW_TEXT: Final = "eyebrow_text"
 
 THEME_CLASSIC: Final = "classic"
 THEME_ART_DECO: Final = "art_deco"
@@ -71,6 +78,19 @@ FRAME_THEMES: Final[tuple[str, ...]] = (
     FRAME_STEAMPUNK,
 )
 
+FONT_SYSTEM: Final = "system"
+FONT_CINEMATIC: Final = "cinematic"
+FONT_SERIF: Final = "serif"
+FONT_MODERN: Final = "modern"
+FONT_CONDENSED: Final = "condensed"
+FONTS: Final[tuple[str, ...]] = (
+    FONT_SYSTEM,
+    FONT_CINEMATIC,
+    FONT_SERIF,
+    FONT_MODERN,
+    FONT_CONDENSED,
+)
+
 DEFAULT_VERIFY_SSL: Final = True
 DEFAULT_GRACE_SECONDS: Final = 30
 DEFAULT_ROTATION_SECONDS: Final = 15
@@ -84,4 +104,11 @@ DEFAULT_ENABLE_MOTION: Final = True
 DEFAULT_ORIENTATION: Final = ORIENTATION_AUTO
 DEFAULT_LAYOUT: Final = LAYOUT_CINEMATIC
 DEFAULT_FRAME_THEME: Final = FRAME_MARQUEE
+DEFAULT_ACCENT_COLOR: Final = "#f6cf70"
+DEFAULT_BACKGROUND_COLOR: Final = "#090706"
+DEFAULT_HEADING_FONT: Final = FONT_CINEMATIC
+DEFAULT_BODY_FONT: Final = FONT_SYSTEM
+DEFAULT_NOW_PLAYING_TEXT: Final = "Now Playing"
+DEFAULT_COMING_SOON_TEXT: Final = "Coming Soon"
+DEFAULT_EYEBROW_TEXT: Final = "Theater Presentation"
 PLATFORMS: Final[list[str]] = []

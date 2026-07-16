@@ -25,6 +25,11 @@ const FRAMES = new Set([
   "indie_nature", "golden_age", "steampunk",
 ]);
 const normalizeFrame = (value) => FRAMES.has(value) ? value : "marquee";
+const FONTS = new Set(["system", "cinematic", "serif", "modern", "condensed"]);
+const normalizeFont = (value) => FONTS.has(value) ? value : "system";
+const normalizeColor = (value, fallback) => /^#[0-9a-f]{6}$/i.test(value ?? "")
+  ? value : fallback;
+const normalizeText = (value, fallback) => String(value ?? "").trim() || fallback;
 
 const previewPoster = () => {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900">
@@ -51,6 +56,10 @@ const studioState = () => ({
     theme: "classic", orientation: "auto", show_summary: true,
     show_progress: true, show_session: true, enable_motion: true,
     kiosk_mode: false, layout: "cinematic", frame_theme: "marquee",
+    accent_color: "#f6cf70", background_color: "#090706",
+    heading_font: "cinematic", body_font: "system",
+    now_playing_text: "Now Playing", coming_soon_text: "Coming Soon",
+    eyebrow_text: "Theater Presentation",
   },
   mode: "coming_soon",
   heading: "Coming Soon",
@@ -71,6 +80,7 @@ class MoviePosterPanel extends HTMLElement {
     this._state = null;
     this._unsubscribePromise = null;
     this._retryTimer = null;
+    this._reloadTimer = null;
     this._renderIdentity = null;
     this._transitionRevision = 0;
     this._kioskEnabled = false;
@@ -97,6 +107,7 @@ class MoviePosterPanel extends HTMLElement {
   disconnectedCallback() {
     this._setKiosk(false);
     clearTimeout(this._retryTimer);
+    clearTimeout(this._reloadTimer);
     this._retryTimer = null;
     if (this._unsubscribePromise) {
       this._unsubscribePromise.then((unsubscribe) => unsubscribe());
@@ -111,10 +122,12 @@ class MoviePosterPanel extends HTMLElement {
         if (this._studio) {
           if (this._studioLoaded) return;
           const sample = studioState();
+          const presentation = { ...sample.presentation, ...state.presentation };
           this._state = {
             ...sample,
             entry_id: state.entry_id,
-            presentation: { ...sample.presentation, ...state.presentation },
+            heading: presentation.coming_soon_text,
+            presentation,
           };
           this._studioLoaded = true;
           this._render();
@@ -140,6 +153,7 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   async _applyState(state) {
+    const previousRevision = this._state?.presentation_revision;
     this._state = state;
     if (!this._studio) this._setKiosk(state.presentation?.kiosk_mode !== false);
     const identity = [
@@ -149,6 +163,7 @@ class MoviePosterPanel extends HTMLElement {
       state.presentation?.orientation,
       state.presentation?.layout,
       state.presentation?.frame_theme,
+      state.presentation_revision,
       state.session?.player,
       state.session?.user,
     ].join("|");
@@ -163,6 +178,25 @@ class MoviePosterPanel extends HTMLElement {
     if (revision !== this._transitionRevision || !this.isConnected) return;
     this._renderIdentity = identity;
     this._render();
+    if (previousRevision !== undefined && state.presentation_revision !== previousRevision) {
+      this._scheduleReconnect();
+    }
+  }
+
+  _scheduleReconnect() {
+    clearTimeout(this._reloadTimer);
+    this._reloadTimer = setTimeout(async () => {
+      this._reloadTimer = null;
+      if (this._unsubscribePromise) {
+        try {
+          (await this._unsubscribePromise)();
+        } catch (_error) {
+          // The server may already have removed the retired subscription.
+        }
+        this._unsubscribePromise = null;
+      }
+      this._subscribe();
+    }, 2500);
   }
 
   _setKiosk(enable) {
@@ -238,19 +272,23 @@ class MoviePosterPanel extends HTMLElement {
     const meta = [media.year, formatRuntime(media.duration_ms)]
       .filter(Boolean)
       .join(" · ");
-    const backdropStyle = media.backdrop_url
-      ? `style="--backdrop:url('${escapeHtml(media.backdrop_url)}')"`
-      : "";
     const theme = normalizeTheme(state.presentation?.theme);
     const presentation = state.presentation ?? {};
     const motionClass = presentation.enable_motion === false ? " motion-off" : "";
     const orientation = normalizeOrientation(presentation.orientation);
     const layout = normalizeLayout(presentation.layout);
     const frame = normalizeFrame(presentation.frame_theme);
+    const headingFont = normalizeFont(presentation.heading_font || "cinematic");
+    const bodyFont = normalizeFont(presentation.body_font);
+    const accentColor = normalizeColor(presentation.accent_color, "#f6cf70");
+    const backgroundColor = normalizeColor(presentation.background_color, "#090706");
+    const backdrop = media.backdrop_url
+      ? `url('${escapeHtml(media.backdrop_url)}')` : "none";
+    const presentationStyle = `style="--backdrop:${backdrop};--gold:${accentColor};--ink:${backgroundColor}"`;
 
     this.shadowRoot.innerHTML = `${this._styles()}${this._studioControls()}
-      <main class="theater theme-${theme} mode-${escapeHtml(state.mode)}${motionClass} orientation-${orientation} layout-${layout} frame-${frame}"
-        ${backdropStyle}>
+      <main class="theater theme-${theme} mode-${escapeHtml(state.mode)}${motionClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
+        ${presentationStyle}>
         <div class="ambient"></div>
         <p class="connection-warning" role="status"
           ${state.health?.connected === false ? "" : "hidden"}>
@@ -260,7 +298,7 @@ class MoviePosterPanel extends HTMLElement {
             <i class="ornament ornament-left"></i><i class="ornament ornament-right"></i>
           </div>
           <header class="marquee">
-            <span class="eyebrow">Theater Presentation</span>
+            <span class="eyebrow">${escapeHtml(presentation.eyebrow_text || "Theater Presentation")}</span>
             <h1>${escapeHtml(state.heading)}</h1>
           </header>
           <div class="content">
@@ -322,6 +360,29 @@ class MoviePosterPanel extends HTMLElement {
           `<option value="${value}" ${presentation.orientation === value ? "selected" : ""}>${value}</option>`
         ).join("")}
       </select></label>
+      <label>Heading font<select data-studio="heading_font">
+        ${["cinematic", "system", "serif", "modern", "condensed"].map((value) =>
+          `<option value="${value}" ${presentation.heading_font === value ? "selected" : ""}>${value}</option>`
+        ).join("")}
+      </select></label>
+      <label>Body font<select data-studio="body_font">
+        ${["system", "cinematic", "serif", "modern", "condensed"].map((value) =>
+          `<option value="${value}" ${presentation.body_font === value ? "selected" : ""}>${value}</option>`
+        ).join("")}
+      </select></label>
+      <label>Accent color<input type="color" data-studio="accent_color"
+        value="${normalizeColor(presentation.accent_color, "#f6cf70")}"></label>
+      <label>Background<input type="color" data-studio="background_color"
+        value="${normalizeColor(presentation.background_color, "#090706")}"></label>
+      <label class="studio-wide">Now Playing text<input type="text"
+        maxlength="60" data-studio="now_playing_text"
+        value="${escapeHtml(presentation.now_playing_text || "Now Playing")}"></label>
+      <label class="studio-wide">Coming Soon text<input type="text"
+        maxlength="60" data-studio="coming_soon_text"
+        value="${escapeHtml(presentation.coming_soon_text || "Coming Soon")}"></label>
+      <label class="studio-wide">Marquee label<input type="text"
+        maxlength="80" data-studio="eyebrow_text"
+        value="${escapeHtml(presentation.eyebrow_text || "Theater Presentation")}"></label>
       ${[["show_summary", "Summary"], ["show_progress", "Progress"],
         ["show_session", "Session"], ["enable_motion", "Motion"]].map(([field, label]) =>
           `<label class="studio-check"><input type="checkbox" data-studio="${field}"
@@ -342,6 +403,7 @@ class MoviePosterPanel extends HTMLElement {
         const field = control.dataset.studio;
         this._state.presentation[field] = control.type === "checkbox"
           ? control.checked : control.value;
+        if (field === "coming_soon_text") this._state.heading = control.value;
         this._renderIdentity = null;
         this._render();
       });
@@ -372,6 +434,13 @@ class MoviePosterPanel extends HTMLElement {
         show_session: presentation.show_session !== false,
         enable_motion: presentation.enable_motion !== false,
         kiosk_mode: presentation.kiosk_mode !== false,
+        accent_color: normalizeColor(presentation.accent_color, "#f6cf70"),
+        background_color: normalizeColor(presentation.background_color, "#090706"),
+        heading_font: normalizeFont(presentation.heading_font || "cinematic"),
+        body_font: normalizeFont(presentation.body_font),
+        now_playing_text: normalizeText(presentation.now_playing_text, "Now Playing"),
+        coming_soon_text: normalizeText(presentation.coming_soon_text, "Coming Soon"),
+        eyebrow_text: normalizeText(presentation.eyebrow_text, "Theater Presentation"),
       });
       status.textContent = "Saved. Returning to integration settings…";
       window.setTimeout(() => this._returnToSettings(), 350);
@@ -418,9 +487,20 @@ class MoviePosterPanel extends HTMLElement {
         place-items: center;
         padding: clamp(16px, 2.4vw, 40px);
         background:
-          radial-gradient(circle at 50% 0%, #4f160f 0%, transparent 45%),
-          linear-gradient(145deg, #080605, #1b0908 50%, #050404);
+          radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--gold) 28%, transparent) 0%, transparent 45%),
+          linear-gradient(145deg, color-mix(in srgb, var(--ink) 75%, #000), var(--ink) 50%, #000);
       }
+      .font-heading-system { --heading-font: "Trebuchet MS", Arial, sans-serif; }
+      .font-heading-cinematic { --heading-font: Impact, "Arial Narrow", sans-serif; }
+      .font-heading-serif { --heading-font: Georgia, "Times New Roman", serif; }
+      .font-heading-modern { --heading-font: Avenir, Montserrat, Arial, sans-serif; }
+      .font-heading-condensed { --heading-font: "Arial Narrow", Impact, sans-serif; }
+      .font-body-system { --body-font: "Trebuchet MS", Arial, sans-serif; }
+      .font-body-cinematic { --body-font: Georgia, "Times New Roman", serif; }
+      .font-body-serif { --body-font: Georgia, "Times New Roman", serif; }
+      .font-body-modern { --body-font: Avenir, Montserrat, Arial, sans-serif; }
+      .font-body-condensed { --body-font: "Arial Narrow", Arial, sans-serif; }
+      .theater { font-family: var(--body-font, "Trebuchet MS", Arial, sans-serif); }
       .theme-art_deco {
         --gold: #e9d59b;
         --gold-deep: #7c6735;
@@ -428,7 +508,7 @@ class MoviePosterPanel extends HTMLElement {
         --velvet: #12302c;
         background:
           repeating-linear-gradient(135deg, #ffffff08 0 1px, transparent 1px 42px),
-          radial-gradient(circle at 50% 0%, #1b4b43, transparent 48%), #050908;
+          radial-gradient(circle at 50% 0%, #1b4b43, transparent 48%), var(--ink);
       }
       .theme-neon {
         --gold: #29f2ff;
@@ -437,21 +517,21 @@ class MoviePosterPanel extends HTMLElement {
         --velvet: #260052;
         background:
           radial-gradient(circle at 20% 0%, #4b0075 0, transparent 40%),
-          radial-gradient(circle at 85% 100%, #003d5c 0, transparent 42%), #05000d;
+          radial-gradient(circle at 85% 100%, #003d5c 0, transparent 42%), var(--ink);
       }
       .theme-minimal {
         --gold: #f2f2f2;
         --gold-deep: #777;
         --ink: #171717;
         --velvet: #252525;
-        background: #171717;
+        background: var(--ink);
       }
       .theme-oled {
         --gold: #fff;
         --gold-deep: #333;
         --ink: #000;
         --velvet: #000;
-        background: #000;
+        background: var(--ink);
       }
       .ambient {
         position: absolute;
@@ -502,13 +582,16 @@ class MoviePosterPanel extends HTMLElement {
       }
       .studio strong, .studio small, .studio-actions { grid-column: 1 / -1; }
       .studio label { display: grid; gap: 4px; text-transform: capitalize; }
-      .studio select {
+      .studio select, .studio input[type="text"] {
         min-height: 31px;
         border: 1px solid #ffffff33;
         border-radius: 5px;
         background: #221713;
         color: inherit;
       }
+      .studio input[type="text"] { width: 100%; padding: 0 8px; }
+      .studio input[type="color"] { width: 100%; min-height: 32px; padding: 2px; }
+      .studio .studio-wide { grid-column: 1 / -1; }
       .studio .studio-check { display: flex; align-items: center; gap: 6px; }
       .studio small { color: #c6b99f; }
       .studio-actions { display: flex; justify-content: flex-end; gap: 8px; }
@@ -603,7 +686,7 @@ class MoviePosterPanel extends HTMLElement {
         clip-path: polygon(3% 0, 100% 4%, 97% 100%, 0 95%);
       }
       .frame-comic_hero h1, .frame-comic_hero .details h2 {
-        font-family: Impact, sans-serif; font-style: italic;
+        font-family: var(--heading-font, Impact, sans-serif); font-style: italic;
         text-shadow: 3px 3px 0 #1265bd, 6px 6px 0 #111;
       }
       .frame-comic_hero .frame-plaque { display: block; color: #fff; background: #d9271f; transform: skew(-5deg); }
@@ -698,7 +781,7 @@ class MoviePosterPanel extends HTMLElement {
       h1 {
         margin: 5px 0 0;
         color: #fff1c2;
-        font-family: Impact, "Arial Narrow", sans-serif;
+        font-family: var(--heading-font, Impact, "Arial Narrow", sans-serif);
         font-size: clamp(2.3rem, 6vw, 5.8rem);
         font-weight: 400;
         letter-spacing: .08em;
@@ -731,7 +814,7 @@ class MoviePosterPanel extends HTMLElement {
       .details h2 {
         margin: 10px 0 3px;
         color: #fff8e8;
-        font-family: Georgia, serif;
+        font-family: var(--heading-font, Georgia, serif);
         font-size: clamp(2rem, 4.6vw, 4.7rem);
         line-height: 1.02;
       }

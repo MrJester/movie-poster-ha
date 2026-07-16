@@ -14,16 +14,24 @@ from homeassistant.components.http.auth import async_sign_path
 from homeassistant.core import callback
 
 from .const import (
+    CONF_ACCENT_COLOR,
+    CONF_BACKGROUND_COLOR,
+    CONF_BODY_FONT,
+    CONF_COMING_SOON_TEXT,
     CONF_ENABLE_MOTION,
+    CONF_EYEBROW_TEXT,
     CONF_FRAME_THEME,
+    CONF_HEADING_FONT,
     CONF_KIOSK_MODE,
     CONF_LAYOUT,
+    CONF_NOW_PLAYING_TEXT,
     CONF_ORIENTATION,
     CONF_SHOW_PROGRESS,
     CONF_SHOW_SESSION,
     CONF_SHOW_SUMMARY,
     CONF_THEME,
     DOMAIN,
+    FONTS,
     FRAME_THEMES,
     LAYOUTS,
     ORIENTATIONS,
@@ -38,7 +46,7 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-dev.2"
+_FRONTEND_VERSION = "0.1.0-dev.3"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
@@ -113,6 +121,17 @@ def websocket_subscribe(
         vol.Required(CONF_SHOW_SESSION): bool,
         vol.Required(CONF_ENABLE_MOTION): bool,
         vol.Required(CONF_KIOSK_MODE): bool,
+        vol.Required(CONF_ACCENT_COLOR): vol.Match(r"^#[0-9a-fA-F]{6}$"),
+        vol.Required(CONF_BACKGROUND_COLOR): vol.Match(r"^#[0-9a-fA-F]{6}$"),
+        vol.Required(CONF_HEADING_FONT): vol.In(FONTS),
+        vol.Required(CONF_BODY_FONT): vol.In(FONTS),
+        vol.Required(CONF_NOW_PLAYING_TEXT): vol.All(
+            str, vol.Length(min=1, max=60)
+        ),
+        vol.Required(CONF_COMING_SOON_TEXT): vol.All(
+            str, vol.Length(min=1, max=60)
+        ),
+        vol.Required(CONF_EYEBROW_TEXT): vol.All(str, vol.Length(min=1, max=80)),
     }
 )
 @websocket_api.async_response
@@ -134,6 +153,10 @@ async def websocket_update_presentation(
         )
         return
     options = _updated_presentation_options(entry.options, msg)
+    for key in _PRESENTATION_KEYS:
+        setattr(coordinator, key, options[key])
+    coordinator.presentation_revision += 1
+    coordinator.async_update_listeners()
     hass.config_entries.async_update_entry(entry, options=options)
     connection.send_result(msg["id"], {"entry_id": entry.entry_id})
 
@@ -142,21 +165,30 @@ def _updated_presentation_options(
     current: dict[str, Any], updates: dict[str, Any]
 ) -> dict[str, Any]:
     """Merge Studio fields without replacing behavioral options."""
-    presentation_keys = {
-        CONF_THEME,
-        CONF_ORIENTATION,
-        CONF_LAYOUT,
-        CONF_FRAME_THEME,
-        CONF_SHOW_SUMMARY,
-        CONF_SHOW_PROGRESS,
-        CONF_SHOW_SESSION,
-        CONF_ENABLE_MOTION,
-        CONF_KIOSK_MODE,
-    }
     return {
         **current,
-        **{key: updates[key] for key in presentation_keys},
+        **{key: updates[key] for key in _PRESENTATION_KEYS},
     }
+
+
+_PRESENTATION_KEYS = {
+    CONF_THEME,
+    CONF_ORIENTATION,
+    CONF_LAYOUT,
+    CONF_FRAME_THEME,
+    CONF_SHOW_SUMMARY,
+    CONF_SHOW_PROGRESS,
+    CONF_SHOW_SESSION,
+    CONF_ENABLE_MOTION,
+    CONF_KIOSK_MODE,
+    CONF_ACCENT_COLOR,
+    CONF_BACKGROUND_COLOR,
+    CONF_HEADING_FONT,
+    CONF_BODY_FONT,
+    CONF_NOW_PLAYING_TEXT,
+    CONF_COMING_SOON_TEXT,
+    CONF_EYEBROW_TEXT,
+}
 
 
 def _coordinator(
@@ -202,6 +234,7 @@ def _serialize_state(
     return {
         "schema_version": 1,
         "entry_id": coordinator.entry_id,
+        "presentation_revision": coordinator.presentation_revision,
         "health": {
             "connected": getattr(coordinator, "last_update_success", True),
             "message": None
@@ -218,11 +251,18 @@ def _serialize_state(
             "orientation": coordinator.orientation,
             "layout": coordinator.layout,
             "frame_theme": coordinator.frame_theme,
+            "accent_color": coordinator.accent_color,
+            "background_color": coordinator.background_color,
+            "heading_font": coordinator.heading_font,
+            "body_font": coordinator.body_font,
+            "eyebrow_text": coordinator.eyebrow_text,
+            "now_playing_text": coordinator.now_playing_text,
+            "coming_soon_text": coordinator.coming_soon_text,
         },
         "mode": data.mode.mode,
-        "heading": "Now Playing"
+        "heading": coordinator.now_playing_text
         if data.mode.mode == "now_playing"
-        else "Coming Soon",
+        else coordinator.coming_soon_text,
         "reason": data.mode.reason,
         "media": media_payload,
         "session": {

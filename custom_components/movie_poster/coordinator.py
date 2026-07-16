@@ -59,6 +59,13 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         orientation: str = "auto",
         layout: str = "cinematic",
         frame_theme: str = "marquee",
+        accent_color: str = "#f6cf70",
+        background_color: str = "#090706",
+        heading_font: str = "cinematic",
+        body_font: str = "system",
+        now_playing_text: str = "Now Playing",
+        coming_soon_text: str = "Coming Soon",
+        eyebrow_text: str = "Theater Presentation",
         entry_id: str = "",
     ) -> None:
         """Initialize the coordinator."""
@@ -79,6 +86,14 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self.orientation = orientation
         self.layout = layout
         self.frame_theme = frame_theme
+        self.accent_color = accent_color
+        self.background_color = background_color
+        self.heading_font = heading_font
+        self.body_font = body_font
+        self.now_playing_text = now_playing_text
+        self.coming_soon_text = coming_soon_text
+        self.eyebrow_text = eyebrow_text
+        self.presentation_revision = 0
         self._client = client
         self._policy = policy
         self._mode = DisplayModeMachine(grace_seconds)

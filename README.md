@@ -21,7 +21,10 @@ frame, color theme, and orientation. The linked Display Studio previews the
 same renderer used by the full-screen panel. Layouts and frames are independent,
 so a poster-focused or split-details layout can be combined with any frame:
 Marquee, Cyber Noir, Comic Hero, Theater Classic, Indie Nature, Golden Age, or
-Steampunk.
+Steampunk. Display Studio also saves heading and body fonts, accent and background
+colors, and custom wording for Now Playing, Coming Soon, and the marquee label.
+Saved presentation changes are broadcast to open poster panels, which reconnect
+automatically after the integration reloads.
 
 ## Product principles
 

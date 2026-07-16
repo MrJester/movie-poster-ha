@@ -10,14 +10,21 @@ from homeassistant.const import CONF_HOST
 from homeassistant.core import callback
 
 from .const import (
+    CONF_ACCENT_COLOR,
+    CONF_BACKGROUND_COLOR,
+    CONF_BODY_FONT,
     CONF_COLLECTION,
+    CONF_COMING_SOON_TEXT,
     CONF_ENABLE_MOTION,
+    CONF_EYEBROW_TEXT,
     CONF_FRAME_THEME,
     CONF_GRACE_SECONDS,
+    CONF_HEADING_FONT,
     CONF_KIOSK_MODE,
     CONF_LAYOUT,
     CONF_LIBRARY,
     CONF_LIBRARY_REFRESH_SECONDS,
+    CONF_NOW_PLAYING_TEXT,
     CONF_ORIENTATION,
     CONF_PLAYER_ID,
     CONF_ROTATION_SECONDS,
@@ -29,12 +36,19 @@ from .const import (
     CONF_TOKEN,
     CONF_USER_ID,
     CONF_VERIFY_SSL,
+    DEFAULT_ACCENT_COLOR,
+    DEFAULT_BACKGROUND_COLOR,
+    DEFAULT_BODY_FONT,
+    DEFAULT_COMING_SOON_TEXT,
     DEFAULT_ENABLE_MOTION,
+    DEFAULT_EYEBROW_TEXT,
     DEFAULT_FRAME_THEME,
     DEFAULT_GRACE_SECONDS,
+    DEFAULT_HEADING_FONT,
     DEFAULT_KIOSK_MODE,
     DEFAULT_LAYOUT,
     DEFAULT_LIBRARY_REFRESH_SECONDS,
+    DEFAULT_NOW_PLAYING_TEXT,
     DEFAULT_ORIENTATION,
     DEFAULT_ROTATION_SECONDS,
     DEFAULT_SHOW_PROGRESS,
@@ -43,6 +57,7 @@ from .const import (
     DEFAULT_THEME,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
+    FONTS,
     FRAME_THEMES,
     LAYOUTS,
     ORIENTATIONS,
@@ -377,6 +392,46 @@ class MoviePosterOptionsFlow(config_entries.OptionsFlow):
                         CONF_FRAME_THEME, DEFAULT_FRAME_THEME
                     ),
                 ): vol.In(FRAME_THEMES),
+                vol.Required(
+                    CONF_HEADING_FONT,
+                    default=entry.options.get(
+                        CONF_HEADING_FONT, DEFAULT_HEADING_FONT
+                    ),
+                ): vol.In(FONTS),
+                vol.Required(
+                    CONF_BODY_FONT,
+                    default=entry.options.get(CONF_BODY_FONT, DEFAULT_BODY_FONT),
+                ): vol.In(FONTS),
+                vol.Required(
+                    CONF_ACCENT_COLOR,
+                    default=entry.options.get(
+                        CONF_ACCENT_COLOR, DEFAULT_ACCENT_COLOR
+                    ),
+                ): vol.Match(r"^#[0-9a-fA-F]{6}$"),
+                vol.Required(
+                    CONF_BACKGROUND_COLOR,
+                    default=entry.options.get(
+                        CONF_BACKGROUND_COLOR, DEFAULT_BACKGROUND_COLOR
+                    ),
+                ): vol.Match(r"^#[0-9a-fA-F]{6}$"),
+                vol.Required(
+                    CONF_NOW_PLAYING_TEXT,
+                    default=entry.options.get(
+                        CONF_NOW_PLAYING_TEXT, DEFAULT_NOW_PLAYING_TEXT
+                    ),
+                ): vol.All(str, vol.Length(min=1, max=60)),
+                vol.Required(
+                    CONF_COMING_SOON_TEXT,
+                    default=entry.options.get(
+                        CONF_COMING_SOON_TEXT, DEFAULT_COMING_SOON_TEXT
+                    ),
+                ): vol.All(str, vol.Length(min=1, max=60)),
+                vol.Required(
+                    CONF_EYEBROW_TEXT,
+                    default=entry.options.get(
+                        CONF_EYEBROW_TEXT, DEFAULT_EYEBROW_TEXT
+                    ),
+                ): vol.All(str, vol.Length(min=1, max=80)),
                 vol.Required(
                     CONF_SHOW_SUMMARY,
                     default=entry.options.get(

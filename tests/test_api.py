@@ -17,6 +17,7 @@ from custom_components.movie_poster.state_machine import ModeSnapshot, Transitio
 
 def test_state_contract_contains_signed_artwork_and_session() -> None:
     """Frontend state is normalized, versioned, and keeps Plex tokens server-side."""
+    presentation_revision = 2
     media = MediaPresentation(
         key="42",
         media_type="movie",
@@ -43,6 +44,14 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
         orientation="portrait",
         layout="poster",
         frame_theme="cyber_noir",
+        accent_color="#12cdef",
+        background_color="#010203",
+        heading_font="condensed",
+        body_font="modern",
+        now_playing_text="Feature Presentation",
+        coming_soon_text="Up Next",
+        eyebrow_text="The Jester Theater",
+        presentation_revision=presentation_revision,
         data=SimpleNamespace(
             mode=ModeSnapshot(
                 mode=DisplayMode.NOW_PLAYING,
@@ -72,8 +81,16 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
         "orientation": "portrait",
         "layout": "poster",
         "frame_theme": "cyber_noir",
+        "accent_color": "#12cdef",
+        "background_color": "#010203",
+        "heading_font": "condensed",
+        "body_font": "modern",
+        "eyebrow_text": "The Jester Theater",
+        "now_playing_text": "Feature Presentation",
+        "coming_soon_text": "Up Next",
     }
-    assert state["heading"] == "Now Playing"
+    assert state["presentation_revision"] == presentation_revision
+    assert state["heading"] == "Feature Presentation"
     assert state["media"]["poster_url"].startswith(
         "/api/movie_poster/artwork/entry-1/poster?authSig="
     )
@@ -94,6 +111,14 @@ def test_state_contract_reports_plex_outage_without_exposing_exception() -> None
         orientation="auto",
         layout="cinematic",
         frame_theme="marquee",
+        accent_color="#f6cf70",
+        background_color="#090706",
+        heading_font="cinematic",
+        body_font="system",
+        now_playing_text="Now Playing",
+        coming_soon_text="Coming Soon",
+        eyebrow_text="Theater Presentation",
+        presentation_revision=0,
         last_update_success=False,
         last_exception=RuntimeError("secret internal detail"),
         data=SimpleNamespace(
@@ -136,6 +161,13 @@ def test_studio_save_preserves_behavior_options() -> None:
         "show_session": False,
         "enable_motion": True,
         "kiosk_mode": True,
+        "accent_color": "#29f2ff",
+        "background_color": "#05000d",
+        "heading_font": "cinematic",
+        "body_font": "modern",
+        "now_playing_text": "Now Showing",
+        "coming_soon_text": "Coming Attractions",
+        "eyebrow_text": "Jester Cinema",
     }
 
     result = _updated_presentation_options(current, updates)

@@ -7,14 +7,21 @@ from typing import TYPE_CHECKING
 from homeassistant.helpers import config_validation as cv
 
 from .const import (
+    CONF_ACCENT_COLOR,
+    CONF_BACKGROUND_COLOR,
+    CONF_BODY_FONT,
     CONF_COLLECTION,
+    CONF_COMING_SOON_TEXT,
     CONF_ENABLE_MOTION,
+    CONF_EYEBROW_TEXT,
     CONF_FRAME_THEME,
     CONF_GRACE_SECONDS,
+    CONF_HEADING_FONT,
     CONF_KIOSK_MODE,
     CONF_LAYOUT,
     CONF_LIBRARY,
     CONF_LIBRARY_REFRESH_SECONDS,
+    CONF_NOW_PLAYING_TEXT,
     CONF_ORIENTATION,
     CONF_PLAYER_ID,
     CONF_ROTATION_SECONDS,
@@ -26,12 +33,19 @@ from .const import (
     CONF_TOKEN,
     CONF_USER_ID,
     CONF_VERIFY_SSL,
+    DEFAULT_ACCENT_COLOR,
+    DEFAULT_BACKGROUND_COLOR,
+    DEFAULT_BODY_FONT,
+    DEFAULT_COMING_SOON_TEXT,
     DEFAULT_ENABLE_MOTION,
+    DEFAULT_EYEBROW_TEXT,
     DEFAULT_FRAME_THEME,
     DEFAULT_GRACE_SECONDS,
+    DEFAULT_HEADING_FONT,
     DEFAULT_KIOSK_MODE,
     DEFAULT_LAYOUT,
     DEFAULT_LIBRARY_REFRESH_SECONDS,
+    DEFAULT_NOW_PLAYING_TEXT,
     DEFAULT_ORIENTATION,
     DEFAULT_ROTATION_SECONDS,
     DEFAULT_SHOW_PROGRESS,
@@ -105,6 +119,19 @@ async def async_setup_entry(
         orientation=entry.options.get(CONF_ORIENTATION, DEFAULT_ORIENTATION),
         layout=entry.options.get(CONF_LAYOUT, DEFAULT_LAYOUT),
         frame_theme=entry.options.get(CONF_FRAME_THEME, DEFAULT_FRAME_THEME),
+        accent_color=entry.options.get(CONF_ACCENT_COLOR, DEFAULT_ACCENT_COLOR),
+        background_color=entry.options.get(
+            CONF_BACKGROUND_COLOR, DEFAULT_BACKGROUND_COLOR
+        ),
+        heading_font=entry.options.get(CONF_HEADING_FONT, DEFAULT_HEADING_FONT),
+        body_font=entry.options.get(CONF_BODY_FONT, DEFAULT_BODY_FONT),
+        now_playing_text=entry.options.get(
+            CONF_NOW_PLAYING_TEXT, DEFAULT_NOW_PLAYING_TEXT
+        ),
+        coming_soon_text=entry.options.get(
+            CONF_COMING_SOON_TEXT, DEFAULT_COMING_SOON_TEXT
+        ),
+        eyebrow_text=entry.options.get(CONF_EYEBROW_TEXT, DEFAULT_EYEBROW_TEXT),
         entry_id=entry.entry_id,
     )
     await coordinator.async_initialize()
