@@ -158,9 +158,12 @@ class MoviePosterPanel extends HTMLElement {
       ? `style="--backdrop:url('${escapeHtml(media.backdrop_url)}')"`
       : "";
     const theme = normalizeTheme(state.presentation?.theme);
+    const presentation = state.presentation ?? {};
+    const motionClass = presentation.enable_motion === false ? " motion-off" : "";
 
     this.shadowRoot.innerHTML = `${this._styles()}
-      <main class="theater theme-${theme} mode-${escapeHtml(state.mode)}" ${backdropStyle}>
+      <main class="theater theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}"
+        ${backdropStyle}>
         <div class="ambient"></div>
         <p class="connection-warning" role="status"
           ${state.health?.connected === false ? "" : "hidden"}>
@@ -182,10 +185,13 @@ class MoviePosterPanel extends HTMLElement {
               <h2>${escapeHtml(media.title)}</h2>
               ${media.subtitle ? `<p class="subtitle">${escapeHtml(media.subtitle)}</p>` : ""}
               ${meta ? `<p class="meta">${escapeHtml(meta)}</p>` : ""}
-              ${media.summary ? `<p class="summary">${escapeHtml(media.summary)}</p>` : ""}
-              ${state.session ? `<p class="session">${escapeHtml(state.session.user)}
+              ${media.summary && presentation.show_summary !== false
+                ? `<p class="summary">${escapeHtml(media.summary)}</p>` : ""}
+              ${state.session && presentation.show_session !== false
+                ? `<p class="session">${escapeHtml(state.session.user)}
                 · ${escapeHtml(state.session.player)}</p>` : ""}
-              ${hasProgress ? `<div class="progress" role="progressbar"
+              ${hasProgress && presentation.show_progress !== false
+                ? `<div class="progress" role="progressbar"
                 aria-label="Playback progress" aria-valuemin="0" aria-valuemax="100"
                 aria-valuenow="${Math.round(progress)}">
                 <i style="width:${progress}%"></i></div>` : ""}
@@ -325,6 +331,10 @@ class MoviePosterPanel extends HTMLElement {
       .theme-neon .marquee-frame {
         box-shadow: 0 0 0 3px var(--gold-deep), 0 0 55px #b51fff66;
       }
+      .motion-off .marquee-frame,
+      .motion-off .marquee-frame::before { animation: none; }
+      .motion-off .marquee-frame::before { opacity: .8; }
+      .motion-off .ambient { filter: brightness(.18) saturate(.8); }
       @keyframes bulbs { from { opacity: .48; } to { opacity: 1; } }
       .marquee { text-align: center; padding: 14px 20px 28px; }
       .eyebrow, .status {

@@ -51,6 +51,10 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         rotation_seconds: float = 15,
         library_refresh_seconds: float = 900,
         theme: str = "classic",
+        show_summary: bool = True,
+        show_progress: bool = True,
+        show_session: bool = True,
+        enable_motion: bool = True,
         entry_id: str = "",
     ) -> None:
         """Initialize the coordinator."""
@@ -63,6 +67,10 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         )
         self.entry_id = entry_id
         self.theme = theme
+        self.show_summary = show_summary
+        self.show_progress = show_progress
+        self.show_session = show_session
+        self.enable_motion = enable_motion
         self._client = client
         self._policy = policy
         self._mode = DisplayModeMachine(grace_seconds)

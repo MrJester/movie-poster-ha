@@ -11,19 +11,27 @@ from homeassistant.core import callback
 
 from .const import (
     CONF_COLLECTION,
+    CONF_ENABLE_MOTION,
     CONF_GRACE_SECONDS,
     CONF_LIBRARY,
     CONF_LIBRARY_REFRESH_SECONDS,
     CONF_PLAYER_ID,
     CONF_ROTATION_SECONDS,
     CONF_SERVER_URL,
+    CONF_SHOW_PROGRESS,
+    CONF_SHOW_SESSION,
+    CONF_SHOW_SUMMARY,
     CONF_THEME,
     CONF_TOKEN,
     CONF_USER_ID,
     CONF_VERIFY_SSL,
+    DEFAULT_ENABLE_MOTION,
     DEFAULT_GRACE_SECONDS,
     DEFAULT_LIBRARY_REFRESH_SECONDS,
     DEFAULT_ROTATION_SECONDS,
+    DEFAULT_SHOW_PROGRESS,
+    DEFAULT_SHOW_SESSION,
+    DEFAULT_SHOW_SUMMARY,
     DEFAULT_THEME,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
@@ -327,6 +335,30 @@ class MoviePosterOptionsFlow(config_entries.OptionsFlow):
                     CONF_THEME,
                     default=entry.options.get(CONF_THEME, DEFAULT_THEME),
                 ): vol.In(THEMES),
+                vol.Required(
+                    CONF_SHOW_SUMMARY,
+                    default=entry.options.get(
+                        CONF_SHOW_SUMMARY, DEFAULT_SHOW_SUMMARY
+                    ),
+                ): bool,
+                vol.Required(
+                    CONF_SHOW_PROGRESS,
+                    default=entry.options.get(
+                        CONF_SHOW_PROGRESS, DEFAULT_SHOW_PROGRESS
+                    ),
+                ): bool,
+                vol.Required(
+                    CONF_SHOW_SESSION,
+                    default=entry.options.get(
+                        CONF_SHOW_SESSION, DEFAULT_SHOW_SESSION
+                    ),
+                ): bool,
+                vol.Required(
+                    CONF_ENABLE_MOTION,
+                    default=entry.options.get(
+                        CONF_ENABLE_MOTION, DEFAULT_ENABLE_MOTION
+                    ),
+                ): bool,
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

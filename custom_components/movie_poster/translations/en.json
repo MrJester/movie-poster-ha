@@ -60,6 +60,10 @@
           "library_refresh_seconds": "Refresh movie library every (seconds)",
           "player_id": "Preferred Plex player",
           "rotation_seconds": "Rotate Coming Soon poster every (seconds)",
+          "enable_motion": "Enable motion effects",
+          "show_progress": "Show playback progress",
+          "show_session": "Show Plex player and user",
+          "show_summary": "Show media summary",
           "source": "Coming Soon source",
           "theme": "Display theme",
           "user_id": "Preferred Plex user"

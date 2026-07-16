@@ -130,7 +130,13 @@ def _serialize_state(
             if getattr(coordinator, "last_update_success", True)
             else "Plex is temporarily unavailable. Retrying automatically.",
         },
-        "presentation": {"theme": coordinator.theme},
+        "presentation": {
+            "theme": coordinator.theme,
+            "show_summary": coordinator.show_summary,
+            "show_progress": coordinator.show_progress,
+            "show_session": coordinator.show_session,
+            "enable_motion": coordinator.enable_motion,
+        },
         "mode": data.mode.mode,
         "heading": "Now Playing"
         if data.mode.mode == "now_playing"
