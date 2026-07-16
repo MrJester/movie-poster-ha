@@ -317,6 +317,10 @@ class MoviePosterPanel extends HTMLElement {
                 ? `<img class="poster" src="${escapeHtml(media.poster_url)}"
                      alt="Poster for ${escapeHtml(media.title)}">`
                 : '<div class="poster poster-missing">No poster available</div>'}
+              <footer class="frame-plaque">
+                <strong>${escapeHtml(media.title)}</strong>
+                <span>${escapeHtml(media.subtitle || state.heading)}</span>
+              </footer>
             </div>
             <article class="details">
               <h2>${escapeHtml(media.title)}</h2>
@@ -334,10 +338,6 @@ class MoviePosterPanel extends HTMLElement {
                 <i style="width:${progress}%"></i></div>` : ""}
             </article>
           </div>
-          <footer class="frame-plaque">
-            <strong>${escapeHtml(media.title)}</strong>
-            <span>${escapeHtml(media.subtitle || state.heading)}</span>
-          </footer>
         </section>
       </main>`;
     this._bindStudioControls();
@@ -627,8 +627,8 @@ class MoviePosterPanel extends HTMLElement {
       .studio button:disabled { cursor: wait; opacity: .65; }
       .marquee-frame {
         position: relative;
-        width: min(1180px, 96vw);
-        min-height: min(92vh, 900px);
+        width: min(1320px, 97vw);
+        min-height: min(95vh, 1020px);
         padding: clamp(20px, 3vw, 46px);
         border: 8px solid #2b1608;
         border-radius: 28px;
@@ -657,20 +657,42 @@ class MoviePosterPanel extends HTMLElement {
         position: relative;
         z-index: 3;
         display: none;
-        width: min(620px, 82%);
-        margin: 16px auto 0;
-        padding: 10px 20px;
+        width: 100%;
+        margin: 18px auto 0;
+        padding: clamp(14px, 2vw, 24px) clamp(18px, 2.5vw, 32px);
         text-align: center;
         text-transform: uppercase;
       }
       .frame-plaque strong, .frame-plaque span { display: block; }
-      .frame-plaque strong { letter-spacing: .12em; }
-      .frame-plaque span { margin-top: 3px; font-size: .68rem; letter-spacing: .18em; }
+      .frame-plaque strong {
+        font-family: var(--heading-font, Impact, sans-serif);
+        font-size: clamp(1.1rem, 2.1vw, 2rem);
+        letter-spacing: .1em;
+        line-height: 1.05;
+      }
+      .frame-plaque span {
+        margin-top: 7px;
+        font-size: clamp(.7rem, 1vw, .95rem);
+        letter-spacing: .14em;
+        line-height: 1.2;
+      }
+      .frame-cyber_noir .details h2,
+      .frame-cyber_noir .details .subtitle,
+      .frame-comic_hero .details h2,
+      .frame-comic_hero .details .subtitle,
+      .frame-theater_classic .details h2,
+      .frame-theater_classic .details .subtitle,
+      .frame-indie_nature .details h2,
+      .frame-indie_nature .details .subtitle,
+      .frame-golden_age .details h2,
+      .frame-golden_age .details .subtitle,
+      .frame-steampunk .details h2,
+      .frame-steampunk .details .subtitle { display: none; }
 
       /* Layouts stay independent from decorative frames. */
-      .layout-poster .marquee-frame { width: min(700px, 94vw); }
+      .layout-poster .marquee-frame { width: min(820px, 97vw); }
       .layout-poster .content { display: block; padding-inline: clamp(20px, 7vw, 90px); }
-      .layout-poster .poster { width: min(48vh, 100%); margin: auto; }
+      .layout-poster .poster { width: min(56vh, 100%); margin: auto; }
       .layout-poster .details { margin-top: 18px; text-align: center; }
       .layout-poster .details h2 { font-size: clamp(1.7rem, 3vw, 3rem); }
       .layout-poster .summary, .layout-poster .session { display: none; }
@@ -814,11 +836,13 @@ class MoviePosterPanel extends HTMLElement {
         margin: 5px 0 0;
         color: #fff1c2;
         font-family: var(--heading-font, Impact, "Arial Narrow", sans-serif);
-        font-size: clamp(2.3rem, 6vw, 5.8rem);
+        max-width: 100%;
+        font-size: clamp(1.7rem, 6vw, 5.8rem);
         font-weight: 400;
         letter-spacing: .08em;
         line-height: .95;
         text-transform: uppercase;
+        white-space: nowrap;
         text-shadow: 0 3px 0 #7b3b10, 0 0 25px #f4a42b66;
       }
       .content {
@@ -834,7 +858,7 @@ class MoviePosterPanel extends HTMLElement {
       .poster {
         display: block;
         width: 100%;
-        max-height: 66vh;
+        max-height: 70vh;
         aspect-ratio: 2 / 3;
         object-fit: cover;
         border: 3px solid #dba84e;
@@ -868,7 +892,7 @@ class MoviePosterPanel extends HTMLElement {
       .orientation-portrait .marquee-frame { width: min(96vw, 620px); }
       .orientation-portrait .content { grid-template-columns: 1fr; gap: 22px; }
       .orientation-portrait .poster {
-        width: min(60vw, 330px); margin: auto; max-height: 54vh;
+        width: min(68vw, 390px); margin: auto; max-height: 60vh;
       }
       .orientation-portrait .details { text-align: center; }
       .orientation-portrait .summary { display: none; }
@@ -876,13 +900,15 @@ class MoviePosterPanel extends HTMLElement {
         .orientation-auto .marquee-frame { width: min(96vw, 620px); }
         .orientation-auto .content { grid-template-columns: 1fr; gap: 22px; }
         .orientation-auto .poster {
-          width: min(60vw, 330px); margin: auto; max-height: 54vh;
+          width: min(68vw, 390px); margin: auto; max-height: 60vh;
         }
         .orientation-auto .details { text-align: center; }
         .orientation-auto .summary { display: none; }
       }
       @media (max-width: 720px) {
-        .orientation-portrait h1, .orientation-auto h1 { font-size: 2.3rem; }
+        .orientation-portrait h1, .orientation-auto h1 {
+          font-size: clamp(1.25rem, 7.5vw, 2.3rem);
+        }
       }
       @media (prefers-reduced-motion: reduce) {
         .marquee-frame, .marquee-frame::before { animation: none; }
