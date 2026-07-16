@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.9
+
+- Scale poster height, frame padding, marquee, metadata, plaque, and summary
+  together on short landscape screens while preserving the poster ratio.
+
 ## 0.1.0-beta.8
 
 - Scale the complete presentation frame into an 88% viewport envelope while

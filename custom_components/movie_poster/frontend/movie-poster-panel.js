@@ -1370,6 +1370,57 @@ class MoviePosterPanel extends HTMLElement {
           aspect-ratio: 4 / 3;
         }
       }
+      @media (max-height: 800px) and (orientation: landscape) {
+        .orientation-landscape .marquee-frame,
+        .orientation-auto .marquee-frame {
+          padding: clamp(18px, 2.5vh, 26px);
+        }
+        .orientation-landscape .marquee,
+        .orientation-auto .marquee {
+          padding: 7px 18px 14px;
+        }
+        .orientation-landscape h1,
+        .orientation-auto h1 {
+          font-size: clamp(1.5rem, 5vh, 3rem);
+        }
+        .orientation-landscape .content,
+        .orientation-auto .content {
+          gap: clamp(18px, 3vw, 42px);
+          padding: 4px clamp(18px, 2.5vw, 34px) 14px;
+        }
+        .orientation-landscape .poster,
+        .orientation-auto .poster,
+        .orientation-landscape.layout-poster .poster,
+        .orientation-auto.layout-poster .poster {
+          width: auto;
+          height: min(57vh, 520px);
+          max-width: 100%;
+          max-height: 57vh;
+          margin-inline: auto;
+        }
+        .orientation-landscape .details h2,
+        .orientation-auto .details h2 {
+          font-size: clamp(1.55rem, 4.2vh, 2.8rem);
+        }
+        .orientation-landscape .summary,
+        .orientation-auto .summary {
+          display: -webkit-box;
+          overflow: hidden;
+          font-size: clamp(.82rem, 1.8vh, 1rem);
+          line-height: 1.35;
+          -webkit-box-orient: vertical;
+          -webkit-line-clamp: 5;
+        }
+        .orientation-landscape .frame-plaque,
+        .orientation-auto .frame-plaque {
+          margin-top: 10px;
+          padding: 10px 16px;
+        }
+        .orientation-landscape .frame-plaque strong,
+        .orientation-auto .frame-plaque strong {
+          font-size: clamp(.95rem, 2.4vh, 1.4rem);
+        }
+      }
       @media (max-width: 720px) {
         .orientation-portrait h1, .orientation-auto h1 {
           font-size: clamp(1.25rem, 7.5vw, 2.3rem);
