@@ -471,26 +471,30 @@ class MoviePosterPanel extends HTMLElement {
     const inset = 4;
     const width = Math.max(0, frame.clientWidth - inset * 2);
     const height = Math.max(0, frame.clientHeight - inset * 2);
-    const perimeter = 2 * (width + height);
-    const count = Math.max(16, Math.round(perimeter / 42));
+    const horizontalCount = Math.max(3, Math.round(width / 42) + 1);
+    const verticalCount = Math.max(3, Math.round(height / 42));
+    const points = [
+      ...Array.from({ length: horizontalCount }, (_, index) => ({
+        x: (index + .5) * width / horizontalCount, y: 0,
+      })),
+      ...Array.from({ length: verticalCount }, (_, index) => ({
+        x: width, y: (index + .5) * height / verticalCount,
+      })),
+      ...Array.from({ length: horizontalCount }, (_, index) => ({
+        x: width - (index + .5) * width / horizontalCount, y: height,
+      })),
+      ...Array.from({ length: verticalCount }, (_, index) => ({
+        x: 0, y: height - (index + .5) * height / verticalCount,
+      })),
+    ];
+    const count = points.length;
     if (Number(container.dataset.count) !== count) {
       container.replaceChildren(...Array.from({ length: count }, () =>
         document.createElement("i")));
       container.dataset.count = String(count);
     }
     [...container.children].forEach((bulb, index) => {
-      const distance = index * perimeter / count;
-      let x;
-      let y;
-      if (distance < width) {
-        x = distance; y = 0;
-      } else if (distance < width + height) {
-        x = width; y = distance - width;
-      } else if (distance < width * 2 + height) {
-        x = width - (distance - width - height); y = height;
-      } else {
-        x = 0; y = height - (distance - width * 2 - height);
-      }
+      const { x, y } = points[index];
       bulb.style.left = `${x + inset}px`;
       bulb.style.top = `${y + inset}px`;
       bulb.style.setProperty("--bulb-delay", `${-index * 4.8 / count}s`);

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.5
+
+- Add one calculated bulb to each horizontal Marquee rail while preserving
+  balanced corner clearance and the continuous clockwise chase.
+
 ## 0.1.0-beta.4
 
 - Space Marquee bulbs evenly along the measured frame perimeter and animate one
