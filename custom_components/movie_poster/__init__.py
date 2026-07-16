@@ -12,12 +12,14 @@ from .const import (
     CONF_PLAYER_ID,
     CONF_ROTATION_SECONDS,
     CONF_SERVER_URL,
+    CONF_THEME,
     CONF_TOKEN,
     CONF_USER_ID,
     CONF_VERIFY_SSL,
     DEFAULT_GRACE_SECONDS,
     DEFAULT_LIBRARY_REFRESH_SECONDS,
     DEFAULT_ROTATION_SECONDS,
+    DEFAULT_THEME,
     DOMAIN,
     PLATFORMS,
 )
@@ -74,6 +76,7 @@ async def async_setup_entry(
         library_refresh_seconds=entry.options.get(
             CONF_LIBRARY_REFRESH_SECONDS, DEFAULT_LIBRARY_REFRESH_SECONDS
         ),
+        theme=entry.options.get(CONF_THEME, DEFAULT_THEME),
         entry_id=entry.entry_id,
     )
     await coordinator.async_config_entry_first_refresh()

@@ -17,14 +17,17 @@ from .const import (
     CONF_PLAYER_ID,
     CONF_ROTATION_SECONDS,
     CONF_SERVER_URL,
+    CONF_THEME,
     CONF_TOKEN,
     CONF_USER_ID,
     CONF_VERIFY_SSL,
     DEFAULT_GRACE_SECONDS,
     DEFAULT_LIBRARY_REFRESH_SECONDS,
     DEFAULT_ROTATION_SECONDS,
+    DEFAULT_THEME,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
+    THEMES,
 )
 from .plex_auth import PlexAuthError, PlexAuthSession, PlexServerChoice
 
@@ -273,6 +276,10 @@ class MoviePosterOptionsFlow(config_entries.OptionsFlow):
                         DEFAULT_LIBRARY_REFRESH_SECONDS,
                     ),
                 ): vol.All(vol.Coerce(int), vol.Range(min=60, max=86400)),
+                vol.Required(
+                    CONF_THEME,
+                    default=entry.options.get(CONF_THEME, DEFAULT_THEME),
+                ): vol.In(THEMES),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

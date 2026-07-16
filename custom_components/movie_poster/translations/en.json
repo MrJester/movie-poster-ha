@@ -57,6 +57,7 @@
           "player_id": "Preferred Plex player",
           "rotation_seconds": "Rotate Coming Soon poster every (seconds)",
           "source": "Coming Soon source",
+          "theme": "Display theme",
           "user_id": "Preferred Plex user"
         },
         "description": "Choose the Coming Soon source and which Plex playback should control the display.",

@@ -13,12 +13,17 @@ const formatRuntime = (milliseconds) => {
   return hours ? `${hours}h ${remainder}m` : `${minutes}m`;
 };
 
+const THEMES = new Set(["classic", "art_deco", "neon", "minimal", "oled"]);
+
+const normalizeTheme = (value) => THEMES.has(value) ? value : "classic";
+
 class MoviePosterPanel extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
     this._state = null;
     this._unsubscribePromise = null;
+    this._retryTimer = null;
   }
 
   set hass(value) {
@@ -36,6 +41,8 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   disconnectedCallback() {
+    clearTimeout(this._retryTimer);
+    this._retryTimer = null;
     if (this._unsubscribePromise) {
       this._unsubscribePromise.then((unsubscribe) => unsubscribe());
       this._unsubscribePromise = null;
@@ -58,7 +65,11 @@ class MoviePosterPanel extends HTMLElement {
     ).catch((error) => {
       this._unsubscribePromise = null;
       this._renderError(error?.message || "Unable to connect to Movie Poster");
-      throw error;
+      clearTimeout(this._retryTimer);
+      this._retryTimer = setTimeout(() => {
+        this._retryTimer = null;
+        this._subscribe();
+      }, 5000);
     });
   }
 
@@ -89,9 +100,10 @@ class MoviePosterPanel extends HTMLElement {
     const backdropStyle = media.backdrop_url
       ? `style="--backdrop:url('${escapeHtml(media.backdrop_url)}')"`
       : "";
+    const theme = normalizeTheme(state.presentation?.theme);
 
     this.shadowRoot.innerHTML = `${this._styles()}
-      <main class="theater mode-${escapeHtml(state.mode)}" ${backdropStyle}>
+      <main class="theater theme-${theme} mode-${escapeHtml(state.mode)}" ${backdropStyle}>
         <div class="ambient"></div>
         <section class="marquee-frame">
           <header class="marquee">
@@ -152,6 +164,38 @@ class MoviePosterPanel extends HTMLElement {
           radial-gradient(circle at 50% 0%, #4f160f 0%, transparent 45%),
           linear-gradient(145deg, #080605, #1b0908 50%, #050404);
       }
+      .theme-art_deco {
+        --gold: #e9d59b;
+        --gold-deep: #7c6735;
+        --ink: #08100f;
+        --velvet: #12302c;
+        background:
+          repeating-linear-gradient(135deg, #ffffff08 0 1px, transparent 1px 42px),
+          radial-gradient(circle at 50% 0%, #1b4b43, transparent 48%), #050908;
+      }
+      .theme-neon {
+        --gold: #29f2ff;
+        --gold-deep: #b51fff;
+        --ink: #05000d;
+        --velvet: #260052;
+        background:
+          radial-gradient(circle at 20% 0%, #4b0075 0, transparent 40%),
+          radial-gradient(circle at 85% 100%, #003d5c 0, transparent 42%), #05000d;
+      }
+      .theme-minimal {
+        --gold: #f2f2f2;
+        --gold-deep: #777;
+        --ink: #171717;
+        --velvet: #252525;
+        background: #171717;
+      }
+      .theme-oled {
+        --gold: #fff;
+        --gold-deep: #333;
+        --ink: #000;
+        --velvet: #000;
+        background: #000;
+      }
       .ambient {
         position: absolute;
         inset: -30px;
@@ -181,6 +225,19 @@ class MoviePosterPanel extends HTMLElement {
         border-radius: 17px;
         filter: drop-shadow(0 0 7px #ffc846);
         animation: bulbs 1.4s ease-in-out infinite alternate;
+      }
+      .theme-minimal .marquee-frame::before,
+      .theme-oled .marquee-frame::before { display: none; }
+      .theme-minimal .marquee-frame,
+      .theme-oled .marquee-frame {
+        border-width: 1px;
+        border-color: #ffffff2b;
+        border-radius: 4px;
+        box-shadow: none;
+      }
+      .theme-oled .ambient { opacity: .28; }
+      .theme-neon .marquee-frame {
+        box-shadow: 0 0 0 3px var(--gold-deep), 0 0 55px #b51fff66;
       }
       @keyframes bulbs { from { opacity: .48; } to { opacity: 1; } }
       .marquee { text-align: center; padding: 14px 20px 28px; }

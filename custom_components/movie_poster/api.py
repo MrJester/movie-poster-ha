@@ -124,6 +124,7 @@ def _serialize_state(
     session = data.selected_session
     return {
         "schema_version": 1,
+        "presentation": {"theme": coordinator.theme},
         "mode": data.mode.mode,
         "heading": "Now Playing"
         if data.mode.mode == "now_playing"

@@ -31,6 +31,7 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
     )
     coordinator = SimpleNamespace(
         entry_id="entry-1",
+        theme="neon",
         data=SimpleNamespace(
             mode=ModeSnapshot(
                 mode=DisplayMode.NOW_PLAYING,
@@ -48,6 +49,7 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
     )
 
     assert state["schema_version"] == 1
+    assert state["presentation"] == {"theme": "neon"}
     assert state["heading"] == "Now Playing"
     assert state["media"]["poster_url"].startswith(
         "/api/movie_poster/artwork/entry-1/poster?authSig="

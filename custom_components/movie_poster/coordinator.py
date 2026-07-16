@@ -45,6 +45,7 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         collection_title: str | None = None,
         rotation_seconds: float = 15,
         library_refresh_seconds: float = 900,
+        theme: str = "classic",
         entry_id: str = "",
     ) -> None:
         """Initialize the coordinator."""
@@ -56,6 +57,7 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
             always_update=False,
         )
         self.entry_id = entry_id
+        self.theme = theme
         self._client = client
         self._policy = policy
         self._mode = DisplayModeMachine(grace_seconds)
