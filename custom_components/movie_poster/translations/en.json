@@ -86,5 +86,18 @@
       }
     }
   },
+  "entity": {
+    "button": {
+      "next_poster": {"name": "Next poster"},
+      "refresh_library": {"name": "Refresh library"},
+      "reset_shuffle": {"name": "Reset shuffle"}
+    },
+    "sensor": {
+      "display_mode": {"name": "Display mode"},
+      "current_title": {"name": "Current title"},
+      "loaded_movies": {"name": "Loaded movies"},
+      "remaining_movies": {"name": "Remaining movies"}
+    }
+  },
   "title": "Movie Poster"
 }

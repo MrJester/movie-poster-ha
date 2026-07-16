@@ -169,6 +169,26 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._library_refresh_due = 0.0
         await self.async_request_refresh()
 
+    @property
+    def loaded_movie_count(self) -> int:
+        """Return the number of movies currently available to rotation."""
+        return len(self._movies)
+
+    @property
+    def remaining_movie_count(self) -> int:
+        """Return the number of movies left in the current shuffle cycle."""
+        return len(self._bag.snapshot())
+
+    @property
+    def library_hydrating(self) -> bool:
+        """Return whether Plex library pages are currently being loaded."""
+        return self._movie_refresh_in_progress
+
+    @property
+    def source_name(self) -> str | None:
+        """Return the configured Coming Soon collection or library name."""
+        return self._collection_title or self._library_title
+
     async def _async_update_data(self) -> CoordinatorData:
         try:
             raw_sessions = await self._client.async_sessions()

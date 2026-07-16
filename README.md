@@ -28,6 +28,11 @@ An optional theater logo can be loaded from an HTTPS URL or Home Assistant's
 Saved presentation changes are broadcast to open poster panels, which reconnect
 automatically after the integration reloads.
 
+Native Home Assistant sensors report the display mode, current title, loaded
+movie count, and posters remaining in the shuffle cycle. Dashboard buttons and
+the `movie_poster.next_poster`, `movie_poster.refresh_library`, and
+`movie_poster.reset_shuffle` services provide automation-friendly controls.
+
 ## Product principles
 
 - One HACS installation for the Home Assistant backend and bundled frontend.

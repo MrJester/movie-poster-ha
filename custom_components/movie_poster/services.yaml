@@ -1,0 +1,32 @@
+next_poster:
+  name: Next poster
+  description: Immediately select the next poster when the display is in Coming Soon mode.
+  fields:
+    entry_id:
+      name: Configuration entry
+      description: Optional Movie Poster configuration entry ID.
+      required: false
+      selector:
+        text:
+
+refresh_library:
+  name: Refresh library
+  description: Refresh the configured Plex library or collection.
+  fields:
+    entry_id:
+      name: Configuration entry
+      description: Optional Movie Poster configuration entry ID.
+      required: false
+      selector:
+        text:
+
+reset_shuffle:
+  name: Reset shuffle
+  description: Start a new randomized Coming Soon cycle without immediately repeating the current poster.
+  fields:
+    entry_id:
+      name: Configuration entry
+      description: Optional Movie Poster configuration entry ID.
+      required: false
+      selector:
+        text:

@@ -124,4 +124,4 @@ DEFAULT_COMING_SOON_TEXT: Final = "Coming Soon"
 DEFAULT_EYEBROW_TEXT: Final = "Theater Presentation"
 DEFAULT_LOGO_URL: Final = ""
 DEFAULT_LOGO_POSITION: Final = LOGO_RIGHT
-PLATFORMS: Final[list[str]] = []
+PLATFORMS: Final[list[str]] = ["button", "sensor"]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import voluptuous as vol
 from homeassistant.helpers import config_validation as cv
 
 from .const import (
@@ -62,7 +63,7 @@ from .const import (
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
-    from homeassistant.core import HomeAssistant
+    from homeassistant.core import HomeAssistant, ServiceCall
 
 type MoviePosterConfigEntry = ConfigEntry[dict]
 
@@ -74,7 +75,35 @@ async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
     from .api import async_setup_frontend  # noqa: PLC0415
 
     await async_setup_frontend(hass)
+    _async_register_services(hass)
     return True
+
+
+def _async_register_services(hass: HomeAssistant) -> None:
+    """Register automation-friendly Movie Poster services."""
+
+    async def async_handle_service(call: ServiceCall) -> None:
+        coordinators = hass.data.get(DOMAIN, {})
+        entry_id = call.data.get("entry_id")
+        coordinator = (
+            coordinators.get(entry_id)
+            if entry_id is not None
+            else next(iter(coordinators.values()), None)
+        )
+        if coordinator is None:
+            return
+        if call.service == "refresh_library":
+            await coordinator.async_refresh_library()
+        else:
+            await coordinator.async_next_poster(
+                reset_cycle=call.service == "reset_shuffle"
+            )
+
+    schema = vol.Schema({vol.Optional("entry_id"): str})
+    for service in ("next_poster", "refresh_library", "reset_shuffle"):
+        hass.services.async_register(
+            DOMAIN, service, async_handle_service, schema=schema
+        )
 
 
 async def async_setup_entry(

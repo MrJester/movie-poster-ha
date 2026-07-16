@@ -49,7 +49,7 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-dev.15"
+_FRONTEND_VERSION = "0.1.0-dev.16"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
@@ -285,13 +285,9 @@ def _serialize_state(
             "can_control": can_control,
             "library": getattr(coordinator, "_library_title", None),
             "collection": getattr(coordinator, "_collection_title", None),
-            "loaded_movies": len(getattr(coordinator, "_movies", {})),
-            "remaining_movies": len(
-                getattr(coordinator, "_bag", ()).snapshot()
-                if hasattr(getattr(coordinator, "_bag", None), "snapshot")
-                else ()
-            ),
-            "hydrating": getattr(coordinator, "_movie_refresh_in_progress", False),
+            "loaded_movies": getattr(coordinator, "loaded_movie_count", 0),
+            "remaining_movies": getattr(coordinator, "remaining_movie_count", 0),
+            "hydrating": getattr(coordinator, "library_hydrating", False),
         },
         "presentation": {
             "theme": coordinator.theme,
