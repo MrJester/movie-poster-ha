@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="velvet" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7a1616"/>
+      <stop offset="1" stop-color="#260707"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe59a"/>
+      <stop offset="1" stop-color="#c58425"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="48" fill="#090706"/>
+  <rect x="18" y="18" width="220" height="220" rx="35" fill="url(#velvet)"
+        stroke="url(#gold)" stroke-width="9"/>
+  <g fill="#ffe79b" stroke="#9d5f16" stroke-width="2">
+    <circle cx="48" cy="39" r="8"/><circle cx="80" cy="39" r="8"/>
+    <circle cx="112" cy="39" r="8"/><circle cx="144" cy="39" r="8"/>
+    <circle cx="176" cy="39" r="8"/><circle cx="208" cy="39" r="8"/>
+    <circle cx="48" cy="217" r="8"/><circle cx="80" cy="217" r="8"/>
+    <circle cx="112" cy="217" r="8"/><circle cx="144" cy="217" r="8"/>
+    <circle cx="176" cy="217" r="8"/><circle cx="208" cy="217" r="8"/>
+    <circle cx="39" cy="72" r="8"/><circle cx="39" cy="104" r="8"/>
+    <circle cx="39" cy="136" r="8"/><circle cx="39" cy="168" r="8"/>
+    <circle cx="217" cy="72" r="8"/><circle cx="217" cy="104" r="8"/>
+    <circle cx="217" cy="136" r="8"/><circle cx="217" cy="168" r="8"/>
+  </g>
+  <rect x="66" y="64" width="124" height="128" rx="12" fill="#100b09"
+        stroke="#e1aa48" stroke-width="5"/>
+  <path d="M106 94 L106 162 L164 128 Z" fill="#fff1c4"
+        stroke="#c9892b" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M78 181 H178" stroke="#e1aa48" stroke-width="6" stroke-linecap="round"/>
+</svg>
