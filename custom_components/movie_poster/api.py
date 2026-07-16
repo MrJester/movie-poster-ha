@@ -49,7 +49,7 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-dev.11"
+_FRONTEND_VERSION = "0.1.0-dev.12"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
@@ -227,12 +227,12 @@ def _serialize_state(
             "duration_ms": media.duration_ms,
             "position_ms": media.position_ms,
             "poster_url": _signed_artwork(
-                hass, coordinator.entry_id, "poster", refresh_token_id
+                hass, coordinator.entry_id, "poster", media.key, refresh_token_id
             )
             if media.poster_path
             else None,
             "backdrop_url": _signed_artwork(
-                hass, coordinator.entry_id, "backdrop", refresh_token_id
+                hass, coordinator.entry_id, "backdrop", media.key, refresh_token_id
             )
             if media.backdrop_path
             else None,
@@ -288,9 +288,10 @@ def _signed_artwork(
     hass: HomeAssistant,
     entry_id: str,
     kind: str,
+    media_key: str,
     refresh_token_id: str | None,
 ) -> str:
-    path = f"/api/movie_poster/artwork/{entry_id}/{kind}"
+    path = f"/api/movie_poster/artwork/{entry_id}/{kind}/{media_key}"
     return async_sign_path(
         hass,
         path,
@@ -302,19 +303,29 @@ def _signed_artwork(
 class MoviePosterArtworkView(HomeAssistantView):
     """Proxy Plex artwork without exposing Plex credentials to the browser."""
 
-    url = "/api/movie_poster/artwork/{entry_id}/{kind}"
+    url = "/api/movie_poster/artwork/{entry_id}/{kind}/{media_key}"
     name = "api:movie_poster:artwork"
     requires_auth = True
 
     async def get(
-        self, request: web.Request, entry_id: str, kind: str
+        self, request: web.Request, entry_id: str, kind: str, media_key: str
     ) -> web.Response:
         """Return current poster or backdrop artwork."""
         coordinator = _coordinator(request.app["hass"], entry_id)
-        if coordinator is None or kind not in {"poster", "backdrop"}:
+        current_media = coordinator.data.media if coordinator is not None else None
+        if (
+            coordinator is None
+            or kind not in {"poster", "backdrop"}
+            or current_media is None
+            or current_media.key != media_key
+        ):
             raise web.HTTPNotFound
         artwork = await coordinator.async_artwork(kind)
         if artwork is None:
             raise web.HTTPNotFound
         content, content_type = artwork
-        return web.Response(body=content, content_type=content_type)
+        return web.Response(
+            body=content,
+            content_type=content_type,
+            headers={"Cache-Control": "no-store"},
+        )

@@ -96,7 +96,7 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
     assert state["presentation_revision"] == presentation_revision
     assert state["heading"] == "Feature Presentation"
     assert state["media"]["poster_url"].startswith(
-        "/api/movie_poster/artwork/entry-1/poster?authSig="
+        "/api/movie_poster/artwork/entry-1/poster/42?authSig="
     )
     assert state["session"]["player"] == "Theater"
     assert "token" not in str(state).casefold()

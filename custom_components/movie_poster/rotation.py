@@ -24,9 +24,12 @@ class ShuffleBag[T]:
         source = tuple(dict.fromkeys(items))
         if source == self._source:
             return
+        previous = set(self._source)
         self._source = source
         eligible = set(source)
         self._remaining = [item for item in self._remaining if item in eligible]
+        self._remaining.extend(item for item in source if item not in previous)
+        self.random_source.shuffle(self._remaining)
         if not self._remaining:
             self._refill()
 

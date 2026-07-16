@@ -26,6 +26,17 @@ def test_shuffle_bag_handles_empty_pool() -> None:
     assert ShuffleBag[str]().next() is None
 
 
+def test_growing_library_joins_current_cycle_without_repeats() -> None:
+    """Incrementally hydrated pages become eligible without resetting selections."""
+    bag = ShuffleBag[str](random.Random(4))
+    bag.replace(["a", "b", "c"])
+    selected = [bag.next()]
+    bag.replace(["a", "b", "c", "d", "e", "f"])
+    selected.extend(bag.next() for _ in range(5))
+    assert set(selected) == {"a", "b", "c", "d", "e", "f"}
+    assert len(selected) == len(set(selected))
+
+
 def test_shuffle_bag_restores_cycle_without_repeating_last() -> None:
     """A restored empty cycle remembers its boundary selection."""
     bag = ShuffleBag[str](random.Random(2))
