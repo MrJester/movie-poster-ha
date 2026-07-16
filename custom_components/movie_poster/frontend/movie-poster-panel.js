@@ -1339,6 +1339,16 @@ class MoviePosterPanel extends HTMLElement {
       }
       .orientation-portrait .details { text-align: center; }
       .orientation-portrait .summary { display: none; }
+      .orientation-landscape .marquee-frame {
+        width: min(88vw, 117.333vh, 1500px);
+        min-height: 0;
+        aspect-ratio: 4 / 3;
+      }
+      .orientation-portrait .marquee-frame {
+        width: min(88vw, 58.667vh, 720px);
+        min-height: 0;
+        aspect-ratio: 2 / 3;
+      }
       @media (max-width: 720px), (orientation: portrait) {
         .orientation-auto .marquee-frame { width: min(99vw, 720px); }
         .orientation-auto .content { grid-template-columns: 1fr; gap: 22px; }
@@ -1347,6 +1357,18 @@ class MoviePosterPanel extends HTMLElement {
         }
         .orientation-auto .details { text-align: center; }
         .orientation-auto .summary { display: none; }
+        .orientation-auto .marquee-frame {
+          width: min(88vw, 58.667vh, 720px);
+          min-height: 0;
+          aspect-ratio: 2 / 3;
+        }
+      }
+      @media (min-width: 721px) and (orientation: landscape) {
+        .orientation-auto .marquee-frame {
+          width: min(88vw, 117.333vh, 1500px);
+          min-height: 0;
+          aspect-ratio: 4 / 3;
+        }
       }
       @media (max-width: 720px) {
         .orientation-portrait h1, .orientation-auto h1 {

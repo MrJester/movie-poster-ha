@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.8
+
+- Scale the complete presentation frame into an 88% viewport envelope while
+  preserving 4:3 landscape and 2:3 portrait proportions.
+
 ## 0.1.0-beta.7
 
 - Keep Art Deco headings such as Coming Soon on one line by widening the safe
