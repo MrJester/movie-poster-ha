@@ -1050,6 +1050,31 @@ class MoviePosterPanel extends HTMLElement {
         filter: drop-shadow(0 0 7px #ffc846);
         animation: bulbs 1.4s ease-in-out infinite alternate;
       }
+      .frame-marquee .marquee-frame::before {
+        inset: 8px;
+        border: 0;
+        border-radius: 18px;
+        background:
+          radial-gradient(circle, #fffbe8 0 2px, #ffe58c 3px 5px,
+            #d18a20 6px 7px, #5d3109 8px 9px, transparent 10px)
+            top left / 30px 20px repeat-x,
+          radial-gradient(circle, #fffbe8 0 2px, #ffe58c 3px 5px,
+            #d18a20 6px 7px, #5d3109 8px 9px, transparent 10px)
+            bottom left / 30px 20px repeat-x,
+          radial-gradient(circle, #fffbe8 0 2px, #ffe58c 3px 5px,
+            #d18a20 6px 7px, #5d3109 8px 9px, transparent 10px)
+            top left / 20px 30px repeat-y,
+          radial-gradient(circle, #fffbe8 0 2px, #ffe58c 3px 5px,
+            #d18a20 6px 7px, #5d3109 8px 9px, transparent 10px)
+            top right / 20px 30px repeat-y;
+        filter: drop-shadow(0 0 4px #ffc84d)
+          drop-shadow(0 0 9px #e78b1d99);
+        animation: marqueeBulbs 1.8s ease-in-out infinite alternate;
+      }
+      .motion-off.frame-marquee .marquee-frame::before {
+        animation: none;
+        opacity: .9;
+      }
       .theme-minimal .marquee-frame::before,
       .theme-oled .marquee-frame::before { display: none; }
       .theme-minimal .marquee-frame,
@@ -1068,6 +1093,14 @@ class MoviePosterPanel extends HTMLElement {
       .motion-off .marquee-frame::before { opacity: .8; }
       .motion-off .ambient { filter: brightness(.18) saturate(.8); }
       @keyframes bulbs { from { opacity: .48; } to { opacity: 1; } }
+      @keyframes marqueeBulbs {
+        from { opacity: .72; filter: drop-shadow(0 0 3px #ffc84d); }
+        to {
+          opacity: 1;
+          filter: drop-shadow(0 0 6px #ffe08a)
+            drop-shadow(0 0 12px #e78b1dcc);
+        }
+      }
       .marquee { text-align: center; padding: 14px 20px 28px; }
       .eyebrow {
         color: var(--gold);

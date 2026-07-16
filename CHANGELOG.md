@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.2
+
+- Replace the Marquee frame's dotted border with layered theater bulbs, visible
+  sockets, warm glass centers, and a soft glow pulse.
+
 ## 0.1.0-beta.1
 
 - Cache normalized Plex movie metadata for immediate restart recovery.
