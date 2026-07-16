@@ -88,6 +88,7 @@ class MoviePosterPanel extends HTMLElement {
     this._transitionRevision = 0;
     this._kioskEnabled = false;
     this._kioskElements = new Map();
+    this._kioskProperties = new Map();
     this._kioskObserver = null;
     this._externalBusId = Date.now();
     this._studio = new URLSearchParams(window.location.search).get("studio") === "1";
@@ -231,6 +232,17 @@ class MoviePosterPanel extends HTMLElement {
         element.style.display = display;
       }
       this._kioskElements.clear();
+      for (const [element, properties] of this._kioskProperties) {
+        for (const [property, previous] of properties) {
+          if (previous.value) {
+            element.style.setProperty(property, previous.value, previous.priority);
+          } else {
+            element.style.removeProperty(property);
+          }
+        }
+      }
+      this._kioskProperties.clear();
+      window.dispatchEvent(new Event("resize"));
       return;
     }
     this._hideHomeAssistantChrome();
@@ -239,7 +251,10 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   _hideHomeAssistantChrome() {
-    const selectors = ["ha-sidebar", "app-header"];
+    const selectors = [
+      "#drawer", "ha-sidebar", "app-header", "app-toolbar",
+      "ha-top-app-bar-fixed", "ha-menu-button",
+    ];
     const roots = [document];
     for (let index = 0; index < roots.length; index += 1) {
       const root = roots[index];
@@ -255,6 +270,28 @@ class MoviePosterPanel extends HTMLElement {
         }
       }
     }
+    for (const root of roots) {
+      const host = root.host;
+      if (host?.matches?.("home-assistant-main, app-drawer-layout")) {
+        this._setKioskProperty(host, "--app-drawer-width", "0px");
+      }
+      for (const layout of root.querySelectorAll("home-assistant-main, app-drawer-layout")) {
+        this._setKioskProperty(layout, "--app-drawer-width", "0px");
+      }
+    }
+    window.dispatchEvent(new Event("resize"));
+  }
+
+  _setKioskProperty(element, property, value) {
+    if (!this._kioskProperties.has(element)) this._kioskProperties.set(element, new Map());
+    const properties = this._kioskProperties.get(element);
+    if (!properties.has(property)) {
+      properties.set(property, {
+        value: element.style.getPropertyValue(property),
+        priority: element.style.getPropertyPriority(property),
+      });
+    }
+    element.style.setProperty(property, value, "important");
   }
 
   _preload(url) {
