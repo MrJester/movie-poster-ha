@@ -498,6 +498,10 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   _layoutMarqueeBulbs(frame) {
+    frame.classList.toggle(
+      "missing-poster",
+      Boolean(frame.querySelector(".poster-missing")),
+    );
     frame.classList.toggle("frame-short", frame.clientHeight < 800);
     frame.classList.toggle(
       "frame-ultra-compact",
@@ -1213,6 +1217,12 @@ class MoviePosterPanel extends HTMLElement {
         max-height: var(--fitted-poster-height, 70vh);
         overflow: hidden;
       }
+      .frame-marquee.layout-split .details h2 {
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+      }
 
       /* Illuminated glass frame with a cyan title plinth. */
       .frame-cyber_noir .marquee-frame {
@@ -1795,6 +1805,36 @@ class MoviePosterPanel extends HTMLElement {
         font-size: clamp(.58rem, 3.6cqw, .82rem);
       }
       .marquee-frame.frame-ultra-compact .frame-plaque span { display: none; }
+      .marquee-frame.missing-poster .content {
+        display: grid;
+        grid-template-columns: 1fr;
+        place-items: center;
+      }
+      .marquee-frame.missing-poster .poster-missing {
+        width: min(100%, 220px) !important;
+        height: 100px !important;
+        aspect-ratio: auto;
+      }
+      .marquee-frame.frame-ultra-compact.missing-poster .poster-missing {
+        height: 48px !important;
+      }
+      .marquee-frame.frame-ultra-compact.missing-poster .details { display: none; }
+      .orientation-portrait.layout-split .marquee-frame .summary,
+      .orientation-portrait.layout-split .marquee-frame .session,
+      .orientation-portrait.layout-split .marquee-frame .progress {
+        display: none;
+      }
+      .orientation-portrait.layout-split .marquee-frame .details h2 {
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+      }
+      .frame-comic_hero.layout-poster .marquee-frame.frame-short .summary,
+      .frame-comic_hero.layout-poster .marquee-frame.frame-short .session,
+      .frame-comic_hero.layout-poster .marquee-frame.frame-short .progress {
+        display: none;
+      }
       .orientation-landscape.layout-poster .marquee-frame.frame-short .subtitle,
       .orientation-landscape.layout-poster .marquee-frame.frame-short .meta,
       .orientation-landscape.layout-poster .marquee-frame.frame-short .summary,
@@ -1810,6 +1850,17 @@ class MoviePosterPanel extends HTMLElement {
         -webkit-line-clamp: 1;
       }
       @media (orientation: portrait) {
+        .orientation-auto.layout-split .marquee-frame .summary,
+        .orientation-auto.layout-split .marquee-frame .session,
+        .orientation-auto.layout-split .marquee-frame .progress {
+          display: none;
+        }
+        .orientation-auto.layout-split .marquee-frame .details h2 {
+          overflow: hidden;
+          display: -webkit-box;
+          -webkit-box-orient: vertical;
+          -webkit-line-clamp: 2;
+        }
         .orientation-landscape .marquee-frame.frame-short .summary,
         .orientation-landscape .marquee-frame.frame-short .session,
         .orientation-landscape .marquee-frame.frame-short .progress {
@@ -1820,6 +1871,11 @@ class MoviePosterPanel extends HTMLElement {
           display: -webkit-box;
           -webkit-box-orient: vertical;
           -webkit-line-clamp: 2;
+        }
+        .orientation-landscape .marquee-frame.frame-short .details {
+          max-height: var(--fitted-poster-height, 70vh);
+          padding: clamp(4px, 2cqw, 12px);
+          overflow: hidden;
         }
       }
       @media (min-width: 1400px) and (min-height: 2400px) and (orientation: portrait) {
