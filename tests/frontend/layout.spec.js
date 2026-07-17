@@ -104,6 +104,9 @@ for (const viewport of VIEWPORTS) {
 test("Display Studio preview stays beside its controls on a laptop", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.goto("/tests/frontend/harness.html?studio=1");
+  await page.evaluate(() => {
+    document.body.append(document.createElement("movie-poster-panel"));
+  });
   await page.waitForTimeout(100);
   const boxes = await page.evaluate(() => {
     const root = document.querySelector("movie-poster-panel").shadowRoot;
