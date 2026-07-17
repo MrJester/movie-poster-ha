@@ -498,6 +498,11 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   _layoutMarqueeBulbs(frame) {
+    frame.classList.toggle("frame-short", frame.clientHeight < 800);
+    frame.classList.toggle(
+      "frame-ultra-compact",
+      frame.clientHeight < 420 || frame.clientWidth < 360,
+    );
     this._fitHeadingToFrame(frame);
     this._fitPosterToFrame(frame);
     if (!frame.closest(".frame-marquee")) return;
@@ -553,12 +558,14 @@ class MoviePosterPanel extends HTMLElement {
   _fitHeadingToFrame(frame) {
     const heading = frame.querySelector("h1");
     if (!heading) return;
+    heading.classList.remove("heading-wrap");
     heading.style.removeProperty("font-size");
     const available = heading.clientWidth;
     const required = heading.scrollWidth;
     if (!available || required <= available) return;
     const baseSize = parseFloat(getComputedStyle(heading).fontSize);
-    const fittedSize = Math.max(12, baseSize * (available / required) * 0.98);
+    const fittedSize = baseSize * (available / required) * 0.98;
+    if (fittedSize < 12) heading.classList.add("heading-wrap");
     heading.style.fontSize = `${fittedSize}px`;
   }
 
@@ -591,7 +598,11 @@ class MoviePosterPanel extends HTMLElement {
     const posterTop = poster.getBoundingClientRect().top;
     const available = frameBottom - posterTop
       - parseFloat(contentStyle.paddingBottom) - plaqueHeight - detailsHeight - 12;
-    frame.style.setProperty("--fitted-poster-height", `${Math.max(160, available)}px`);
+    const minimum = Math.min(160, Math.max(56, frame.clientHeight * 0.18));
+    frame.style.setProperty(
+      "--fitted-poster-height",
+      `${Math.max(minimum, available)}px`,
+    );
   }
 
   _displayControls() {
@@ -1514,6 +1525,12 @@ class MoviePosterPanel extends HTMLElement {
         white-space: nowrap;
         text-shadow: 0 3px 0 #7b3b10, 0 0 25px #f4a42b66;
       }
+      h1.heading-wrap {
+        font-size: 12px !important;
+        line-height: .92;
+        text-wrap: balance;
+        white-space: normal;
+      }
       .content {
         position: relative;
         z-index: 1;
@@ -1698,6 +1715,78 @@ class MoviePosterPanel extends HTMLElement {
           font-size: clamp(.95rem, 2.4vh, 1.4rem);
         }
       }
+      .marquee-frame.frame-short {
+        padding: clamp(14px, 2.2vh, 24px);
+      }
+      .marquee-frame.frame-short .marquee {
+        margin-bottom: clamp(6px, 1.2vh, 12px);
+        padding: 6px clamp(10px, 3cqw, 20px) 10px;
+      }
+      .marquee-frame.frame-short .content {
+        gap: clamp(8px, 2cqw, 24px);
+        padding: 2px clamp(8px, 2.5cqw, 22px) 10px;
+      }
+      .marquee-frame.frame-short .details h2 {
+        margin-top: 4px;
+        font-size: clamp(1.15rem, 5cqw, 2.25rem);
+      }
+      .marquee-frame.frame-short .summary {
+        margin-block: 6px;
+        font-size: clamp(.7rem, 2cqw, .9rem);
+        line-height: 1.3;
+        -webkit-line-clamp: 3;
+      }
+      .marquee-frame.frame-short .frame-plaque {
+        margin-top: 7px;
+        padding: 7px 10px;
+      }
+      .marquee-frame.frame-ultra-compact {
+        padding: 10px;
+        border-width: 4px;
+        border-radius: 14px;
+      }
+      .marquee-frame.frame-ultra-compact .marquee {
+        margin-bottom: 3px;
+        padding: 2px 5px 4px;
+      }
+      .marquee-frame.frame-ultra-compact .eyebrow,
+      .marquee-frame.frame-ultra-compact .marquee-divider-bulbs,
+      .marquee-frame.frame-ultra-compact .subtitle,
+      .marquee-frame.frame-ultra-compact .meta,
+      .marquee-frame.frame-ultra-compact .summary,
+      .marquee-frame.frame-ultra-compact .session,
+      .marquee-frame.frame-ultra-compact .progress {
+        display: none;
+      }
+      .marquee-frame.frame-ultra-compact h1 {
+        margin: 0;
+        font-size: clamp(.72rem, 7cqw, 1.2rem);
+      }
+      .marquee-frame.frame-ultra-compact .content {
+        gap: 5px;
+        padding: 0 5px 4px;
+      }
+      .marquee-frame.frame-ultra-compact .details {
+        min-height: 0;
+        padding: 4px;
+      }
+      .marquee-frame.frame-ultra-compact .details h2 {
+        margin: 0;
+        overflow: hidden;
+        font-size: clamp(.72rem, 4.5cqw, 1rem);
+        line-height: 1;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+      }
+      .marquee-frame.frame-ultra-compact .frame-plaque {
+        margin-top: 3px;
+        padding: 3px 5px;
+      }
+      .marquee-frame.frame-ultra-compact .frame-plaque strong {
+        font-size: clamp(.58rem, 3.6cqw, .82rem);
+      }
+      .marquee-frame.frame-ultra-compact .frame-plaque span { display: none; }
       @media (min-width: 1400px) and (min-height: 2400px) and (orientation: portrait) {
         .orientation-portrait .marquee-frame,
         .orientation-auto .marquee-frame {

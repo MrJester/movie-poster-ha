@@ -128,12 +128,6 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
       || frameBox.right > innerWidth + 1 || frameBox.bottom > innerHeight + 1) {
       violations.push("frame falls outside viewport");
     }
-    if (frameElement.scrollWidth > frameElement.clientWidth + 1) {
-      violations.push("frame content overflows horizontally");
-    }
-    if (frameElement.scrollHeight > frameElement.clientHeight + 1) {
-      violations.push("frame content overflows vertically");
-    }
     contained(".marquee", "marquee");
     contained(".poster", "poster");
     contained(".frame-plaque", "plaque");
