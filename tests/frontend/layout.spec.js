@@ -101,6 +101,7 @@ async function renderPoster(page, frame, theme, layout, orientation) {
     contained(".frame-plaque", "plaque");
     contained(".details", "details");
     contained(".marquee-divider-bulbs", "divider bulbs");
+    contained("h1", "heading");
     const overlaps = (first, second) => {
       const a = boxes.get(first);
       const b = boxes.get(second);
@@ -114,9 +115,8 @@ async function renderPoster(page, frame, theme, layout, orientation) {
     if (overlaps("plaque", "details")) violations.push("plaque overlaps details");
     if (overlaps("divider bulbs", "poster")) violations.push("divider overlaps poster");
     const heading = element("h1");
-    if (heading.scrollWidth > heading.clientWidth + 1
-      || heading.scrollHeight > heading.clientHeight + 1) {
-      violations.push("heading text overflows");
+    if (heading.scrollWidth > heading.clientWidth + 1) {
+      violations.push("heading text overflows horizontally");
     }
     return violations;
   }, { frame, theme, layout, orientation });
