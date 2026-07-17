@@ -7,3 +7,5 @@ frontend/dist/
 *.egg-info/
 coverage.xml
 .DS_Store
+playwright-report/
+test-results/

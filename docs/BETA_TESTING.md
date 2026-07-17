@@ -1,6 +1,6 @@
 # Beta testing
 
-Movie Poster `0.1.0-beta.1` is intended for supervised testing on a production
+Movie Poster `0.1.0-beta.13` is intended for supervised testing on a production
 Home Assistant instance before unattended wall-display rollout.
 
 ## Upgrade checklist

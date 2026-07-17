@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add real-browser containment tests for all seven frames at laptop, theater, and tall portrait viewports.
+- Run responsive frontend regression tests as a dedicated GitHub Actions job.
+- Replace the historical roadmap with the remaining 1.0 punch-down checklist.
+
 ## 0.1.0-beta.13
 
 - Reserve the complete below-poster metadata area when fitting posters on tall portrait displays.

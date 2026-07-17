@@ -1,0 +1,10 @@
+{
+  "name": "movie-poster-ha-frontend",
+  "private": true,
+  "scripts": {
+    "test:frontend": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.0"
+  }
+}
