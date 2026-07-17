@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-beta.20
+
+- Add exhaustive browser coverage for 1,470 viewport, orientation, theme, frame, and layout combinations.
+- Add compact phone typography and spacing so complete poster details remain inside 9:16 frames.
+- Correct Studio Auto sizing on narrow portrait screens and add internal collision assertions.
+
 ## 0.1.0-beta.19
 
 - Give Display Studio a dedicated preview canvas that excludes the settings panel width.

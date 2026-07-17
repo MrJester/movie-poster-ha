@@ -1098,6 +1098,11 @@ class MoviePosterPanel extends HTMLElement {
           width: min(96vw, 28.688vh);
         }
       }
+      @media (max-width: 900px) and (orientation: portrait) {
+        .studio-preview.orientation-auto .marquee-frame {
+          width: min(96vw, 28.688vh);
+        }
+      }
       .marquee-frame {
         position: relative;
         width: min(1500px, 99vw);
@@ -1717,6 +1722,65 @@ class MoviePosterPanel extends HTMLElement {
         .theme-art_deco.orientation-auto h1 {
           font-size: clamp(1.05rem, 5.8vw, 1.9rem);
           letter-spacing: .06em;
+        }
+      }
+      @media (max-width: 480px) and (orientation: portrait) {
+        .orientation-portrait .marquee-frame,
+        .orientation-auto .marquee-frame {
+          padding: 18px;
+        }
+        .orientation-portrait .marquee,
+        .orientation-auto .marquee {
+          margin-bottom: 8px;
+          padding: 6px 8px 10px;
+        }
+        .orientation-portrait .eyebrow,
+        .orientation-auto .eyebrow { font-size: .56rem; }
+        .orientation-portrait .content,
+        .orientation-auto .content {
+          gap: 8px;
+          padding: 2px 8px 10px;
+        }
+        .orientation-portrait .marquee-divider-bulbs,
+        .orientation-auto .marquee-divider-bulbs {
+          min-height: 18px;
+          margin-block: 0 7px;
+        }
+        .orientation-portrait .details h2,
+        .orientation-auto .details h2 {
+          margin-top: 3px;
+          font-size: 1.35rem;
+        }
+        .orientation-portrait .subtitle,
+        .orientation-auto .subtitle {
+          margin: 3px 0;
+          font-size: .78rem;
+        }
+        .orientation-portrait .meta,
+        .orientation-auto .meta { font-size: .68rem; }
+        .orientation-portrait .summary,
+        .orientation-auto .summary {
+          margin-block: 5px;
+          font-size: .72rem;
+          line-height: 1.28;
+          -webkit-line-clamp: 3;
+        }
+        .orientation-portrait .session,
+        .orientation-auto .session {
+          margin-block: 4px;
+          font-size: .62rem;
+        }
+        .orientation-portrait .frame-plaque,
+        .orientation-auto .frame-plaque {
+          margin-top: 7px;
+          padding: 7px 10px;
+        }
+        .orientation-portrait .frame-plaque strong,
+        .orientation-auto .frame-plaque strong { font-size: .82rem; }
+        .orientation-portrait .frame-plaque span,
+        .orientation-auto .frame-plaque span {
+          margin-top: 3px;
+          font-size: .58rem;
         }
       }
       .theater:not(.motion-off) .content,
