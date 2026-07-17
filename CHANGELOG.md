@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-beta.15
+
+- Match portrait frames to 9:16 displays so rotated TVs use 95% of both screen dimensions.
+- Scale marquee typography, plaque text, metadata, padding, and gaps for 2160x3840 displays.
+- Add the rotated 4K TV viewport to the real-browser frame containment suite.
+
 ## 0.1.0-beta.14
 
 - Expand portrait and landscape frames from an 88% to a 95% viewport envelope.

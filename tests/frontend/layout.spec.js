@@ -14,6 +14,7 @@ const VIEWPORTS = [
   { name: "laptop", width: 1366, height: 768, orientation: "landscape" },
   { name: "theater", width: 1920, height: 1080, orientation: "landscape" },
   { name: "tall-portrait", width: 1080, height: 1920, orientation: "portrait" },
+  { name: "rotated-4k-tv", width: 2160, height: 3840, orientation: "portrait" },
 ];
 
 async function renderPoster(page, frame, orientation) {

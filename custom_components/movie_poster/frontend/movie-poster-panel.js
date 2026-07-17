@@ -1448,9 +1448,9 @@ class MoviePosterPanel extends HTMLElement {
         aspect-ratio: 4 / 3;
       }
       .orientation-portrait .marquee-frame {
-        width: min(95vw, 63.333vh);
+        width: min(95vw, 53.438vh);
         min-height: 0;
-        aspect-ratio: 2 / 3;
+        aspect-ratio: 9 / 16;
       }
       @media (max-width: 720px), (orientation: portrait) {
         .orientation-auto .marquee-frame { width: 95vw; }
@@ -1461,9 +1461,9 @@ class MoviePosterPanel extends HTMLElement {
         .orientation-auto .details { text-align: center; }
         .orientation-auto .summary { display: none; }
         .orientation-auto .marquee-frame {
-          width: min(95vw, 63.333vh);
+          width: min(95vw, 53.438vh);
           min-height: 0;
-          aspect-ratio: 2 / 3;
+          aspect-ratio: 9 / 16;
         }
       }
       @media (min-width: 721px) and (orientation: landscape) {
@@ -1522,6 +1522,62 @@ class MoviePosterPanel extends HTMLElement {
         .orientation-landscape .frame-plaque strong,
         .orientation-auto .frame-plaque strong {
           font-size: clamp(.95rem, 2.4vh, 1.4rem);
+        }
+      }
+      @media (min-width: 1400px) and (min-height: 2400px) and (orientation: portrait) {
+        .orientation-portrait .marquee-frame,
+        .orientation-auto .marquee-frame {
+          padding: clamp(52px, 2.8vw, 76px);
+        }
+        .orientation-portrait .marquee,
+        .orientation-auto .marquee {
+          margin-bottom: clamp(30px, 1.2vh, 48px);
+          padding: clamp(24px, 1.1vh, 42px) clamp(42px, 4vw, 88px);
+        }
+        .orientation-portrait .eyebrow,
+        .orientation-auto .eyebrow {
+          font-size: clamp(1.15rem, 1.15vw, 1.65rem);
+          letter-spacing: .38em;
+        }
+        .orientation-portrait h1,
+        .orientation-auto h1 {
+          font-size: clamp(4rem, 5.6vw, 7.5rem);
+        }
+        .theme-art_deco.orientation-portrait h1,
+        .theme-art_deco.orientation-auto h1 {
+          font-size: clamp(3.5rem, 4.8vw, 6.5rem);
+        }
+        .orientation-portrait .content,
+        .orientation-auto .content {
+          gap: clamp(32px, 1.3vh, 54px);
+          padding: 16px clamp(40px, 4vw, 88px) clamp(40px, 1.8vh, 68px);
+        }
+        .orientation-portrait .frame-plaque,
+        .orientation-auto .frame-plaque {
+          margin-top: clamp(24px, 1vh, 38px);
+          padding: clamp(24px, 1.1vh, 42px) clamp(32px, 3vw, 68px);
+        }
+        .orientation-portrait .frame-plaque strong,
+        .orientation-auto .frame-plaque strong {
+          font-size: clamp(2rem, 2.2vw, 3rem);
+        }
+        .orientation-portrait .frame-plaque span,
+        .orientation-auto .frame-plaque span {
+          font-size: clamp(1rem, 1.05vw, 1.45rem);
+        }
+        .orientation-portrait .details h2,
+        .orientation-auto .details h2 {
+          font-size: clamp(3rem, 4vw, 5.4rem);
+        }
+        .orientation-portrait .subtitle,
+        .orientation-auto .subtitle {
+          font-size: clamp(1.4rem, 1.35vw, 2rem);
+        }
+        .orientation-portrait .meta,
+        .orientation-portrait .session,
+        .orientation-auto .meta,
+        .orientation-auto .session {
+          font-size: clamp(1.05rem, 1vw, 1.45rem);
         }
       }
       .marquee-frame .poster {
