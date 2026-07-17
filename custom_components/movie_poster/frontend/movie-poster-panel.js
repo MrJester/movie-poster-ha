@@ -1435,7 +1435,7 @@ class MoviePosterPanel extends HTMLElement {
       .empty { text-align: center; }
       .empty p { color: #c6b99f; font-size: 1.1rem; }
       .error p { color: #ff9c8e; }
-      .orientation-portrait .marquee-frame { width: min(99vw, 720px); }
+      .orientation-portrait .marquee-frame { width: 95vw; }
       .orientation-portrait .content { grid-template-columns: 1fr; gap: 22px; }
       .orientation-portrait .poster {
         width: min(78vw, 500px); margin: auto; max-height: 72vh;
@@ -1443,17 +1443,17 @@ class MoviePosterPanel extends HTMLElement {
       .orientation-portrait .details { text-align: center; }
       .orientation-portrait .summary { display: none; }
       .orientation-landscape .marquee-frame {
-        width: min(88vw, 117.333vh, 1500px);
+        width: min(95vw, 126.667vh);
         min-height: 0;
         aspect-ratio: 4 / 3;
       }
       .orientation-portrait .marquee-frame {
-        width: min(88vw, 58.667vh, 720px);
+        width: min(95vw, 63.333vh);
         min-height: 0;
         aspect-ratio: 2 / 3;
       }
       @media (max-width: 720px), (orientation: portrait) {
-        .orientation-auto .marquee-frame { width: min(99vw, 720px); }
+        .orientation-auto .marquee-frame { width: 95vw; }
         .orientation-auto .content { grid-template-columns: 1fr; gap: 22px; }
         .orientation-auto .poster {
           width: min(78vw, 500px); margin: auto; max-height: 72vh;
@@ -1461,14 +1461,14 @@ class MoviePosterPanel extends HTMLElement {
         .orientation-auto .details { text-align: center; }
         .orientation-auto .summary { display: none; }
         .orientation-auto .marquee-frame {
-          width: min(88vw, 58.667vh, 720px);
+          width: min(95vw, 63.333vh);
           min-height: 0;
           aspect-ratio: 2 / 3;
         }
       }
       @media (min-width: 721px) and (orientation: landscape) {
         .orientation-auto .marquee-frame {
-          width: min(88vw, 117.333vh, 1500px);
+          width: min(95vw, 126.667vh);
           min-height: 0;
           aspect-ratio: 4 / 3;
         }

@@ -1,7 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.1.0-beta.14
 
+- Expand portrait and landscape frames from an 88% to a 95% viewport envelope.
+- Remove the fixed portrait width cap so large portrait displays use the available screen.
+- Broadcast Studio presentation changes before reloading the integration so open panels refresh automatically.
 - Add real-browser containment tests for all seven frames at laptop, theater, and tall portrait viewports.
 - Run responsive frontend regression tests as a dedicated GitHub Actions job.
 - Replace the historical roadmap with the remaining 1.0 punch-down checklist.

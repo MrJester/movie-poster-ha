@@ -59,7 +59,7 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-beta.13"
+_FRONTEND_VERSION = "0.1.0-beta.14"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
@@ -364,6 +364,10 @@ async def websocket_update_settings(
         CONF_ROTATION_SECONDS: msg[CONF_ROTATION_SECONDS],
         CONF_LIBRARY_REFRESH_SECONDS: msg[CONF_LIBRARY_REFRESH_SECONDS],
     }
+    for key in _PRESENTATION_KEYS:
+        setattr(coordinator, key, options[key])
+    coordinator.presentation_revision += 1
+    coordinator.async_update_listeners()
     hass.config_entries.async_update_entry(entry, options=options)
     connection.send_result(msg["id"], {"entry_id": entry.entry_id})
 
