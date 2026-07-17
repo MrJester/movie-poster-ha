@@ -59,7 +59,7 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-beta.20"
+_FRONTEND_VERSION = "0.1.0-beta.21"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
@@ -207,10 +207,12 @@ async def websocket_get_settings(
         return
     try:
         libraries = await coordinator._client.async_movie_libraries()  # noqa: SLF001
-        sessions = [candidate for candidate, _media in await coordinator._client.async_sessions()]  # noqa: E501, SLF001
     except Exception:  # noqa: BLE001 - Plex discovery is optional in Studio
         libraries = []
-        sessions = []
+    try:
+        playback_choices = await coordinator._client.async_playback_choices()  # noqa: SLF001
+    except Exception:  # noqa: BLE001 - preserve settings if discovery is partial
+        playback_choices = None
 
     sources = [
         {"value": f"{library.title}::", "label": f"{library.title} — All movies"}
@@ -228,8 +230,8 @@ async def websocket_get_settings(
     source_values = {choice["value"] for choice in sources}
     if current_source not in source_values:
         current_source = sources[0]["value"] if sources else current_source
-    players = {session.player_id: session.player_name for session in sessions}
-    users = {session.user_id: session.user_name for session in sessions}
+    players = dict(playback_choices.players) if playback_choices else {}
+    users = dict(playback_choices.users) if playback_choices else {}
     selected_player = entry.options.get(CONF_PLAYER_ID, "")
     selected_user = entry.options.get(CONF_USER_ID, "")
     if selected_player and selected_player not in players:

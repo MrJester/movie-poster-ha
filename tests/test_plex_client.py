@@ -63,3 +63,29 @@ async def test_session_normalization_stays_inside_executor() -> None:
     normalized = await client.async_sessions()
 
     assert normalized[0][1].subtitle == "Loaded lazily"
+
+
+async def test_playback_choices_include_idle_clients_and_server_accounts() -> None:
+    """Studio can select Plex players and users without active playback."""
+    client = MoviePosterPlexClient(
+        FakeHass(), "http://plex:32400", "test-token", verify_ssl=False
+    )
+    client._server = SimpleNamespace(
+        sessions=list,
+        clients=lambda: [
+            SimpleNamespace(machineIdentifier="theater", title="Theater TV"),
+            SimpleNamespace(machineIdentifier="laptop", title="Ryan's Laptop"),
+        ],
+        systemAccounts=lambda: [
+            SimpleNamespace(name="Ryan"),
+            SimpleNamespace(name="Guest"),
+        ],
+    )
+
+    choices = await client.async_playback_choices()
+
+    assert choices.players == (
+        ("laptop", "Ryan's Laptop"),
+        ("theater", "Theater TV"),
+    )
+    assert choices.users == (("guest", "Guest"), ("ryan", "Ryan"))

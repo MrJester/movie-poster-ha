@@ -5,9 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from plexapi.exceptions import Unauthorized
+from plexapi.exceptions import BadRequest, NotFound, Unauthorized
 from plexapi.server import PlexServer
 from requests import Session
+from requests.exceptions import RequestException
 
 from .exceptions import PlexAuthenticationError, PlexConnectionError
 from .models import PlexMoviePage
@@ -34,6 +35,14 @@ class PlexLibraryChoice:
 
     title: str
     collections: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PlexPlaybackChoices:
+    """Plex players and users selectable even while nothing is playing."""
+
+    players: tuple[tuple[str, str], ...]
+    users: tuple[tuple[str, str], ...]
 
 
 class MoviePosterPlexClient:
@@ -89,6 +98,48 @@ class MoviePosterPlexClient:
             raise PlexAuthenticationError from err
         except Exception as err:
             raise PlexConnectionError from err
+
+    async def async_playback_choices(self) -> PlexPlaybackChoices:
+        """Return active sessions plus Plex clients and server accounts."""
+        if self._server is None:
+            await self.async_connect()
+        return await self._hass.async_add_executor_job(self._playback_choices)
+
+    def _playback_choices(self) -> PlexPlaybackChoices:
+        if self._server is None:
+            raise PlexConnectionError
+        players: dict[str, str] = {}
+        users: dict[str, str] = {}
+        for session in self._optional_server_items("sessions"):
+            candidate, _media = normalize_session(session)
+            players[candidate.player_id] = candidate.player_name
+            users[candidate.user_id] = candidate.user_name
+        for client in self._optional_server_items("clients"):
+            identifier = getattr(client, "machineIdentifier", None)
+            name = getattr(client, "title", None) or getattr(
+                client, "product", None
+            )
+            if identifier:
+                players[str(identifier)] = str(name or identifier)
+        for account in self._optional_server_items("systemAccounts"):
+            name = getattr(account, "name", None)
+            if name:
+                users[str(name).casefold()] = str(name)
+        return PlexPlaybackChoices(
+            players=tuple(sorted(players.items(), key=lambda item: item[1].casefold())),
+            users=tuple(sorted(users.items(), key=lambda item: item[1].casefold())),
+        )
+
+    def _optional_server_items(self, method: str) -> tuple[Any, ...]:
+        """Return optional discovery results without failing all Studio choices."""
+        if self._server is None:
+            return ()
+        try:
+            return tuple(getattr(self._server, method)())
+        except Unauthorized as err:
+            raise PlexAuthenticationError from err
+        except (AttributeError, BadRequest, NotFound, RequestException):
+            return ()
 
     async def async_movie_libraries(self) -> list[PlexLibraryChoice]:
         """Return movie libraries and their collection names."""
