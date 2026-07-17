@@ -498,6 +498,7 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   _layoutMarqueeBulbs(frame) {
+    this._fitHeadingToFrame(frame);
     this._fitPosterToFrame(frame);
     if (!frame.closest(".frame-marquee")) return;
     const container = frame.querySelector(".marquee-bulbs");
@@ -547,6 +548,18 @@ class MoviePosterPanel extends HTMLElement {
         `${-index * 4.8 / dividerCount}s`,
       );
     });
+  }
+
+  _fitHeadingToFrame(frame) {
+    const heading = frame.querySelector("h1");
+    if (!heading) return;
+    heading.style.removeProperty("font-size");
+    const available = heading.clientWidth;
+    const required = heading.scrollWidth;
+    if (!available || required <= available) return;
+    const baseSize = parseFloat(getComputedStyle(heading).fontSize);
+    const fittedSize = Math.max(12, baseSize * (available / required) * 0.98);
+    heading.style.fontSize = `${fittedSize}px`;
   }
 
   _fitPosterToFrame(frame) {

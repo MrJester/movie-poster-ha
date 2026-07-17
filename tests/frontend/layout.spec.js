@@ -51,8 +51,8 @@ const VIEWPORTS = [
   { name: "rotated-4k-tv", width: 2160, height: 3840, orientation: "portrait" },
 ];
 
-async function renderPoster(page, frame, theme, layout, orientation) {
-  return page.evaluate(async ({ frame, theme, layout, orientation }) => {
+async function renderPoster(page, frame, theme, layout, orientation, variant = {}) {
+  return page.evaluate(async ({ frame, theme, layout, orientation, variant }) => {
     document.querySelector("movie-poster-panel")?.remove();
     const poster = document.createElement("movie-poster-panel");
     document.body.append(poster);
@@ -83,18 +83,21 @@ async function renderPoster(page, frame, theme, layout, orientation) {
         logo_position: "right",
       },
       mode: "coming_soon",
-      heading: "Coming Soon",
+      heading: variant.heading || "Coming Soon",
       media: {
         key: "test-movie",
         type: "movie",
-        title: "Pirates of the Caribbean: Dead Man's Chest",
+        title: variant.title || "Pirates of the Caribbean: Dead Man's Chest",
         subtitle: "Every night deserves a little magic",
-        summary: "A long summary verifies that the complete metadata area remains inside the decorative frame at every supported viewport size.",
+        summary: variant.summary === undefined
+          ? "A long summary verifies that the complete metadata area remains inside the decorative frame at every supported viewport size."
+          : variant.summary,
         year: 2026,
         content_rating: "PG-13",
         duration_ms: 7_200_000,
         position_ms: 1_800_000,
-        poster_url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='900'%3E%3Crect width='600' height='900' fill='%23321b16'/%3E%3C/svg%3E",
+        poster_url: variant.missingPoster ? null
+          : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='900'%3E%3Crect width='600' height='900' fill='%23321b16'/%3E%3C/svg%3E",
         backdrop_url: null,
       },
       session: { player: "Home Theater", user: "Movie Fan", state: "playing" },
@@ -158,7 +161,7 @@ async function renderPoster(page, frame, theme, layout, orientation) {
       violations.push("poster becomes unreadably small");
     }
     return violations;
-  }, { frame, theme, layout, orientation });
+  }, { frame, theme, layout, orientation, variant });
 }
 
 for (const viewport of VIEWPORTS) {
@@ -252,6 +255,41 @@ for (const viewport of VIEWPORTS) {
       }, orientation);
       expect(result, orientation).toEqual([]);
     }
+  });
+}
+
+for (const viewport of VIEWPORTS) {
+  test(`content extremes stay usable on ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await openHarness(page);
+    const variants = [
+      {
+        name: "custom heading and long episode title",
+        value: {
+          heading: "Tonight's Feature Presentation at Hays Manor Theater",
+          title: "The One Where an Unexpectedly Long Television Episode Title Appears",
+        },
+      },
+      {
+        name: "missing artwork",
+        value: { missingPoster: true, title: "No Artwork Available" },
+      },
+      {
+        name: "sparse metadata",
+        value: { title: "Up", summary: null },
+      },
+    ];
+    const failures = [];
+    for (const variant of variants) {
+      for (const orientation of ["auto", "landscape", "portrait"]) {
+        const violations = await renderPoster(
+          page, "marquee", "classic", "cinematic", orientation, variant.value,
+        );
+        failures.push(...violations.map((violation) =>
+          `${variant.name}/${orientation}: ${violation}`));
+      }
+    }
+    expect(failures).toEqual([]);
   });
 }
 
