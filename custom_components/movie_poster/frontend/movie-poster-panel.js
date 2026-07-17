@@ -180,7 +180,21 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   async _applyState(state) {
-    const previousRevision = this._state?.presentation_revision;
+    const previousState = this._state;
+    const previousRevision = previousState?.presentation_revision;
+    const presentationIdentity = (value) => [
+      value?.theme, value?.orientation, value?.layout, value?.frame_theme,
+      value?.logo_url, value?.logo_position,
+    ].join("|");
+    const softMediaChange = Boolean(
+      previousState?.media && state.media
+      && previousState.media.key !== state.media.key
+      && previousState.mode === state.mode
+      && presentationIdentity(previousState.presentation)
+        === presentationIdentity(state.presentation)
+      && state.presentation?.enable_motion !== false
+      && !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    );
     this._state = state;
     if (!this._studio) {
       this._setKiosk(state.presentation?.kiosk_mode !== false && !this._kioskSuppressed);
@@ -207,7 +221,13 @@ class MoviePosterPanel extends HTMLElement {
     const urls = [state.media?.poster_url, state.media?.backdrop_url].filter(Boolean);
     await Promise.allSettled(urls.map((url) => this._preload(url)));
     if (revision !== this._transitionRevision || !this.isConnected) return;
+    if (softMediaChange) {
+      this.shadowRoot.querySelector(".theater")?.classList.add("media-leaving");
+      await new Promise((resolve) => window.setTimeout(resolve, 240));
+      if (revision !== this._transitionRevision || !this.isConnected) return;
+    }
     this._renderIdentity = identity;
+    this._softMediaTransition = softMediaChange;
     this._render();
     if (previousRevision !== undefined && state.presentation_revision !== previousRevision) {
       this._scheduleReconnect();
@@ -395,6 +415,7 @@ class MoviePosterPanel extends HTMLElement {
     const theme = normalizeTheme(state.presentation?.theme);
     const presentation = state.presentation ?? {};
     const motionClass = presentation.enable_motion === false ? " motion-off" : "";
+    const transitionClass = this._softMediaTransition ? " media-arriving" : "";
     const orientation = normalizeOrientation(presentation.orientation);
     const layout = normalizeLayout(presentation.layout);
     const frame = normalizeFrame(presentation.frame_theme);
@@ -409,7 +430,7 @@ class MoviePosterPanel extends HTMLElement {
     const presentationStyle = `style="--backdrop:${backdrop};--gold:${accentColor};--ink:${backgroundColor}"`;
 
     this.shadowRoot.innerHTML = `${this._styles()}${this._studioControls()}
-      <main class="theater theme-${theme} mode-${escapeHtml(state.mode)}${motionClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
+      <main class="theater theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}${transitionClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
         ${presentationStyle}>
         <div class="ambient"></div>
         ${this._displayControls()}
@@ -461,6 +482,7 @@ class MoviePosterPanel extends HTMLElement {
     this._bindStudioControls();
     this._bindDisplayControls();
     this._bindMarqueeBulbs();
+    this._softMediaTransition = false;
   }
 
   _bindMarqueeBulbs() {
@@ -1616,6 +1638,25 @@ class MoviePosterPanel extends HTMLElement {
           letter-spacing: .06em;
         }
       }
+      .theater:not(.motion-off) .content,
+      .theater:not(.motion-off) .ambient {
+        transition: opacity .24s ease, transform .24s ease;
+      }
+      .theater.media-leaving .content {
+        opacity: 0;
+        transform: scale(.994);
+      }
+      .theater.media-leaving .ambient { opacity: .35; }
+      .theater.media-arriving .marquee-frame { animation: none; }
+      .theater.media-arriving .content {
+        animation: mediaArrive .7s cubic-bezier(.22, .75, .25, 1) both;
+      }
+      .theater.media-arriving .ambient { animation: ambientArrive 1s ease both; }
+      @keyframes mediaArrive {
+        from { opacity: 0; transform: scale(.994); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      @keyframes ambientArrive { from { opacity: .35; } to { opacity: .75; } }
       @media (prefers-reduced-motion: reduce) {
         .marquee-frame, .marquee-frame::before { animation: none; }
         .marquee-frame::before { opacity: .8; }

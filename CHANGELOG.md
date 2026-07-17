@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-beta.17
+
+- Replace full-frame replay on poster rotation with a subtle preloaded content crossfade.
+- Keep the frame, marquee, and bulb treatment visually stable between Coming Soon movies.
+- Respect disabled motion and the browser's reduced-motion preference during rotations.
+
 ## 0.1.0-beta.16
 
 - Honor the Show Summary setting in portrait and poster layouts with bounded responsive text.
