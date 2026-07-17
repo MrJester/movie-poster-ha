@@ -450,6 +450,7 @@ class MoviePosterPanel extends HTMLElement {
             <span class="eyebrow">${escapeHtml(presentation.eyebrow_text || "Theater Presentation")}</span>
             <h1>${escapeHtml(state.heading)}</h1>
           </header>
+          <div class="marquee-divider-bulbs" aria-hidden="true"></div>
           <div class="content">
             <div class="poster-wrap">
               ${media.poster_url
@@ -530,6 +531,20 @@ class MoviePosterPanel extends HTMLElement {
       bulb.style.left = `${x + inset}px`;
       bulb.style.top = `${y + inset}px`;
       bulb.style.setProperty("--bulb-delay", `${-index * 4.8 / count}s`);
+    });
+    const divider = frame.querySelector(".marquee-divider-bulbs");
+    if (!divider) return;
+    const dividerCount = Math.max(5, Math.round(divider.clientWidth / 46));
+    if (Number(divider.dataset.count) !== dividerCount) {
+      divider.replaceChildren(...Array.from({ length: dividerCount }, () =>
+        document.createElement("i")));
+      divider.dataset.count = String(dividerCount);
+    }
+    [...divider.children].forEach((bulb, index) => {
+      bulb.style.setProperty(
+        "--bulb-delay",
+        `${-index * 4.8 / dividerCount}s`,
+      );
     });
   }
 
@@ -1345,9 +1360,22 @@ class MoviePosterPanel extends HTMLElement {
         display: block;
         pointer-events: none;
       }
-      .marquee-bulbs i {
+      .marquee-divider-bulbs { display: none; }
+      .frame-marquee .marquee-divider-bulbs {
+        position: relative;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: calc(100% - clamp(52px, 7vw, 112px));
+        min-height: clamp(24px, 2.1vw, 38px);
+        margin: clamp(-10px, -.45vw, -4px) auto clamp(10px, 1vw, 20px);
+        pointer-events: none;
+      }
+      .marquee-bulbs i,
+      .marquee-divider-bulbs i {
         display: block;
-        width: clamp(10px, 1.05vw, 16px);
+        width: clamp(12px, 1.25vw, 20px);
         aspect-ratio: 1;
         flex: 0 0 auto;
         border: 2px solid #4b290d;
@@ -1363,7 +1391,12 @@ class MoviePosterPanel extends HTMLElement {
         animation: bulbChase 4.8s linear infinite;
         animation-delay: var(--bulb-delay);
       }
-      .marquee-bulbs i::after {
+      .marquee-divider-bulbs i {
+        position: relative;
+        transform: none;
+      }
+      .marquee-bulbs i::after,
+      .marquee-divider-bulbs i::after {
         content: "";
         position: absolute;
         top: 15%; left: 19%;
@@ -1373,8 +1406,11 @@ class MoviePosterPanel extends HTMLElement {
         opacity: .85;
         filter: blur(.4px);
       }
-      .motion-off .marquee-bulbs i { animation: none; opacity: .94; }
-      .theme-minimal .marquee-bulbs, .theme-oled .marquee-bulbs {
+      .motion-off .marquee-bulbs i,
+      .motion-off .marquee-divider-bulbs i { animation: none; opacity: .94; }
+      .theme-minimal .marquee-bulbs, .theme-oled .marquee-bulbs,
+      .theme-minimal .marquee-divider-bulbs,
+      .theme-oled .marquee-divider-bulbs {
         display: none;
       }
       .theme-minimal .marquee-frame::before,

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-beta.18
+
+- Increase Classic Marquee bulb size while retaining even perimeter spacing.
+- Add a responsive chasing bulb rail between the marquee heading and poster content.
+- Keep the added rail steady when motion is disabled and hide it for bulb-free Minimal/OLED themes.
+
 ## 0.1.0-beta.17
 
 - Replace full-frame replay on poster rotation with a subtle preloaded content crossfade.
