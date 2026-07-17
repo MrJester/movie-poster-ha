@@ -416,6 +416,7 @@ class MoviePosterPanel extends HTMLElement {
     const presentation = state.presentation ?? {};
     const motionClass = presentation.enable_motion === false ? " motion-off" : "";
     const transitionClass = this._softMediaTransition ? " media-arriving" : "";
+    const studioClass = this._studio ? " studio-preview" : "";
     const orientation = normalizeOrientation(presentation.orientation);
     const layout = normalizeLayout(presentation.layout);
     const frame = normalizeFrame(presentation.frame_theme);
@@ -430,7 +431,7 @@ class MoviePosterPanel extends HTMLElement {
     const presentationStyle = `style="--backdrop:${backdrop};--gold:${accentColor};--ink:${backgroundColor}"`;
 
     this.shadowRoot.innerHTML = `${this._styles()}${this._studioControls()}
-      <main class="theater theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}${transitionClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
+      <main class="theater${studioClass} theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}${transitionClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
         ${presentationStyle}>
         <div class="ambient"></div>
         ${this._displayControls()}
@@ -1053,6 +1054,50 @@ class MoviePosterPanel extends HTMLElement {
       }
       .studio button.primary { border-color: var(--gold); background: #8b571d; }
       .studio button:disabled { cursor: wait; opacity: .65; }
+      .studio-preview {
+        width: calc(100vw - 430px);
+        min-height: 100vh;
+        margin-right: auto;
+        padding: clamp(12px, 1.5vw, 24px);
+      }
+      .studio-preview.orientation-landscape .marquee-frame,
+      .studio-preview.orientation-auto .marquee-frame {
+        width: min(calc(100vw - 462px), 126.667vh);
+      }
+      .studio-preview.orientation-portrait .marquee-frame {
+        width: min(calc(100vw - 462px), 53.438vh);
+      }
+      .studio-preview h1 { font-size: clamp(1.4rem, 4.2vw, 4rem); }
+      .studio-preview.orientation-portrait h1 {
+        font-size: clamp(1.25rem, 3vw, 2.8rem);
+      }
+      .studio-preview .details h2 {
+        font-size: clamp(1.5rem, 3.2vw, 3rem);
+      }
+      .studio-preview .summary { font-size: clamp(.82rem, 1.15vw, 1rem); }
+      @media (max-width: 900px) {
+        .studio-preview {
+          width: 100vw;
+          min-height: 54vh;
+          height: 54vh;
+          padding: 10px;
+        }
+        .studio {
+          top: auto;
+          bottom: max(8px, env(safe-area-inset-bottom));
+          left: 8px;
+          right: 8px;
+          width: auto;
+          max-height: calc(46vh - 16px);
+        }
+        .studio-preview.orientation-landscape .marquee-frame,
+        .studio-preview.orientation-auto .marquee-frame {
+          width: min(96vw, 68vh);
+        }
+        .studio-preview.orientation-portrait .marquee-frame {
+          width: min(96vw, 28.688vh);
+        }
+      }
       .marquee-frame {
         position: relative;
         width: min(1500px, 99vw);

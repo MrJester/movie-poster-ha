@@ -100,3 +100,18 @@ for (const viewport of VIEWPORTS) {
     });
   }
 }
+
+test("Display Studio preview stays beside its controls on a laptop", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto("/tests/frontend/harness.html?studio=1");
+  await page.waitForTimeout(100);
+  const boxes = await page.evaluate(() => {
+    const root = document.querySelector("movie-poster-panel").shadowRoot;
+    return {
+      frame: root.querySelector(".marquee-frame").getBoundingClientRect().toJSON(),
+      studio: root.querySelector(".studio").getBoundingClientRect().toJSON(),
+    };
+  });
+  expect(boxes.frame.right).toBeLessThanOrEqual(boxes.studio.left - 8);
+  expect(boxes.frame.bottom).toBeLessThanOrEqual(769);
+});

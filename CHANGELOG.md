@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-beta.19
+
+- Give Display Studio a dedicated preview canvas that excludes the settings panel width.
+- Scale preview frames and typography to laptop-sized Studio canvases without changing live displays.
+- Stack the preview and scrollable controls on narrow screens and test that laptop previews never overlap controls.
+
 ## 0.1.0-beta.18
 
 - Increase Classic Marquee bulb size while retaining even perimeter spacing.
