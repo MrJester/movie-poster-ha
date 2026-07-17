@@ -598,7 +598,9 @@ class MoviePosterPanel extends HTMLElement {
     const posterTop = poster.getBoundingClientRect().top;
     const available = frameBottom - posterTop
       - parseFloat(contentStyle.paddingBottom) - plaqueHeight - detailsHeight - 12;
-    const minimum = Math.min(160, Math.max(56, frame.clientHeight * 0.18));
+    const minimum = frame.classList.contains("frame-ultra-compact")
+      ? 36
+      : Math.min(160, Math.max(56, frame.clientHeight * 0.18));
     frame.style.setProperty(
       "--fitted-poster-height",
       `${Math.max(minimum, available)}px`,
@@ -1208,6 +1210,8 @@ class MoviePosterPanel extends HTMLElement {
         padding: clamp(20px, 3vw, 48px);
         border-left: 1px solid color-mix(in srgb, var(--gold) 35%, transparent);
         background: #0003;
+        max-height: var(--fitted-poster-height, 70vh);
+        overflow: hidden;
       }
 
       /* Illuminated glass frame with a cyan title plinth. */
@@ -1766,6 +1770,10 @@ class MoviePosterPanel extends HTMLElement {
         gap: 5px;
         padding: 0 5px 4px;
       }
+      .orientation-landscape .marquee-frame.frame-ultra-compact .content {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
       .marquee-frame.frame-ultra-compact .details {
         min-height: 0;
         padding: 4px;
@@ -1787,6 +1795,33 @@ class MoviePosterPanel extends HTMLElement {
         font-size: clamp(.58rem, 3.6cqw, .82rem);
       }
       .marquee-frame.frame-ultra-compact .frame-plaque span { display: none; }
+      .orientation-landscape.layout-poster .marquee-frame.frame-short .subtitle,
+      .orientation-landscape.layout-poster .marquee-frame.frame-short .meta,
+      .orientation-landscape.layout-poster .marquee-frame.frame-short .summary,
+      .orientation-landscape.layout-poster .marquee-frame.frame-short .session,
+      .orientation-landscape.layout-poster .marquee-frame.frame-short .progress {
+        display: none;
+      }
+      .orientation-landscape.layout-poster .marquee-frame.frame-short .details h2 {
+        margin: 3px 0 0;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 1;
+      }
+      @media (orientation: portrait) {
+        .orientation-landscape .marquee-frame.frame-short .summary,
+        .orientation-landscape .marquee-frame.frame-short .session,
+        .orientation-landscape .marquee-frame.frame-short .progress {
+          display: none;
+        }
+        .orientation-landscape .marquee-frame.frame-short .details h2 {
+          overflow: hidden;
+          display: -webkit-box;
+          -webkit-box-orient: vertical;
+          -webkit-line-clamp: 2;
+        }
+      }
       @media (min-width: 1400px) and (min-height: 2400px) and (orientation: portrait) {
         .orientation-portrait .marquee-frame,
         .orientation-auto .marquee-frame {
