@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.11
+
+- Fit posters from their actual rendered top edge to the frame's measured bottom
+  boundary so theme margins cannot push poster content outside the frame.
+
 ## 0.1.0-beta.10
 
 - Measure each rendered frame and fit the poster to its actual remaining height

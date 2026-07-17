@@ -510,18 +510,18 @@ class MoviePosterPanel extends HTMLElement {
     if (!poster || !marquee || !content) return;
     const frameStyle = getComputedStyle(frame);
     const contentStyle = getComputedStyle(content);
-    const verticalPadding = parseFloat(frameStyle.paddingTop)
-      + parseFloat(frameStyle.paddingBottom)
-      + parseFloat(contentStyle.paddingTop)
-      + parseFloat(contentStyle.paddingBottom);
     const plaque = frame.querySelector(".frame-plaque");
     const plaqueHeight = plaque && getComputedStyle(plaque).display !== "none"
       ? plaque.offsetHeight + parseFloat(getComputedStyle(plaque).marginTop) : 0;
     const details = frame.querySelector(".details");
     const detailsHeight = frame.closest(".layout-poster") && details
       ? details.offsetHeight + parseFloat(getComputedStyle(details).marginTop) : 0;
-    const available = frame.clientHeight - verticalPadding - marquee.offsetHeight
-      - plaqueHeight - detailsHeight - 12;
+    const frameBottom = frame.getBoundingClientRect().bottom
+      - parseFloat(frameStyle.borderBottomWidth)
+      - parseFloat(frameStyle.paddingBottom);
+    const posterTop = poster.getBoundingClientRect().top;
+    const available = frameBottom - posterTop
+      - parseFloat(contentStyle.paddingBottom) - plaqueHeight - detailsHeight - 12;
     frame.style.setProperty("--fitted-poster-height", `${Math.max(160, available)}px`);
   }
 
