@@ -67,4 +67,9 @@ pytest
 ruff check .
 ```
 
+Beta releases are published as GitHub pre-releases. In HACS, enable the Movie
+Poster pre-release switch, select **Update information**, and then install the
+available update. Restart Home Assistant and hard-refresh poster browsers after
+upgrading.
+
 Copyright 2026 MrJester. Licensed under the MIT License.
