@@ -17,21 +17,31 @@ from .const import (
     CONF_ACCENT_COLOR,
     CONF_BACKGROUND_COLOR,
     CONF_BODY_FONT,
+    CONF_COLLECTION,
     CONF_COMING_SOON_TEXT,
     CONF_ENABLE_MOTION,
     CONF_EYEBROW_TEXT,
     CONF_FRAME_THEME,
+    CONF_GRACE_SECONDS,
     CONF_HEADING_FONT,
     CONF_KIOSK_MODE,
     CONF_LAYOUT,
+    CONF_LIBRARY,
+    CONF_LIBRARY_REFRESH_SECONDS,
     CONF_LOGO_POSITION,
     CONF_LOGO_URL,
     CONF_NOW_PLAYING_TEXT,
     CONF_ORIENTATION,
+    CONF_PLAYER_ID,
+    CONF_ROTATION_SECONDS,
     CONF_SHOW_PROGRESS,
     CONF_SHOW_SESSION,
     CONF_SHOW_SUMMARY,
     CONF_THEME,
+    CONF_USER_ID,
+    DEFAULT_GRACE_SECONDS,
+    DEFAULT_LIBRARY_REFRESH_SECONDS,
+    DEFAULT_ROTATION_SECONDS,
     DOMAIN,
     FONTS,
     FRAME_THEMES,
@@ -49,7 +59,7 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-beta.11"
+_FRONTEND_VERSION = "0.1.0-beta.12"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
@@ -70,6 +80,8 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     hass.http.register_view(MoviePosterArtworkView())
     websocket_api.async_register_command(hass, websocket_subscribe)
     websocket_api.async_register_command(hass, websocket_update_presentation)
+    websocket_api.async_register_command(hass, websocket_get_settings)
+    websocket_api.async_register_command(hass, websocket_update_settings)
     websocket_api.async_register_command(hass, websocket_display_control)
 
 
@@ -164,6 +176,194 @@ async def websocket_update_presentation(
         setattr(coordinator, key, options[key])
     coordinator.presentation_revision += 1
     coordinator.async_update_listeners()
+    hass.config_entries.async_update_entry(entry, options=options)
+    connection.send_result(msg["id"], {"entry_id": entry.entry_id})
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "movie_poster/get_settings",
+        vol.Optional("entry_id"): str,
+    }
+)
+@websocket_api.async_response
+async def websocket_get_settings(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return current settings and Plex-backed Studio choices."""
+    coordinator = _coordinator(hass, msg.get("entry_id"))
+    entry = (
+        hass.config_entries.async_get_entry(coordinator.entry_id)
+        if coordinator is not None
+        else None
+    )
+    if coordinator is None or entry is None:
+        connection.send_error(
+            msg["id"], websocket_api.ERR_NOT_FOUND, "Movie Poster is not configured"
+        )
+        return
+    try:
+        libraries = await coordinator._client.async_movie_libraries()  # noqa: SLF001
+        sessions = [candidate for candidate, _media in await coordinator._client.async_sessions()]  # noqa: E501, SLF001
+    except Exception:  # noqa: BLE001 - Plex discovery is optional in Studio
+        libraries = []
+        sessions = []
+
+    sources = [
+        {"value": f"{library.title}::", "label": f"{library.title} — All movies"}
+        for library in libraries
+    ]
+    for library in libraries:
+        sources.extend(
+            {"value": f"{library.title}::{name}", "label": f"{library.title} — {name}"}
+            for name in library.collections
+        )
+    current_source = (
+        f"{entry.options.get(CONF_LIBRARY, '')}::"
+        f"{entry.options.get(CONF_COLLECTION, '') or ''}"
+    )
+    source_values = {choice["value"] for choice in sources}
+    if current_source not in source_values:
+        current_source = sources[0]["value"] if sources else current_source
+    players = {session.player_id: session.player_name for session in sessions}
+    users = {session.user_id: session.user_name for session in sessions}
+    selected_player = entry.options.get(CONF_PLAYER_ID, "")
+    selected_user = entry.options.get(CONF_USER_ID, "")
+    if selected_player and selected_player not in players:
+        players[selected_player] = f"Previously selected ({selected_player})"
+    if selected_user and selected_user not in users:
+        users[selected_user] = f"Previously selected ({selected_user})"
+    connection.send_result(
+        msg["id"],
+        {
+            "settings": {
+                **entry.options,
+                "source": current_source,
+                CONF_PLAYER_ID: selected_player,
+                CONF_USER_ID: selected_user,
+                CONF_GRACE_SECONDS: entry.options.get(
+                    CONF_GRACE_SECONDS, DEFAULT_GRACE_SECONDS
+                ),
+                CONF_ROTATION_SECONDS: entry.options.get(
+                    CONF_ROTATION_SECONDS, DEFAULT_ROTATION_SECONDS
+                ),
+                CONF_LIBRARY_REFRESH_SECONDS: entry.options.get(
+                    CONF_LIBRARY_REFRESH_SECONDS, DEFAULT_LIBRARY_REFRESH_SECONDS
+                ),
+            },
+            "choices": {
+                "sources": sources,
+                "players": [
+                    {"value": "", "label": "Any active Plex player"},
+                    *[
+                        {"value": value, "label": label}
+                        for value, label in sorted(
+                            players.items(), key=lambda item: item[1].casefold()
+                        )
+                    ],
+                ],
+                "users": [
+                    {"value": "", "label": "Any active Plex user"},
+                    *[
+                        {"value": value, "label": label}
+                        for value, label in sorted(
+                            users.items(), key=lambda item: item[1].casefold()
+                        )
+                    ],
+                ],
+            },
+        },
+    )
+
+
+_BEHAVIOR_SCHEMA = {
+    vol.Required("source"): str,
+    vol.Optional(CONF_PLAYER_ID, default=""): str,
+    vol.Optional(CONF_USER_ID, default=""): str,
+    vol.Required(CONF_GRACE_SECONDS): vol.All(
+        vol.Coerce(int), vol.Range(min=0, max=600)
+    ),
+    vol.Required(CONF_ROTATION_SECONDS): vol.All(
+        vol.Coerce(int), vol.Range(min=2, max=3600)
+    ),
+    vol.Required(CONF_LIBRARY_REFRESH_SECONDS): vol.All(
+        vol.Coerce(int), vol.Range(min=60, max=86400)
+    ),
+}
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "movie_poster/update_settings",
+        vol.Optional("entry_id"): str,
+        **_BEHAVIOR_SCHEMA,
+        vol.Required(CONF_THEME): vol.In(THEMES),
+        vol.Required(CONF_ORIENTATION): vol.In(ORIENTATIONS),
+        vol.Required(CONF_LAYOUT): vol.In(LAYOUTS),
+        vol.Required(CONF_FRAME_THEME): vol.In(FRAME_THEMES),
+        vol.Required(CONF_SHOW_SUMMARY): bool,
+        vol.Required(CONF_SHOW_PROGRESS): bool,
+        vol.Required(CONF_SHOW_SESSION): bool,
+        vol.Required(CONF_ENABLE_MOTION): bool,
+        vol.Required(CONF_KIOSK_MODE): bool,
+        vol.Required(CONF_ACCENT_COLOR): vol.Match(r"^#[0-9a-fA-F]{6}$"),
+        vol.Required(CONF_BACKGROUND_COLOR): vol.Match(r"^#[0-9a-fA-F]{6}$"),
+        vol.Required(CONF_HEADING_FONT): vol.In(FONTS),
+        vol.Required(CONF_BODY_FONT): vol.In(FONTS),
+        vol.Required(CONF_NOW_PLAYING_TEXT): vol.All(str, vol.Length(min=1, max=60)),
+        vol.Required(CONF_COMING_SOON_TEXT): vol.All(str, vol.Length(min=1, max=60)),
+        vol.Required(CONF_EYEBROW_TEXT): vol.All(str, vol.Length(min=1, max=80)),
+        vol.Required(CONF_LOGO_URL): vol.All(str, vol.Length(max=500)),
+        vol.Required(CONF_LOGO_POSITION): vol.In(LOGO_POSITIONS),
+    }
+)
+@websocket_api.async_response
+async def websocket_update_settings(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Persist the complete Display Studio configuration."""
+    coordinator = _coordinator(hass, msg.get("entry_id"))
+    entry = (
+        hass.config_entries.async_get_entry(coordinator.entry_id)
+        if coordinator
+        else None
+    )
+    if entry is None:
+        connection.send_error(
+            msg["id"], websocket_api.ERR_NOT_FOUND, "Movie Poster is not configured"
+        )
+        return
+    try:
+        library, collection = msg["source"].split("::", 1)
+    except ValueError:
+        connection.send_error(
+            msg["id"], websocket_api.ERR_INVALID_FORMAT, "Invalid Coming Soon source"
+        )
+        return
+    if not library:
+        connection.send_error(
+            msg["id"],
+            websocket_api.ERR_INVALID_FORMAT,
+            "Select a Coming Soon source",
+        )
+        return
+    options = {
+        **entry.options,
+        **{key: msg[key] for key in _PRESENTATION_KEYS},
+        CONF_LIBRARY: library,
+        CONF_COLLECTION: collection or None,
+        CONF_PLAYER_ID: msg[CONF_PLAYER_ID],
+        CONF_USER_ID: msg[CONF_USER_ID],
+        CONF_GRACE_SECONDS: msg[CONF_GRACE_SECONDS],
+        CONF_ROTATION_SECONDS: msg[CONF_ROTATION_SECONDS],
+        CONF_LIBRARY_REFRESH_SECONDS: msg[CONF_LIBRARY_REFRESH_SECONDS],
+    }
     hass.config_entries.async_update_entry(entry, options=options)
     connection.send_result(msg["id"], {"entry_id": entry.entry_id})
 

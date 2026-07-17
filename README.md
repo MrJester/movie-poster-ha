@@ -18,8 +18,10 @@ After configuring the integration, open the display at:
 https://<your-home-assistant-host>/movie-poster
 ```
 
-Open **Configure** on the integration to choose a display layout, decorative
-frame, color theme, and orientation. The linked Display Studio previews the
+Open **Configure** on the integration and follow its link to Display Studio.
+Studio now owns the Coming Soon library or collection, Plex player/user scope,
+rotation and grace timing, display layout, decorative frame, color theme, and
+orientation. It previews the
 same renderer used by the full-screen panel. Layouts and frames are independent,
 so a poster-focused or split-details layout can be combined with any frame:
 Marquee, Cyber Noir, Comic Hero, Theater Classic, Indie Nature, Golden Age, or

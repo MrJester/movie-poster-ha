@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-beta.12
+
+- Move Coming Soon source, playback scope, timing, and presentation controls into Display Studio.
+- Reduce Home Assistant's standard options dialog to a direct Display Studio gateway.
+- Add Plex player/user discovery with mutually exclusive player, user, or any-session selection.
+
 ## 0.1.0-beta.11
 
 - Fit posters from their actual rendered top edge to the frame's measured bottom

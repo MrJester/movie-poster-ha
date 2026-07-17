@@ -98,7 +98,10 @@ class MoviePosterPanel extends HTMLElement {
     this._bulbObserver = null;
     this._externalBusId = Date.now();
     this._studio = new URLSearchParams(window.location.search).get("studio") === "1";
+    this._requestedEntryId = new URLSearchParams(window.location.search).get("entry_id");
     this._studioLoaded = false;
+    this._settings = null;
+    this._choices = { sources: [], players: [], users: [] };
     if (this._studio) this._state = studioState();
   }
 
@@ -150,6 +153,7 @@ class MoviePosterPanel extends HTMLElement {
           };
           this._studioLoaded = true;
           this._render();
+          this._loadStudioSettings();
           return;
         }
         const previous = this._state?.media;
@@ -159,7 +163,10 @@ class MoviePosterPanel extends HTMLElement {
         }
         this._applyState(state);
       },
-      { type: "movie_poster/subscribe" },
+      {
+        type: "movie_poster/subscribe",
+        ...(this._requestedEntryId ? { entry_id: this._requestedEntryId } : {}),
+      },
     ).catch((error) => {
       this._unsubscribePromise = null;
       this._renderError(error?.message || "Unable to connect to Movie Poster");
@@ -612,8 +619,28 @@ class MoviePosterPanel extends HTMLElement {
   _studioControls() {
     if (!this._studio) return "";
     const presentation = this._state?.presentation ?? {};
+    const settings = this._settings ?? {};
+    const options = (items, selected) => items.map(({ value, label }) =>
+      `<option value="${escapeHtml(value)}" ${selected === value ? "selected" : ""}>${escapeHtml(label)}</option>`
+    ).join("");
     return `<aside class="studio" aria-label="Display Studio controls">
       <strong>Display Studio</strong>
+      <h3>Playback & Coming Soon</h3>
+      ${this._settings ? `<label class="studio-wide">Coming Soon source<select data-setting="source">
+        ${options(this._choices.sources, settings.source)}</select></label>
+      <label>Preferred player<select data-setting="player_id">
+        ${options(this._choices.players, settings.player_id || "")}</select></label>
+      <label>Preferred user<select data-setting="user_id">
+        ${options(this._choices.users, settings.user_id || "")}</select></label>
+      <small class="studio-wide">Choose a player or a user. Selecting one clears the other; leave both on Any to follow all Plex playback.</small>
+      <label>Stop grace (seconds)<input type="number" min="0" max="600"
+        data-setting="grace_seconds" value="${Number(settings.grace_seconds ?? 30)}"></label>
+      <label>Poster rotation (seconds)<input type="number" min="2" max="3600"
+        data-setting="rotation_seconds" value="${Number(settings.rotation_seconds ?? 15)}"></label>
+      <label class="studio-wide">Library refresh (seconds)<input type="number" min="60" max="86400"
+        data-setting="library_refresh_seconds" value="${Number(settings.library_refresh_seconds ?? 900)}"></label>`
+        : `<p class="studio-wide">Loading Plex libraries, players, and users…</p>`}
+      <h3>Presentation</h3>
       <label>Theme<select data-studio="theme">
         ${["classic", "art_deco", "neon", "minimal", "oled"].map((value) =>
           `<option value="${value}" ${presentation.theme === value ? "selected" : ""}>${value.replace("_", " ")}</option>`
@@ -667,7 +694,8 @@ class MoviePosterPanel extends HTMLElement {
         ).join("")}
       </select></label>
       ${[["show_summary", "Summary"], ["show_progress", "Progress"],
-        ["show_session", "Session"], ["enable_motion", "Motion"]].map(([field, label]) =>
+        ["show_session", "Session"], ["enable_motion", "Motion"],
+        ["kiosk_mode", "Kiosk mode"]].map(([field, label]) =>
           `<label class="studio-check"><input type="checkbox" data-studio="${field}"
           ${presentation[field] !== false ? "checked" : ""}>${label}</label>`
         ).join("")}
@@ -691,6 +719,21 @@ class MoviePosterPanel extends HTMLElement {
         this._render();
       });
     });
+    this.shadowRoot.querySelectorAll("[data-setting]").forEach((control) => {
+      control.addEventListener("change", () => {
+        this._settings[control.dataset.setting] = control.type === "number"
+          ? Number(control.value) : control.value;
+        if (control.value && control.dataset.setting === "player_id") {
+          this._settings.user_id = "";
+          const user = this.shadowRoot.querySelector('[data-setting="user_id"]');
+          if (user) user.value = "";
+        } else if (control.value && control.dataset.setting === "user_id") {
+          this._settings.player_id = "";
+          const player = this.shadowRoot.querySelector('[data-setting="player_id"]');
+          if (player) player.value = "";
+        }
+      });
+    });
     this.shadowRoot.querySelector('[data-studio-action="back"]')
       ?.addEventListener("click", () => this._returnToSettings());
     this.shadowRoot.querySelector('[data-studio-action="save"]')
@@ -700,14 +743,20 @@ class MoviePosterPanel extends HTMLElement {
   async _saveStudio() {
     const button = this.shadowRoot.querySelector('[data-studio-action="save"]');
     const status = this.shadowRoot.querySelector(".studio-status");
-    if (!this._hass || !this._state?.entry_id || !button) return;
+    if (!this._hass || !this._state?.entry_id || !button || !this._settings) return;
     button.disabled = true;
     button.textContent = "Saving…";
     try {
       const presentation = this._state.presentation;
       await this._hass.callWS({
-        type: "movie_poster/update_presentation",
+        type: "movie_poster/update_settings",
         entry_id: this._state.entry_id,
+        source: this._settings.source,
+        player_id: this._settings.player_id || "",
+        user_id: this._settings.user_id || "",
+        grace_seconds: Number(this._settings.grace_seconds),
+        rotation_seconds: Number(this._settings.rotation_seconds),
+        library_refresh_seconds: Number(this._settings.library_refresh_seconds),
         theme: normalizeTheme(presentation.theme),
         orientation: normalizeOrientation(presentation.orientation),
         layout: normalizeLayout(presentation.layout),
@@ -733,6 +782,22 @@ class MoviePosterPanel extends HTMLElement {
       status.textContent = error?.message || "Unable to save display settings.";
       button.disabled = false;
       button.textContent = "Save & return";
+    }
+  }
+
+  async _loadStudioSettings() {
+    if (!this._hass || !this._state?.entry_id) return;
+    try {
+      const result = await this._hass.callWS({
+        type: "movie_poster/get_settings",
+        entry_id: this._state.entry_id,
+      });
+      this._settings = result.settings;
+      this._choices = result.choices;
+      this._render();
+    } catch (error) {
+      const status = this.shadowRoot.querySelector(".studio-status");
+      if (status) status.textContent = error?.message || "Unable to load Plex settings.";
     }
   }
 
@@ -901,6 +966,9 @@ class MoviePosterPanel extends HTMLElement {
         grid-template-columns: repeat(2, minmax(105px, 1fr));
         gap: 9px 12px;
         width: min(390px, calc(100vw - 24px));
+        max-height: calc(100vh - 24px);
+        overflow-y: auto;
+        box-sizing: border-box;
         padding: 14px;
         border: 1px solid #ffffff30;
         border-radius: 12px;
@@ -910,16 +978,17 @@ class MoviePosterPanel extends HTMLElement {
         font-size: .78rem;
         backdrop-filter: blur(12px);
       }
-      .studio strong, .studio small, .studio-actions { grid-column: 1 / -1; }
+      .studio strong, .studio h3, .studio small, .studio-actions { grid-column: 1 / -1; }
+      .studio h3 { margin: 8px 0 0; color: var(--gold); font-size: 13px; text-transform: uppercase; letter-spacing: .12em; }
       .studio label { display: grid; gap: 4px; text-transform: capitalize; }
-      .studio select, .studio input[type="text"] {
+      .studio select, .studio input[type="text"], .studio input[type="number"] {
         min-height: 31px;
         border: 1px solid #ffffff33;
         border-radius: 5px;
         background: #221713;
         color: inherit;
       }
-      .studio input[type="text"] { width: 100%; padding: 0 8px; }
+      .studio input[type="text"], .studio input[type="number"] { width: 100%; padding: 0 8px; }
       .studio input[type="color"] { width: 100%; min-height: 32px; padding: 2px; }
       .studio .studio-wide { grid-column: 1 / -1; }
       .studio .studio-check { display: flex; align-items: center; gap: 6px; }

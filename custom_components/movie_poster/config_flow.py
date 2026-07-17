@@ -10,63 +10,11 @@ from homeassistant.const import CONF_HOST
 from homeassistant.core import callback
 
 from .const import (
-    CONF_ACCENT_COLOR,
-    CONF_BACKGROUND_COLOR,
-    CONF_BODY_FONT,
-    CONF_COLLECTION,
-    CONF_COMING_SOON_TEXT,
-    CONF_ENABLE_MOTION,
-    CONF_EYEBROW_TEXT,
-    CONF_FRAME_THEME,
-    CONF_GRACE_SECONDS,
-    CONF_HEADING_FONT,
-    CONF_KIOSK_MODE,
-    CONF_LAYOUT,
-    CONF_LIBRARY,
-    CONF_LIBRARY_REFRESH_SECONDS,
-    CONF_LOGO_POSITION,
-    CONF_LOGO_URL,
-    CONF_NOW_PLAYING_TEXT,
-    CONF_ORIENTATION,
-    CONF_PLAYER_ID,
-    CONF_ROTATION_SECONDS,
     CONF_SERVER_URL,
-    CONF_SHOW_PROGRESS,
-    CONF_SHOW_SESSION,
-    CONF_SHOW_SUMMARY,
-    CONF_THEME,
     CONF_TOKEN,
-    CONF_USER_ID,
     CONF_VERIFY_SSL,
-    DEFAULT_ACCENT_COLOR,
-    DEFAULT_BACKGROUND_COLOR,
-    DEFAULT_BODY_FONT,
-    DEFAULT_COMING_SOON_TEXT,
-    DEFAULT_ENABLE_MOTION,
-    DEFAULT_EYEBROW_TEXT,
-    DEFAULT_FRAME_THEME,
-    DEFAULT_GRACE_SECONDS,
-    DEFAULT_HEADING_FONT,
-    DEFAULT_KIOSK_MODE,
-    DEFAULT_LAYOUT,
-    DEFAULT_LIBRARY_REFRESH_SECONDS,
-    DEFAULT_LOGO_POSITION,
-    DEFAULT_LOGO_URL,
-    DEFAULT_NOW_PLAYING_TEXT,
-    DEFAULT_ORIENTATION,
-    DEFAULT_ROTATION_SECONDS,
-    DEFAULT_SHOW_PROGRESS,
-    DEFAULT_SHOW_SESSION,
-    DEFAULT_SHOW_SUMMARY,
-    DEFAULT_THEME,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
-    FONTS,
-    FRAME_THEMES,
-    LAYOUTS,
-    LOGO_POSITIONS,
-    ORIENTATIONS,
-    THEMES,
 )
 from .exceptions import PlexAuthenticationError, PlexConnectionError
 from .plex_auth import PlexAuthError, PlexAuthSession, PlexServerChoice
@@ -295,186 +243,20 @@ def _discovery_identifier(properties: dict[str, Any]) -> str | None:
 
 
 class MoviePosterOptionsFlow(config_entries.OptionsFlow):
-    """Configure Coming Soon source, playback scope, and timing."""
+    """Direct configuration to the full-screen Display Studio."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Discover Plex choices and save display behavior options."""
-        from .plex_client import MoviePosterPlexClient  # noqa: PLC0415
-
-        entry = self.config_entry
-        client = MoviePosterPlexClient(
-            self.hass,
-            entry.data[CONF_SERVER_URL],
-            entry.data[CONF_TOKEN],
-            verify_ssl=entry.data[CONF_VERIFY_SSL],
-        )
-        try:
-            libraries = await client.async_movie_libraries()
-            sessions = [
-                candidate for candidate, _media in await client.async_sessions()
-            ]
-        except Exception:  # noqa: BLE001 - external library boundary
-            return self.async_abort(reason="cannot_connect")
-
-        sources: dict[str, str] = {}
-        for library in libraries:
-            sources[f"{library.title}::"] = f"{library.title} — All movies"
-            sources.update(
-                {
-                    f"{library.title}::{collection}": (
-                        f"{library.title} — {collection}"
-                    )
-                    for collection in library.collections
-                }
-            )
-        if not sources:
-            return self.async_abort(reason="no_movie_libraries")
-
-        players = {"": "Any active Plex player"}
-        users = {"": "Any active Plex user"}
-        players.update({session.player_id: session.player_name for session in sessions})
-        users.update({session.user_id: session.user_name for session in sessions})
-        current_source = (
-            f"{entry.options.get(CONF_LIBRARY, '')}::"
-            f"{entry.options.get(CONF_COLLECTION, '')}"
-        )
-        if current_source not in sources:
-            current_source = next(iter(sources))
-
+        """Show a stable gateway while Studio owns all editable options."""
         if user_input is not None:
-            library, collection = user_input.pop("source").split("::", 1)
-            user_input[CONF_LIBRARY] = library
-            user_input[CONF_COLLECTION] = collection or None
-            return self.async_create_entry(title="", data=user_input)
-
-        schema = vol.Schema(
-            {
-                vol.Required("source", default=current_source): vol.In(sources),
-                vol.Optional(
-                    CONF_PLAYER_ID, default=entry.options.get(CONF_PLAYER_ID, "")
-                ): vol.In(players),
-                vol.Optional(
-                    CONF_USER_ID, default=entry.options.get(CONF_USER_ID, "")
-                ): vol.In(users),
-                vol.Required(
-                    CONF_GRACE_SECONDS,
-                    default=entry.options.get(
-                        CONF_GRACE_SECONDS, DEFAULT_GRACE_SECONDS
-                    ),
-                ): vol.All(vol.Coerce(int), vol.Range(min=0, max=600)),
-                vol.Required(
-                    CONF_ROTATION_SECONDS,
-                    default=entry.options.get(
-                        CONF_ROTATION_SECONDS, DEFAULT_ROTATION_SECONDS
-                    ),
-                ): vol.All(vol.Coerce(int), vol.Range(min=2, max=3600)),
-                vol.Required(
-                    CONF_LIBRARY_REFRESH_SECONDS,
-                    default=entry.options.get(
-                        CONF_LIBRARY_REFRESH_SECONDS,
-                        DEFAULT_LIBRARY_REFRESH_SECONDS,
-                    ),
-                ): vol.All(vol.Coerce(int), vol.Range(min=60, max=86400)),
-                vol.Required(
-                    CONF_THEME,
-                    default=entry.options.get(CONF_THEME, DEFAULT_THEME),
-                ): vol.In(THEMES),
-                vol.Required(
-                    CONF_ORIENTATION,
-                    default=entry.options.get(
-                        CONF_ORIENTATION, DEFAULT_ORIENTATION
-                    ),
-                ): vol.In(ORIENTATIONS),
-                vol.Required(
-                    CONF_LAYOUT,
-                    default=entry.options.get(CONF_LAYOUT, DEFAULT_LAYOUT),
-                ): vol.In(LAYOUTS),
-                vol.Required(
-                    CONF_FRAME_THEME,
-                    default=entry.options.get(
-                        CONF_FRAME_THEME, DEFAULT_FRAME_THEME
-                    ),
-                ): vol.In(FRAME_THEMES),
-                vol.Required(
-                    CONF_HEADING_FONT,
-                    default=entry.options.get(
-                        CONF_HEADING_FONT, DEFAULT_HEADING_FONT
-                    ),
-                ): vol.In(FONTS),
-                vol.Required(
-                    CONF_BODY_FONT,
-                    default=entry.options.get(CONF_BODY_FONT, DEFAULT_BODY_FONT),
-                ): vol.In(FONTS),
-                vol.Required(
-                    CONF_ACCENT_COLOR,
-                    default=entry.options.get(
-                        CONF_ACCENT_COLOR, DEFAULT_ACCENT_COLOR
-                    ),
-                ): str,
-                vol.Required(
-                    CONF_BACKGROUND_COLOR,
-                    default=entry.options.get(
-                        CONF_BACKGROUND_COLOR, DEFAULT_BACKGROUND_COLOR
-                    ),
-                ): str,
-                vol.Required(
-                    CONF_NOW_PLAYING_TEXT,
-                    default=entry.options.get(
-                        CONF_NOW_PLAYING_TEXT, DEFAULT_NOW_PLAYING_TEXT
-                    ),
-                ): vol.All(str, vol.Length(min=1, max=60)),
-                vol.Required(
-                    CONF_COMING_SOON_TEXT,
-                    default=entry.options.get(
-                        CONF_COMING_SOON_TEXT, DEFAULT_COMING_SOON_TEXT
-                    ),
-                ): vol.All(str, vol.Length(min=1, max=60)),
-                vol.Required(
-                    CONF_EYEBROW_TEXT,
-                    default=entry.options.get(
-                        CONF_EYEBROW_TEXT, DEFAULT_EYEBROW_TEXT
-                    ),
-                ): vol.All(str, vol.Length(min=1, max=80)),
-                vol.Optional(
-                    CONF_LOGO_URL,
-                    default=entry.options.get(CONF_LOGO_URL, DEFAULT_LOGO_URL),
-                ): vol.All(str, vol.Length(max=500)),
-                vol.Required(
-                    CONF_LOGO_POSITION,
-                    default=entry.options.get(
-                        CONF_LOGO_POSITION, DEFAULT_LOGO_POSITION
-                    ),
-                ): vol.In(LOGO_POSITIONS),
-                vol.Required(
-                    CONF_SHOW_SUMMARY,
-                    default=entry.options.get(
-                        CONF_SHOW_SUMMARY, DEFAULT_SHOW_SUMMARY
-                    ),
-                ): bool,
-                vol.Required(
-                    CONF_SHOW_PROGRESS,
-                    default=entry.options.get(
-                        CONF_SHOW_PROGRESS, DEFAULT_SHOW_PROGRESS
-                    ),
-                ): bool,
-                vol.Required(
-                    CONF_SHOW_SESSION,
-                    default=entry.options.get(
-                        CONF_SHOW_SESSION, DEFAULT_SHOW_SESSION
-                    ),
-                ): bool,
-                vol.Required(
-                    CONF_ENABLE_MOTION,
-                    default=entry.options.get(
-                        CONF_ENABLE_MOTION, DEFAULT_ENABLE_MOTION
-                    ),
-                ): bool,
-                vol.Required(
-                    CONF_KIOSK_MODE,
-                    default=entry.options.get(CONF_KIOSK_MODE, DEFAULT_KIOSK_MODE),
-                ): bool,
-            }
+            return self.async_create_entry(title="", data=self.config_entry.options)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema({}),
+            description_placeholders={
+                "studio_url": (
+                    f"/movie-poster?studio=1&entry_id={self.config_entry.entry_id}"
+                )
+            },
         )
-        return self.async_show_form(step_id="init", data_schema=schema)
