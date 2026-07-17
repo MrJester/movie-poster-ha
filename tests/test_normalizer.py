@@ -19,6 +19,7 @@ def test_episode_session_is_normalized_without_account_lookup() -> None:
         index=4,
         summary="Summary",
         year=2026,
+        contentRating="TV-14",
         duration=3_600_000,
         viewOffset=expected_position,
         grandparentThumb="/shows/example/poster",
@@ -40,6 +41,7 @@ def test_episode_session_is_normalized_without_account_lookup() -> None:
     assert media.key == "42"
     assert media.title == "Example Show"
     assert media.subtitle == "S02E04 · The Test"
+    assert media.content_rating == "TV-14"
     assert media.position_ms == expected_position
     assert media.poster_path == "/shows/example/poster"
     assert media.backdrop_path == "/shows/example/art"
@@ -86,6 +88,7 @@ def test_movie_is_normalized_for_coming_soon() -> None:
         tagline="The tagline",
         summary="The summary",
         year=2025,
+        contentRating="PG-13",
         duration=7_200_000,
         thumb="/thumb/99",
         art="/art/99",
@@ -93,4 +96,5 @@ def test_movie_is_normalized_for_coming_soon() -> None:
     media = normalize_movie(movie)
     assert media.key == "99"
     assert media.title == "Feature Film"
+    assert media.content_rating == "PG-13"
     assert media.poster_path == "/thumb/99"

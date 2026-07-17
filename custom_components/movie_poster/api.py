@@ -59,7 +59,7 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-beta.15"
+_FRONTEND_VERSION = "0.1.0-beta.16"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
@@ -461,6 +461,7 @@ def _serialize_state(
             "subtitle": media.subtitle,
             "summary": media.summary,
             "year": media.year,
+            "content_rating": media.content_rating,
             "duration_ms": media.duration_ms,
             "position_ms": media.position_ms,
             "poster_url": _signed_artwork(

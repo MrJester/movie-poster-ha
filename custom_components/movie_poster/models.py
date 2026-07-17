@@ -55,6 +55,7 @@ class MediaPresentation:
     subtitle: str | None = None
     summary: str | None = None
     year: int | None = None
+    content_rating: str | None = None
     duration_ms: int | None = None
     position_ms: int | None = None
     poster_path: str | None = None

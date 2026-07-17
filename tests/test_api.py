@@ -22,6 +22,7 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
         key="42",
         media_type="movie",
         title="Example",
+        content_rating="PG-13",
         poster_path="/library/metadata/42/thumb",
     )
     session = SessionCandidate(
@@ -100,6 +101,7 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
         "/api/movie_poster/artwork/entry-1/poster/42?authSig="
     )
     assert state["session"]["player"] == "Theater"
+    assert state["media"]["content_rating"] == "PG-13"
     assert "token" not in str(state).casefold()
 
 

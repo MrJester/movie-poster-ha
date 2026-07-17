@@ -57,6 +57,7 @@ async function renderPoster(page, frame, orientation) {
         subtitle: "Every night deserves a little magic",
         summary: "A long summary verifies that the complete metadata area remains inside the decorative frame at every supported viewport size.",
         year: 2026,
+        content_rating: "PG-13",
         duration_ms: 7_200_000,
         position_ms: 1_800_000,
         poster_url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='900'%3E%3Crect width='600' height='900' fill='%23321b16'/%3E%3C/svg%3E",

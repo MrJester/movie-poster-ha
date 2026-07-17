@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-beta.16
+
+- Honor the Show Summary setting in portrait and poster layouts with bounded responsive text.
+- Add Plex content ratings to the metadata line beside year and runtime.
+- Scale portrait summaries for large 4K displays while keeping all details inside the frame.
+
 ## 0.1.0-beta.15
 
 - Match portrait frames to 9:16 displays so rotated TVs use 95% of both screen dimensions.

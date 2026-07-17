@@ -68,6 +68,7 @@ const studioState = () => ({
   media: {
     key: "studio-preview", type: "movie", title: "The Grand Premiere",
     subtitle: "Every night deserves a little magic", year: 2026,
+    content_rating: "PG-13",
     duration_ms: 7380000, position_ms: 2570000, poster_url: previewPoster(),
     backdrop_url: null,
     summary: "A cinematic preview showing how Movie Poster will look on your Home Assistant display.",
@@ -388,7 +389,7 @@ class MoviePosterPanel extends HTMLElement {
     const progress = hasProgress
       ? Math.min(100, Math.max(0, (media.position_ms / media.duration_ms) * 100))
       : 0;
-    const meta = [media.year, formatRuntime(media.duration_ms)]
+    const meta = [media.year, media.content_rating, formatRuntime(media.duration_ms)]
       .filter(Boolean)
       .join(" · ");
     const theme = normalizeTheme(state.presentation?.theme);
@@ -1085,7 +1086,7 @@ class MoviePosterPanel extends HTMLElement {
       .layout-poster .poster { width: min(66vh, 100%); max-height: 82vh; margin: auto; }
       .layout-poster .details { margin-top: 18px; text-align: center; }
       .layout-poster .details h2 { font-size: clamp(1.7rem, 3vw, 3rem); }
-      .layout-poster .summary, .layout-poster .session { display: none; }
+      .layout-poster .session { display: none; }
       .layout-split .content { grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr); }
       .layout-split .details {
         align-self: stretch;
@@ -1441,7 +1442,12 @@ class MoviePosterPanel extends HTMLElement {
         width: min(78vw, 500px); margin: auto; max-height: 72vh;
       }
       .orientation-portrait .details { text-align: center; }
-      .orientation-portrait .summary { display: none; }
+      .orientation-portrait .summary {
+        display: -webkit-box;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 6;
+      }
       .orientation-landscape .marquee-frame {
         width: min(95vw, 126.667vh);
         min-height: 0;
@@ -1459,7 +1465,12 @@ class MoviePosterPanel extends HTMLElement {
           width: min(78vw, 500px); margin: auto; max-height: 72vh;
         }
         .orientation-auto .details { text-align: center; }
-        .orientation-auto .summary { display: none; }
+        .orientation-auto .summary {
+          display: -webkit-box;
+          overflow: hidden;
+          -webkit-box-orient: vertical;
+          -webkit-line-clamp: 6;
+        }
         .orientation-auto .marquee-frame {
           width: min(95vw, 53.438vh);
           min-height: 0;
@@ -1578,6 +1589,14 @@ class MoviePosterPanel extends HTMLElement {
         .orientation-auto .meta,
         .orientation-auto .session {
           font-size: clamp(1.05rem, 1vw, 1.45rem);
+        }
+        .orientation-portrait .summary,
+        .orientation-auto .summary {
+          max-width: 48ch;
+          margin-inline: auto;
+          font-size: clamp(1.25rem, 1.15vw, 1.65rem);
+          line-height: 1.5;
+          -webkit-line-clamp: 8;
         }
       }
       .marquee-frame .poster {
