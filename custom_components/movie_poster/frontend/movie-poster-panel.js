@@ -521,8 +521,18 @@ class MoviePosterPanel extends HTMLElement {
     const plaqueHeight = plaque && getComputedStyle(plaque).display !== "none"
       ? plaque.offsetHeight + parseFloat(getComputedStyle(plaque).marginTop) : 0;
     const details = frame.querySelector(".details");
-    const detailsHeight = frame.closest(".layout-poster") && details
-      ? details.offsetHeight + parseFloat(getComputedStyle(details).marginTop) : 0;
+    const theater = frame.closest(".theater");
+    const autoStacks = theater?.classList.contains("orientation-auto")
+      && (window.matchMedia("(orientation: portrait)").matches
+        || window.matchMedia("(max-width: 720px)").matches);
+    const stacked = theater?.classList.contains("layout-poster")
+      || theater?.classList.contains("orientation-portrait") || autoStacks;
+    const detailsStyle = details ? getComputedStyle(details) : null;
+    const detailsHeight = stacked && details
+      ? details.offsetHeight
+        + (parseFloat(detailsStyle.marginTop) || 0)
+        + (parseFloat(contentStyle.rowGap || contentStyle.gap) || 0)
+      : 0;
     const frameBottom = frame.getBoundingClientRect().bottom
       - parseFloat(frameStyle.borderBottomWidth)
       - parseFloat(frameStyle.paddingBottom);

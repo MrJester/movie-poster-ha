@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.13
+
+- Reserve the complete below-poster metadata area when fitting posters on tall portrait displays.
+- Include the stacked layout gap so the poster, plaque, and details remain inside the frame.
+
 ## 0.1.0-beta.12
 
 - Move Coming Soon source, playback scope, timing, and presentation controls into Display Studio.
