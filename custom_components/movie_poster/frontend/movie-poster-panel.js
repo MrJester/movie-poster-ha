@@ -1067,14 +1067,14 @@ class MoviePosterPanel extends HTMLElement {
       .studio-preview.orientation-portrait .marquee-frame {
         width: min(calc(100vw - 462px), 53.438vh);
       }
-      .studio-preview h1 { font-size: clamp(1.4rem, 4.2vw, 4rem); }
+      .studio-preview h1 { font-size: clamp(1.4rem, 9cqw, 4rem); }
       .studio-preview.orientation-portrait h1 {
-        font-size: clamp(1.25rem, 3vw, 2.8rem);
+        font-size: clamp(1.25rem, 11cqw, 2.8rem);
       }
       .studio-preview .details h2 {
-        font-size: clamp(1.5rem, 3.2vw, 3rem);
+        font-size: clamp(1.35rem, 7cqw, 3rem);
       }
-      .studio-preview .summary { font-size: clamp(.82rem, 1.15vw, 1rem); }
+      .studio-preview .summary { font-size: clamp(.72rem, 2.5cqw, 1rem); }
       @media (max-width: 900px) {
         .studio-preview {
           width: 100vw;
@@ -1105,6 +1105,7 @@ class MoviePosterPanel extends HTMLElement {
       }
       .marquee-frame {
         position: relative;
+        container-type: inline-size;
         width: min(1500px, 99vw);
         min-height: min(98vh, 1120px);
         padding: clamp(20px, 3vw, 46px);
@@ -1550,6 +1551,12 @@ class MoviePosterPanel extends HTMLElement {
         width: min(78vw, 500px); margin: auto; max-height: 72vh;
       }
       .orientation-portrait .details { text-align: center; }
+      .orientation-portrait h1 {
+        font-size: clamp(1.4rem, 11cqw, 5.8rem);
+      }
+      .orientation-portrait .details h2 {
+        font-size: clamp(1.4rem, 7cqw, 4rem);
+      }
       .orientation-portrait .summary {
         display: -webkit-box;
         overflow: hidden;
@@ -1590,6 +1597,41 @@ class MoviePosterPanel extends HTMLElement {
           width: min(95vw, 126.667vh);
           min-height: 0;
           aspect-ratio: 4 / 3;
+        }
+        .orientation-portrait .marquee {
+          margin-bottom: clamp(8px, 1.5vh, 16px);
+          padding: clamp(7px, 1.4vh, 14px) clamp(10px, 3cqw, 24px);
+        }
+        .orientation-portrait .eyebrow {
+          font-size: clamp(.55rem, 1.8cqw, .85rem);
+        }
+        .orientation-portrait .content {
+          gap: clamp(8px, 1.4vh, 16px);
+          padding: 2px clamp(8px, 3cqw, 22px) clamp(8px, 1.5vh, 16px);
+        }
+        .orientation-portrait .subtitle {
+          margin-block: 4px;
+          font-size: clamp(.72rem, 2.8cqw, 1rem);
+        }
+        .orientation-portrait .meta,
+        .orientation-portrait .session {
+          font-size: clamp(.62rem, 2.1cqw, .82rem);
+        }
+        .orientation-portrait .summary {
+          margin-block: 6px;
+          font-size: clamp(.7rem, 2.45cqw, .9rem);
+          line-height: 1.3;
+          -webkit-line-clamp: 3;
+        }
+        .orientation-portrait .frame-plaque {
+          margin-top: 8px;
+          padding: 8px 12px;
+        }
+        .orientation-portrait .frame-plaque strong {
+          font-size: clamp(.82rem, 3.5cqw, 1.2rem);
+        }
+        .orientation-portrait .frame-plaque span {
+          font-size: clamp(.58rem, 2cqw, .78rem);
         }
       }
       @media (max-height: 800px) and (orientation: landscape) {
