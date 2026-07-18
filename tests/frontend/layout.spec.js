@@ -151,8 +151,13 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
       violations.push("heading text overflows horizontally");
     }
     const posterBox = element(".poster").getBoundingClientRect();
-    if (innerWidth >= 720 && (posterBox.width < 100 || posterBox.height < 150)) {
+    const missingPoster = element(".poster").classList.contains("poster-missing");
+    if (!missingPoster && innerWidth >= 720
+      && (posterBox.width < 100 || posterBox.height < 150)) {
       violations.push("poster becomes unreadably small");
+    }
+    if (missingPoster && (posterBox.width < 48 || posterBox.height < 36)) {
+      violations.push("missing-artwork placeholder becomes unreadably small");
     }
     return violations;
   }, { frame, theme, layout, orientation, variant });

@@ -502,7 +502,7 @@ class MoviePosterPanel extends HTMLElement {
       "missing-poster",
       Boolean(frame.querySelector(".poster-missing")),
     );
-    frame.classList.toggle("frame-short", frame.clientHeight < 800);
+    frame.classList.toggle("frame-short", frame.clientHeight < 900);
     frame.classList.toggle(
       "frame-ultra-compact",
       frame.clientHeight < 420 || frame.clientWidth < 360,
@@ -1831,6 +1831,7 @@ class MoviePosterPanel extends HTMLElement {
         -webkit-line-clamp: 2;
       }
       .frame-comic_hero.layout-poster .marquee-frame.frame-short .summary,
+      .frame-comic_hero.layout-poster .marquee-frame.frame-short .meta,
       .frame-comic_hero.layout-poster .marquee-frame.frame-short .session,
       .frame-comic_hero.layout-poster .marquee-frame.frame-short .progress {
         display: none;
@@ -1876,6 +1877,12 @@ class MoviePosterPanel extends HTMLElement {
           max-height: var(--fitted-poster-height, 70vh);
           padding: clamp(4px, 2cqw, 12px);
           overflow: hidden;
+        }
+        .orientation-landscape:not(.frame-marquee) .marquee-frame.frame-short .content {
+          grid-template-columns: 1fr;
+        }
+        .orientation-landscape:not(.frame-marquee) .marquee-frame.frame-short .details {
+          display: none;
         }
       }
       @media (min-width: 1400px) and (min-height: 2400px) and (orientation: portrait) {
