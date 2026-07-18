@@ -441,14 +441,17 @@ class MoviePosterPanel extends HTMLElement {
         <section class="marquee-frame${logoUrl ? ` has-logo logo-at-${logoPosition}` : ""}">
           <div class="marquee-bulbs" aria-hidden="true">
           </div>
-          ${logoUrl ? `<div class="brand-logo logo-${logoPosition}">
-            <img src="${escapeHtml(logoUrl)}" alt="Theater logo">
+          ${logoUrl ? `<div class="brand-row logo-${logoPosition}">
+            <div class="brand-logo logo-${logoPosition}">
+              <img src="${escapeHtml(logoUrl)}" alt="Theater logo">
+            </div>
+            <span class="eyebrow brand-eyebrow">${escapeHtml(presentation.eyebrow_text || "Theater Presentation")}</span>
           </div>` : ""}
           <div class="frame-ornaments" aria-hidden="true">
             <i class="ornament ornament-left"></i><i class="ornament ornament-right"></i>
           </div>
           <header class="marquee">
-            <span class="eyebrow">${escapeHtml(presentation.eyebrow_text || "Theater Presentation")}</span>
+            ${logoUrl ? "" : `<span class="eyebrow">${escapeHtml(presentation.eyebrow_text || "Theater Presentation")}</span>`}
             <h1>${escapeHtml(state.heading)}</h1>
           </header>
           <div class="marquee-divider-bulbs" aria-hidden="true"></div>
@@ -1158,12 +1161,44 @@ class MoviePosterPanel extends HTMLElement {
       .brand-logo.logo-center { left: 50%; transform: translateX(-50%); }
       .brand-logo.logo-right { right: clamp(25px, 4vw, 58px); }
       .brand-logo img { width: 100%; height: 100%; object-fit: contain; }
+      .brand-row {
+        position: relative;
+        z-index: 5;
+        display: grid;
+        align-items: center;
+        min-height: 64px;
+        margin: 0 clamp(5px, 2cqw, 24px) clamp(6px, 1.2vh, 14px);
+        gap: clamp(10px, 2.5cqw, 28px);
+      }
+      .brand-row.logo-left { grid-template-columns: minmax(48px, 22%) 1fr; }
+      .brand-row.logo-right { grid-template-columns: 1fr minmax(48px, 22%); }
+      .brand-row.logo-center {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 4px;
+      }
+      .brand-row .brand-logo {
+        position: static;
+        width: 100%;
+        height: 64px;
+        transform: none;
+      }
+      .brand-row.logo-right .brand-logo { grid-column: 2; }
+      .brand-row.logo-right .brand-eyebrow { grid-column: 1; grid-row: 1; }
+      .brand-row.logo-left .brand-eyebrow { text-align: left; }
+      .brand-row.logo-right .brand-eyebrow { text-align: right; }
+      .brand-row.logo-center .brand-logo { width: min(160px, 32%); }
+      .brand-row.logo-center .brand-eyebrow { text-align: center; }
       @container (max-width: 700px) {
         .brand-logo {
           top: 10px;
           width: min(120px, 32%);
           height: 40px;
         }
+        .brand-row { min-height: 40px; margin-bottom: 5px; }
+        .brand-row .brand-logo { width: 100%; height: 40px; }
+        .brand-row.logo-center .brand-logo { width: min(120px, 32%); }
       }
       .ornament { position: absolute; z-index: 2; top: 18%; bottom: 12%; width: 22px; }
       .ornament-left { left: 10px; }
@@ -1774,6 +1809,23 @@ class MoviePosterPanel extends HTMLElement {
         width: min(72px, 30%);
         height: 24px;
       }
+      .marquee-frame.frame-ultra-compact .brand-row {
+        min-height: 24px;
+        margin: 0 3px 3px;
+        gap: 5px;
+      }
+      .marquee-frame.frame-ultra-compact .brand-row .brand-logo {
+        width: 100%;
+        height: 24px;
+      }
+      .marquee-frame.frame-ultra-compact .brand-row.logo-center .brand-logo {
+        width: min(72px, 30%);
+      }
+      .marquee-frame.frame-ultra-compact .brand-eyebrow {
+        display: block;
+        font-size: .5rem;
+        letter-spacing: .12em;
+      }
       .marquee-frame.frame-ultra-compact .eyebrow,
       .marquee-frame.frame-ultra-compact .marquee-divider-bulbs,
       .marquee-frame.frame-ultra-compact .subtitle,
@@ -2039,11 +2091,6 @@ class MoviePosterPanel extends HTMLElement {
           font-size: .58rem;
         }
       }
-      .marquee-frame.has-logo .marquee { margin-top: 70px; }
-      @container (max-width: 700px) {
-        .marquee-frame.has-logo .marquee { margin-top: 50px; }
-      }
-      .marquee-frame.frame-ultra-compact.has-logo .marquee { margin-top: 28px; }
       .theater:not(.motion-off) .content,
       .theater:not(.motion-off) .ambient {
         transition: opacity .24s ease, transform .24s ease;
