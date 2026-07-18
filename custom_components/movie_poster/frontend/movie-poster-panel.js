@@ -1836,6 +1836,9 @@ class MoviePosterPanel extends HTMLElement {
       .frame-comic_hero.layout-poster .marquee-frame.frame-short .progress {
         display: none;
       }
+      .frame-comic_hero.layout-poster .marquee-frame.frame-short .details {
+        display: none;
+      }
       .orientation-landscape.layout-poster .marquee-frame.frame-short .subtitle,
       .orientation-landscape.layout-poster .marquee-frame.frame-short .meta,
       .orientation-landscape.layout-poster .marquee-frame.frame-short .summary,
