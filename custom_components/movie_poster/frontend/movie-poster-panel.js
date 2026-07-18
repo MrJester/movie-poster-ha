@@ -1158,9 +1158,7 @@ class MoviePosterPanel extends HTMLElement {
       .brand-logo.logo-center { left: 50%; transform: translateX(-50%); }
       .brand-logo.logo-right { right: clamp(25px, 4vw, 58px); }
       .brand-logo img { width: 100%; height: 100%; object-fit: contain; }
-      .marquee-frame.has-logo .marquee { padding-top: 68px; }
       @container (max-width: 700px) {
-        .marquee-frame.has-logo .marquee { padding-top: 48px; }
         .brand-logo {
           top: 10px;
           width: min(120px, 32%);
@@ -1771,9 +1769,6 @@ class MoviePosterPanel extends HTMLElement {
         margin-bottom: 3px;
         padding: 2px 5px 4px;
       }
-      .marquee-frame.frame-ultra-compact.has-logo .marquee {
-        padding-top: 28px;
-      }
       .marquee-frame.frame-ultra-compact .brand-logo {
         top: 4px;
         width: min(72px, 30%);
@@ -2044,6 +2039,11 @@ class MoviePosterPanel extends HTMLElement {
           font-size: .58rem;
         }
       }
+      .marquee-frame.has-logo .marquee { margin-top: 70px; }
+      @container (max-width: 700px) {
+        .marquee-frame.has-logo .marquee { margin-top: 50px; }
+      }
+      .marquee-frame.frame-ultra-compact.has-logo .marquee { margin-top: 28px; }
       .theater:not(.motion-off) .content,
       .theater:not(.motion-off) .ambient {
         transition: opacity .24s ease, transform .24s ease;
