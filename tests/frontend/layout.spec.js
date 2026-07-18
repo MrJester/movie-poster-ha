@@ -79,8 +79,10 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
         now_playing_text: "Now Playing",
         coming_soon_text: "Coming Soon",
         eyebrow_text: "Theater Presentation",
-        logo_url: "",
-        logo_position: "right",
+        logo_url: variant.logoPosition
+          ? "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='80'%3E%3Crect width='200' height='80' fill='%23f6cf70'/%3E%3C/svg%3E"
+          : "",
+        logo_position: variant.logoPosition || "right",
       },
       mode: "coming_soon",
       heading: variant.heading || "Coming Soon",
@@ -134,6 +136,7 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
     contained(".details", "details");
     contained(".marquee-divider-bulbs", "divider bulbs");
     contained("h1", "heading");
+    contained(".brand-logo", "logo");
     const overlaps = (first, second) => {
       const a = boxes.get(first);
       const b = boxes.get(second);
@@ -146,6 +149,7 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
     if (overlaps("poster", "details")) violations.push("poster overlaps details");
     if (overlaps("plaque", "details")) violations.push("plaque overlaps details");
     if (overlaps("divider bulbs", "poster")) violations.push("divider overlaps poster");
+    if (overlaps("logo", "heading")) violations.push("logo overlaps heading");
     const heading = element("h1");
     if (heading.scrollWidth > heading.clientWidth + 1) {
       violations.push("heading text overflows horizontally");
@@ -277,6 +281,10 @@ for (const viewport of VIEWPORTS) {
         name: "sparse metadata",
         value: { title: "Up", summary: null },
       },
+      ...["left", "center", "right"].map((logoPosition) => ({
+        name: `logo at ${logoPosition}`,
+        value: { logoPosition },
+      })),
     ];
     const failures = [];
     for (const variant of variants) {

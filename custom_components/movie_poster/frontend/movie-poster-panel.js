@@ -1158,7 +1158,15 @@ class MoviePosterPanel extends HTMLElement {
       .brand-logo.logo-center { left: 50%; transform: translateX(-50%); }
       .brand-logo.logo-right { right: clamp(25px, 4vw, 58px); }
       .brand-logo img { width: 100%; height: 100%; object-fit: contain; }
-      .marquee-frame.logo-at-center .marquee { padding-top: 68px; }
+      .marquee-frame.has-logo .marquee { padding-top: 68px; }
+      @container (max-width: 700px) {
+        .marquee-frame.has-logo .marquee { padding-top: 48px; }
+        .brand-logo {
+          top: 10px;
+          width: min(120px, 32%);
+          height: 40px;
+        }
+      }
       .ornament { position: absolute; z-index: 2; top: 18%; bottom: 12%; width: 22px; }
       .ornament-left { left: 10px; }
       .ornament-right { right: 10px; }
@@ -1762,6 +1770,14 @@ class MoviePosterPanel extends HTMLElement {
       .marquee-frame.frame-ultra-compact .marquee {
         margin-bottom: 3px;
         padding: 2px 5px 4px;
+      }
+      .marquee-frame.frame-ultra-compact.has-logo .marquee {
+        padding-top: 28px;
+      }
+      .marquee-frame.frame-ultra-compact .brand-logo {
+        top: 4px;
+        width: min(72px, 30%);
+        height: 24px;
       }
       .marquee-frame.frame-ultra-compact .eyebrow,
       .marquee-frame.frame-ultra-compact .marquee-divider-bulbs,
