@@ -1024,6 +1024,9 @@ class MoviePosterPanel extends HTMLElement {
         --theme-backdrop-edge: #4a0b0e;
         display: block;
         min-height: 100vh;
+        min-height: 100dvh;
+        position: relative;
+        overflow: hidden;
         background: var(--ink);
         color: #fff7df;
         font-family: "Trebuchet MS", Arial, sans-serif;
@@ -1032,6 +1035,7 @@ class MoviePosterPanel extends HTMLElement {
       .theater, .empty {
         position: relative;
         min-height: 100vh;
+        min-height: 100dvh;
         overflow: hidden;
         display: grid;
         place-items: center;
@@ -1176,7 +1180,13 @@ class MoviePosterPanel extends HTMLElement {
         gap: 9px 12px;
         width: min(390px, calc(100vw - 24px));
         max-height: calc(100vh - 24px);
+        max-height: calc(100dvh - 24px);
         overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+        touch-action: pan-y;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-gutter: stable;
         box-sizing: border-box;
         padding: 14px;
         border: 1px solid #ffffff30;
@@ -1189,8 +1199,16 @@ class MoviePosterPanel extends HTMLElement {
       }
       .studio strong, .studio h3, .studio small, .studio-actions { grid-column: 1 / -1; }
       .studio h3 { margin: 8px 0 0; color: var(--gold); font-size: 13px; text-transform: uppercase; letter-spacing: .12em; }
-      .studio label { display: grid; gap: 4px; text-transform: capitalize; }
+      .studio label {
+        display: grid;
+        min-width: 0;
+        gap: 4px;
+        text-transform: capitalize;
+      }
       .studio select, .studio input[type="text"], .studio input[type="number"] {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
         min-height: 31px;
         border: 1px solid #ffffff33;
         border-radius: 5px;
@@ -1222,6 +1240,7 @@ class MoviePosterPanel extends HTMLElement {
       .studio-preview {
         width: calc(100vw - 430px);
         min-height: 100vh;
+        min-height: 100dvh;
         margin-right: auto;
         padding: clamp(12px, 1.5vw, 24px);
       }
@@ -1244,7 +1263,9 @@ class MoviePosterPanel extends HTMLElement {
         .studio-preview {
           width: 100vw;
           min-height: 54vh;
+          min-height: 54dvh;
           height: 54vh;
+          height: 54dvh;
           padding: 10px;
         }
         .studio {
@@ -1254,6 +1275,8 @@ class MoviePosterPanel extends HTMLElement {
           right: 8px;
           width: auto;
           max-height: calc(46vh - 16px);
+          max-height: calc(46dvh - 16px);
+          padding-bottom: max(14px, calc(env(safe-area-inset-bottom) + 8px));
         }
         .studio-preview.orientation-landscape .marquee-frame,
         .studio-preview.orientation-auto .marquee-frame {
@@ -1261,6 +1284,22 @@ class MoviePosterPanel extends HTMLElement {
         }
         .studio-preview.orientation-portrait .marquee-frame {
           width: min(96vw, 28.688vh);
+        }
+      }
+      @media (min-width: 721px) and (max-width: 900px) and (orientation: portrait) {
+        .studio-preview {
+          min-height: 46dvh;
+          height: 46dvh;
+        }
+        .studio {
+          max-height: calc(54dvh - 16px);
+        }
+        .studio button,
+        .studio select,
+        .studio input[type="text"],
+        .studio input[type="number"] {
+          min-height: 40px;
+          font-size: 16px;
         }
       }
       @media (max-width: 900px) and (orientation: portrait) {

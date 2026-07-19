@@ -31,8 +31,8 @@ jobs:
           node-version: 24
       - name: Install frontend test environment
         run: npm install
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Chromium and WebKit
+        run: npx playwright install --with-deps chromium webkit
       - name: Test responsive renderer
         run: npm run test:frontend
 

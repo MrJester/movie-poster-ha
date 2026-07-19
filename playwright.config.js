@@ -14,6 +14,10 @@ module.exports = defineConfig({
     baseURL: "http://127.0.0.1:4173",
     headless: true,
   },
+  projects: [
+    { name: "chromium", use: { browserName: "chromium" } },
+    { name: "webkit", use: { browserName: "webkit" } },
+  ],
   webServer: process.env.PLAYWRIGHT_FILE_MODE === "1" ? undefined : {
     command: "python3 -m http.server 4173 --bind 127.0.0.1",
     port: 4173,
