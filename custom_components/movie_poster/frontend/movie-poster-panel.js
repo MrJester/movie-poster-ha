@@ -1205,10 +1205,13 @@ class MoviePosterPanel extends HTMLElement {
         gap: 4px;
         text-transform: capitalize;
       }
-      .studio select, .studio input[type="text"], .studio input[type="number"] {
-        width: 100%;
+      .studio select, .studio input, .studio button {
+        box-sizing: border-box;
         min-width: 0;
         max-width: 100%;
+      }
+      .studio select, .studio input[type="text"], .studio input[type="number"] {
+        width: 100%;
         min-height: 31px;
         border: 1px solid #ffffff33;
         border-radius: 5px;
