@@ -723,6 +723,12 @@ class MoviePosterPanel extends HTMLElement {
         data-setting="library_refresh_seconds" value="${Number(settings.library_refresh_seconds ?? 900)}"></label>`
         : `<p class="studio-wide">Loading Plex libraries, players, and users…</p>`}
       <h3>Presentation</h3>
+      <label>Frame<select data-studio="frame_theme">
+        ${["marquee", "cyber_noir", "comic_hero", "theater_classic",
+          "indie_nature", "golden_age", "steampunk"].map((value) =>
+          `<option value="${value}" ${presentation.frame_theme === value ? "selected" : ""}>${value.replace("_", " ")}</option>`
+        ).join("")}
+      </select></label>
       <label>Theme<select data-studio="theme">
         ${["classic", "art_deco", "neon", "minimal", "oled"].map((value) =>
           `<option value="${value}" ${presentation.theme === value ? "selected" : ""}>${value.replace("_", " ")}</option>`
@@ -731,12 +737,6 @@ class MoviePosterPanel extends HTMLElement {
       <label>Layout<select data-studio="layout">
         ${["cinematic", "poster", "split"].map((value) =>
           `<option value="${value}" ${presentation.layout === value ? "selected" : ""}>${value}</option>`
-        ).join("")}
-      </select></label>
-      <label>Frame<select data-studio="frame_theme">
-        ${["marquee", "cyber_noir", "comic_hero", "theater_classic",
-          "indie_nature", "golden_age", "steampunk"].map((value) =>
-          `<option value="${value}" ${presentation.frame_theme === value ? "selected" : ""}>${value.replace("_", " ")}</option>`
         ).join("")}
       </select></label>
       <label>Orientation<select data-studio="orientation">
@@ -904,6 +904,12 @@ class MoviePosterPanel extends HTMLElement {
         --gold-deep: #b77a24;
         --ink: #090706;
         --velvet: #310909;
+        --theme-text: #fff7df;
+        --theme-muted: #c9bfa8;
+        --theme-surface: #32110d;
+        --theme-surface-deep: #160806;
+        --theme-backdrop-accent: #7a251d;
+        --theme-backdrop-edge: #4a0b0e;
         display: block;
         min-height: 100vh;
         background: var(--ink);
@@ -919,8 +925,8 @@ class MoviePosterPanel extends HTMLElement {
         place-items: center;
         padding: clamp(16px, 2.4vw, 40px);
         background:
-          radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--gold) 28%, transparent) 0%, transparent 45%),
-          linear-gradient(145deg, color-mix(in srgb, var(--ink) 75%, #000), var(--ink) 50%, #000);
+          radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--theme-backdrop-accent) 42%, transparent) 0%, transparent 45%),
+          linear-gradient(145deg, color-mix(in srgb, var(--theme-backdrop-edge) 45%, var(--ink)), var(--ink) 50%, #000);
       }
       .font-heading-system { --heading-font: "Trebuchet MS", Arial, sans-serif; }
       .font-heading-cinematic { --heading-font: Impact, "Arial Narrow", sans-serif; }
@@ -938,44 +944,52 @@ class MoviePosterPanel extends HTMLElement {
         --gold-deep: #7c6735;
         --ink: #08100f;
         --velvet: #12302c;
-        background:
-          repeating-linear-gradient(135deg, #ffffff08 0 1px, transparent 1px 42px),
-          radial-gradient(circle at 50% 0%, #1b4b43, transparent 48%), var(--ink);
+        --theme-text: #f0dfaa;
+        --theme-muted: #b9ab82;
+        --theme-surface: #17332e;
+        --theme-surface-deep: #071412;
+        --theme-backdrop-accent: #245e51;
+        --theme-backdrop-edge: #102d28;
       }
       .theme-neon {
         --gold: #29f2ff;
         --gold-deep: #b51fff;
         --ink: #05000d;
         --velvet: #260052;
-        background:
-          radial-gradient(circle at 20% 0%, #4b0075 0, transparent 40%),
-          radial-gradient(circle at 85% 100%, #003d5c 0, transparent 42%), var(--ink);
+        --theme-text: #f8edff;
+        --theme-muted: #bcb0d0;
+        --theme-surface: #260052;
+        --theme-surface-deep: #090012;
+        --theme-backdrop-accent: #b51fff;
+        --theme-backdrop-edge: #003d5c;
       }
       .theme-minimal {
         --gold: #f2f2f2;
         --gold-deep: #777;
         --ink: #171717;
         --velvet: #252525;
-        background: var(--ink);
+        --theme-text: #171717;
+        --theme-muted: #5b5954;
+        --theme-surface: #f5f3ee;
+        --theme-surface-deep: #e8e5de;
+        --theme-backdrop-accent: #d1cec6;
+        --theme-backdrop-edge: #777;
       }
       .theme-oled {
         --gold: #fff;
         --gold-deep: #333;
         --ink: #000;
         --velvet: #000;
-        background: var(--ink);
+        --theme-text: #fff;
+        --theme-muted: #aaa;
+        --theme-surface: #000;
+        --theme-surface-deep: #000;
+        --theme-backdrop-accent: #111;
+        --theme-backdrop-edge: #050505;
       }
-      .theme-classic {
-        background:
-          linear-gradient(90deg, #180405 0, #4a0b0e 8%, transparent 19% 81%,
-            #4a0b0e 92%, #180405 100%),
-          radial-gradient(ellipse at 50% -10%, #7a251d88, transparent 52%),
-          linear-gradient(#170706, #030202 72%);
-      }
-      .theme-classic .marquee {
-        background: linear-gradient(#32110de8, #160806e8);
-        border-block: 1px solid #b77a2466;
-      }
+      .theater { color: var(--theme-text); }
+      .marquee { background: linear-gradient(var(--theme-surface), var(--theme-surface-deep)); }
+      .meta, .summary, .session { color: var(--theme-muted); }
       .ambient {
         position: absolute;
         inset: -30px;
@@ -1370,101 +1384,38 @@ class MoviePosterPanel extends HTMLElement {
       }
       .frame-steampunk .frame-plaque { display: block; color: #2a160d; border: 5px ridge #a5613a; background: linear-gradient(#c98255, #8a4d31); }
 
-      /* Theme identities remain visible regardless of the selected frame. */
-      .theme-art_deco {
-        background:
-          conic-gradient(from 225deg at 50% 0%, transparent 0 8deg,
-            #d7bd7330 8deg 10deg, transparent 10deg 20deg,
-            #d7bd7328 20deg 22deg, transparent 22deg 32deg),
-          repeating-linear-gradient(135deg, #ffffff07 0 1px, transparent 1px 44px),
-          radial-gradient(ellipse at 50% 0%, #245e51, #071412 62%, #020807);
-      }
-      .theme-art_deco .marquee-frame {
-        border-radius: 0;
-        box-shadow: inset 0 0 0 2px #e2cb8b,
-          inset 0 0 0 9px #07100f, inset 0 0 0 11px #8e7b47,
-          0 28px 90px #000;
-      }
-      .theme-art_deco .marquee {
-        margin: 8px clamp(4px, 2vw, 24px) 24px;
-        padding: 18px clamp(28px, 5vw, 72px) 23px;
-        border: 1px solid #d8c17c;
-        border-inline-width: 5px;
-        background: linear-gradient(90deg, transparent, #17332ee8 20% 80%, transparent);
-        clip-path: polygon(4% 0, 96% 0, 100% 50%, 96% 100%, 4% 100%, 0 50%);
-      }
-      .theme-art_deco h1 {
-        color: #f0dfaa;
-        font-family: Georgia, "Times New Roman", serif;
-        font-size: clamp(1.15rem, 4.8vw, 4.2rem);
-        letter-spacing: .1em;
-        line-height: 1;
-        text-shadow: 0 2px 0 #57461f, 0 0 20px #d9bd6555;
-      }
-      .theme-art_deco .eyebrow { color: #cbb36f; letter-spacing: .42em; }
-      .theme-art_deco .poster { border-radius: 0; border-color: #d8c17c; }
+      /* Themes are palettes only. Frames own geometry and ornamentation; layouts
+         own element placement. Theme selectors must not change either. */
+      .theme-art_deco h1 { color: #f0dfaa; }
+      .theme-art_deco .eyebrow { color: #cbb36f; }
+      .theme-art_deco .poster { border-color: #d8c17c; }
 
       .theme-minimal {
         --gold: #171717;
         color: #171717;
-        background: #e8e5de;
-      }
-      .theme-minimal .ambient, .theme-minimal .frame-ornaments { display: none; }
-      .theme-minimal .marquee-frame {
-        border: 1px solid #222;
-        border-radius: 0;
-        background: #f5f3ee;
-        box-shadow: 12px 12px 0 #bcb8ae;
-      }
-      .theme-minimal .marquee {
-        padding: 10px 0 20px;
-        border-bottom: 2px solid #191919;
-        text-align: left;
       }
       .theme-minimal h1, .theme-minimal .details h2 {
         color: #111;
-        font-family: Avenir, Montserrat, Arial, sans-serif;
-        font-weight: 700;
-        letter-spacing: -.025em;
-        text-shadow: none;
       }
-      .theme-minimal h1 { text-transform: none; }
       .theme-minimal .eyebrow, .theme-minimal .meta,
       .theme-minimal .session { color: #5b5954; }
       .theme-minimal .subtitle { color: #24231f; }
-      .theme-minimal .summary { color: #383631; font-family: inherit; }
-      .theme-minimal .poster {
-        border: 1px solid #222; border-radius: 0; box-shadow: 7px 7px 0 #c5c1b8;
-      }
+      .theme-minimal .summary { color: #383631; }
+      .theme-minimal .poster { border-color: #222; }
       .theme-minimal .progress { background: #0002; }
       .theme-minimal .progress i { background: #171717; }
 
       .theme-oled {
         --gold: #fff;
-        background: #000;
       }
-      .theme-oled .ambient, .theme-oled .frame-ornaments,
-      .theme-oled .eyebrow { display: none; }
-      .theme-oled .marquee-frame {
-        border: 0;
-        border-radius: 0;
-        background: #000;
-        box-shadow: none;
-      }
-      .theme-oled .marquee { padding-block: 5px 22px; }
-      .theme-oled h1 {
-        color: #fff; letter-spacing: .12em; text-shadow: none;
-      }
-      .theme-oled .poster {
-        border: 1px solid #292929; border-radius: 2px;
-        box-shadow: 0 0 0 1px #000, 0 28px 80px #000;
-      }
+      .theme-oled h1 { color: #fff; }
+      .theme-oled .poster { border-color: #292929; }
       .theme-oled .details h2 { color: #fff; }
       .theme-oled .subtitle { color: #fff; }
       .theme-oled .meta, .theme-oled .summary { color: #aaa; }
       .theme-oled .session { color: #666; }
-      .theme-oled .progress { height: 2px; background: #222; }
-      .theme-oled .progress i { background: #fff; box-shadow: 0 0 8px #fff; }
+      .theme-oled .progress { background: #222; }
+      .theme-oled .progress i { background: #fff; }
       @keyframes reveal {
         from { opacity: 0; transform: scale(.992); }
         to { opacity: 1; transform: scale(1); }
@@ -1538,16 +1489,6 @@ class MoviePosterPanel extends HTMLElement {
       }
       .motion-off .marquee-bulbs i,
       .motion-off .marquee-divider-bulbs i { animation: none; opacity: .94; }
-      .theme-minimal .marquee-bulbs, .theme-oled .marquee-bulbs,
-      .theme-minimal .marquee-divider-bulbs,
-      .theme-oled .marquee-divider-bulbs {
-        display: none;
-      }
-      .theme-minimal .marquee-frame::before,
-      .theme-oled .marquee-frame::before { display: none; }
-      .theme-neon .marquee-frame {
-        box-shadow: 0 0 0 3px var(--gold-deep), 0 0 55px #b51fff66;
-      }
       .motion-off .marquee-frame,
       .motion-off .marquee-frame::before { animation: none; }
       .motion-off .marquee-frame::before { opacity: .8; }
@@ -1970,10 +1911,6 @@ class MoviePosterPanel extends HTMLElement {
         .orientation-auto h1 {
           font-size: clamp(4rem, 5.6vw, 7.5rem);
         }
-        .theme-art_deco.orientation-portrait h1,
-        .theme-art_deco.orientation-auto h1 {
-          font-size: clamp(3.5rem, 4.8vw, 6.5rem);
-        }
         .orientation-portrait .content,
         .orientation-auto .content {
           gap: clamp(32px, 1.3vh, 54px);
@@ -2025,11 +1962,6 @@ class MoviePosterPanel extends HTMLElement {
       @media (max-width: 720px) {
         .orientation-portrait h1, .orientation-auto h1 {
           font-size: clamp(1.25rem, 7.5vw, 2.3rem);
-        }
-        .theme-art_deco.orientation-portrait h1,
-        .theme-art_deco.orientation-auto h1 {
-          font-size: clamp(1.05rem, 5.8vw, 1.9rem);
-          letter-spacing: .06em;
         }
       }
       @media (max-width: 480px) and (orientation: portrait) {

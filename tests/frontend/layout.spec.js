@@ -51,6 +51,25 @@ const VIEWPORTS = [
   { name: "rotated-4k-tv", width: 2160, height: 3840, orientation: "portrait" },
 ];
 
+async function rendererGeometry(page) {
+  return page.evaluate(() => {
+    const root = document.querySelector("movie-poster-panel").shadowRoot;
+    const box = (selector) => {
+      const rect = root.querySelector(selector).getBoundingClientRect();
+      return [rect.x, rect.y, rect.width, rect.height].map((value) =>
+        Math.round(value * 10) / 10);
+    };
+    return {
+      frame: box(".marquee-frame"),
+      marquee: box(".marquee"),
+      content: box(".content"),
+      poster: box(".poster"),
+      plaque: box(".frame-plaque"),
+      details: box(".details"),
+    };
+  });
+}
+
 async function renderPoster(page, frame, theme, layout, orientation, variant = {}) {
   return page.evaluate(async ({ frame, theme, layout, orientation, variant }) => {
     document.querySelector("movie-poster-panel")?.remove();
@@ -192,6 +211,43 @@ for (const viewport of VIEWPORTS) {
     expect(failures).toEqual([]);
   });
 }
+
+test("themes recolor without changing frame or layout geometry", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await openHarness(page);
+  const geometries = [];
+  const palettes = [];
+  for (const theme of THEMES) {
+    expect(await renderPoster(
+      page, "theater_classic", theme, "split", "landscape",
+    )).toEqual([]);
+    geometries.push(await rendererGeometry(page));
+    palettes.push(await page.evaluate(() => {
+      const root = document.querySelector("movie-poster-panel").shadowRoot;
+      const theater = root.querySelector(".theater");
+      const style = getComputedStyle(theater);
+      return [style.color, style.backgroundImage, style.getPropertyValue("--gold")];
+    }));
+  }
+  for (const geometry of geometries.slice(1)) {
+    expect(geometry).toEqual(geometries[0]);
+  }
+  expect(new Set(palettes.map((palette) => JSON.stringify(palette))).size)
+    .toBe(THEMES.length);
+});
+
+test("Display Studio presents Frame, Theme, then Layout", async ({ page }) => {
+  await openHarness(page, "?studio=1");
+  const order = await page.evaluate(() => {
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    panel._render();
+    return [...panel.shadowRoot.querySelectorAll("[data-studio]")]
+      .map((control) => control.dataset.studio)
+      .filter((name) => ["frame_theme", "theme", "layout"].includes(name));
+  });
+  expect(order).toEqual(["frame_theme", "theme", "layout"]);
+});
 
 for (const viewport of VIEWPORTS) {
   test(`Display Studio stays usable on ${viewport.name}`, async ({ page }) => {
