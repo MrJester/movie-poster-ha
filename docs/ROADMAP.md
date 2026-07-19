@@ -22,10 +22,10 @@
 ## 1.0 punch-down
 
 - Complete automated browser coverage for responsive layouts, reconnects, and Studio saves.
-- Add Home Assistant repairs for Plex connectivity and invalid library/collection selections.
-- Finish keyboard, reduced-motion, contrast, and screen-reader accessibility review.
-- Add import/export and validation for reusable display profiles.
-- Add first-class multiple-display profiles and targeted service controls.
+- Add Home Assistant repairs for Plex connectivity and invalid library/collection selections. ✅
+- Finish keyboard, reduced-motion, contrast, and screen-reader accessibility review. ✅
+- Add import/export and validation for reusable display profiles. ✅
+- Add first-class multiple-display profiles and targeted service controls. ✅
 - Add translations beyond English.
 - Complete fresh-install and upgrade testing on all three supported Home Assistant releases.
 - Publish the first tagged HACS release with final installation and upgrade documentation.

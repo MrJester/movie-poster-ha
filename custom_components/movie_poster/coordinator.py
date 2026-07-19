@@ -16,6 +16,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import DOMAIN
 from .exceptions import PlexAuthenticationError
+from .issues import async_set_connection_issue
 from .models import DisplayMode, MediaPresentation
 from .resolver import select_session
 from .rotation import ShuffleBag
@@ -211,9 +212,7 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
             return None
         return min(
             99,
-            round(
-                len(self._movie_refresh_buffer) * 100 / self._movie_refresh_total
-            ),
+            round(len(self._movie_refresh_buffer) * 100 / self._movie_refresh_total),
         )
 
     @property
@@ -230,10 +229,14 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         try:
             raw_sessions = await self._client.async_sessions()
         except PlexAuthenticationError as err:
+            self._async_set_connection_issue(active=False)
             raise ConfigEntryAuthFailed from err
         except Exception as err:
+            self._async_set_connection_issue(active=True)
             message = f"Unable to retrieve Plex sessions: {err}"
             raise UpdateFailed(message) from err
+
+        self._async_set_connection_issue(active=False)
 
         normalized = raw_sessions
         media_by_session = {
@@ -259,11 +262,14 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 self._rotation_due = now + self._rotation_seconds
                 self._store.async_delay_save(self._rotation_state, delay=30)
         media = (
-            playing_media
-            if mode.mode is DisplayMode.NOW_PLAYING
-            else self._coming_soon
+            playing_media if mode.mode is DisplayMode.NOW_PLAYING else self._coming_soon
         )
         return CoordinatorData(mode=mode, selected_session=selected, media=media)
+
+    def _async_set_connection_issue(self, *, active: bool) -> None:
+        """Update Repairs when running as a fully initialized coordinator."""
+        if hasattr(self, "hass") and hasattr(self, "entry_id"):
+            async_set_connection_issue(self.hass, self.entry_id, active=active)
 
     def _start_library_refresh(self, now: float | None = None) -> None:
         """Start one tracked sequential hydration task when refresh is due."""
@@ -334,9 +340,7 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
             ) is not None:
                 remaining, last = restored_rotation
                 if (coming_soon := getattr(self, "_coming_soon", None)) is not None:
-                    remaining = [
-                        key for key in remaining if key != coming_soon.key
-                    ]
+                    remaining = [key for key in remaining if key != coming_soon.key]
                     last = coming_soon.key
                 self._bag.restore(remaining, last)
                 self._restored_rotation = None

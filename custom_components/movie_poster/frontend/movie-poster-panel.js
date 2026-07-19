@@ -100,9 +100,11 @@ class MoviePosterPanel extends HTMLElement {
     this._externalBusId = Date.now();
     this._studio = new URLSearchParams(window.location.search).get("studio") === "1";
     this._requestedEntryId = new URLSearchParams(window.location.search).get("entry_id");
+    this._requestedProfileId = new URLSearchParams(window.location.search).get("profile") || "default";
     this._studioLoaded = false;
     this._settings = null;
-    this._choices = { sources: [], players: [], users: [] };
+    this._choices = { sources: [], players: [], users: [], profiles: [] };
+    this._profiles = {};
     if (this._studio) this._state = studioState();
   }
 
@@ -167,6 +169,7 @@ class MoviePosterPanel extends HTMLElement {
       {
         type: "movie_poster/subscribe",
         ...(this._requestedEntryId ? { entry_id: this._requestedEntryId } : {}),
+        profile_id: this._requestedProfileId,
       },
     ).catch((error) => {
       this._unsubscribePromise = null;
@@ -432,7 +435,7 @@ class MoviePosterPanel extends HTMLElement {
 
     this.shadowRoot.innerHTML = `${this._styles()}${this._studioControls()}
       <main class="theater${studioClass} theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}${transitionClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
-        ${presentationStyle}>
+        ${presentationStyle} aria-label="Movie Poster display">
         <div class="ambient"></div>
         ${this._displayControls()}
         <p class="connection-warning" role="status"
@@ -443,7 +446,7 @@ class MoviePosterPanel extends HTMLElement {
           </div>
           ${logoUrl ? `<div class="brand-row logo-${logoPosition}">
             <div class="brand-logo logo-${logoPosition}">
-              <img src="${escapeHtml(logoUrl)}" alt="Theater logo">
+              <img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(presentation.eyebrow_text || "Theater")} logo">
             </div>
             <span class="eyebrow brand-eyebrow">${escapeHtml(presentation.eyebrow_text || "Theater Presentation")}</span>
           </div>` : ""}
@@ -452,7 +455,7 @@ class MoviePosterPanel extends HTMLElement {
           </div>
           <header class="marquee">
             ${logoUrl ? "" : `<span class="eyebrow">${escapeHtml(presentation.eyebrow_text || "Theater Presentation")}</span>`}
-            <h1>${escapeHtml(state.heading)}</h1>
+            <h1 id="movie-poster-mode" aria-live="polite">${escapeHtml(state.heading)}</h1>
           </header>
           <div class="marquee-divider-bulbs" aria-hidden="true"></div>
           <div class="content">
@@ -460,14 +463,15 @@ class MoviePosterPanel extends HTMLElement {
               ${media.poster_url
                 ? `<img class="poster" src="${escapeHtml(media.poster_url)}"
                      alt="Poster for ${escapeHtml(media.title)}">`
-                : '<div class="poster poster-missing">No poster available</div>'}
+                : `<div class="poster poster-missing" role="img"
+                    aria-label="No poster available for ${escapeHtml(media.title)}">No poster available</div>`}
               <footer class="frame-plaque">
                 <strong>${escapeHtml(media.title)}</strong>
                 <span>${escapeHtml(media.subtitle || state.heading)}</span>
               </footer>
             </div>
-            <article class="details">
-              <h2>${escapeHtml(media.title)}</h2>
+            <article class="details" aria-labelledby="movie-poster-title">
+              <h2 id="movie-poster-title">${escapeHtml(media.title)}</h2>
               ${media.subtitle ? `<p class="subtitle">${escapeHtml(media.subtitle)}</p>` : ""}
               ${meta ? `<p class="meta">${escapeHtml(meta)}</p>` : ""}
               ${media.summary && presentation.show_summary !== false
@@ -723,6 +727,17 @@ class MoviePosterPanel extends HTMLElement {
         data-setting="library_refresh_seconds" value="${Number(settings.library_refresh_seconds ?? 900)}"></label>`
         : `<p class="studio-wide">Loading Plex libraries, players, and users…</p>`}
       <h3>Presentation</h3>
+      <label class="studio-wide">Display profile<select data-profile-select>
+        ${options(this._choices.profiles || [], settings.profile_id || this._requestedProfileId)}
+      </select></label>
+      <div class="studio-profile-actions studio-wide">
+        <button type="button" data-profile-action="create">New</button>
+        <button type="button" data-profile-action="export">Export</button>
+        <button type="button" data-profile-action="import">Import</button>
+        <button type="button" data-profile-action="delete"
+          ${settings.profile_id === "default" ? "disabled" : ""}>Delete</button>
+        <input type="file" accept="application/json" data-profile-file hidden>
+      </div>
       <label>Frame<select data-studio="frame_theme">
         ${["marquee", "cyber_noir", "comic_hero", "theater_classic",
           "indie_nature", "golden_age", "steampunk"].map((value) =>
@@ -820,6 +835,13 @@ class MoviePosterPanel extends HTMLElement {
       ?.addEventListener("click", () => this._returnToSettings());
     this.shadowRoot.querySelector('[data-studio-action="save"]')
       ?.addEventListener("click", () => this._saveStudio());
+    this.shadowRoot.querySelector("[data-profile-select]")
+      ?.addEventListener("change", (event) => this._switchProfile(event.target.value));
+    this.shadowRoot.querySelectorAll("[data-profile-action]").forEach((button) => {
+      button.addEventListener("click", () => this._profileAction(button.dataset.profileAction));
+    });
+    this.shadowRoot.querySelector("[data-profile-file]")
+      ?.addEventListener("change", (event) => this._importProfile(event.target.files?.[0]));
   }
 
   async _saveStudio() {
@@ -833,6 +855,7 @@ class MoviePosterPanel extends HTMLElement {
       await this._hass.callWS({
         type: "movie_poster/update_settings",
         entry_id: this._state.entry_id,
+        profile_id: this._settings.profile_id || "default",
         source: this._settings.source,
         player_id: this._settings.player_id || "",
         user_id: this._settings.user_id || "",
@@ -873,13 +896,102 @@ class MoviePosterPanel extends HTMLElement {
       const result = await this._hass.callWS({
         type: "movie_poster/get_settings",
         entry_id: this._state.entry_id,
+        profile_id: this._requestedProfileId,
       });
       this._settings = result.settings;
       this._choices = result.choices;
+      this._profiles = result.profiles || {};
       this._render();
     } catch (error) {
       const status = this.shadowRoot.querySelector(".studio-status");
       if (status) status.textContent = error?.message || "Unable to load Plex settings.";
+    }
+  }
+
+  async _switchProfile(profileId) {
+    if (!this._hass || !this._state?.entry_id) return;
+    this._requestedProfileId = profileId;
+    const url = new URL(window.location.href);
+    if (profileId === "default") url.searchParams.delete("profile");
+    else url.searchParams.set("profile", profileId);
+    window.history.replaceState(null, "", url);
+    try {
+      const result = await this._hass.callWS({
+        type: "movie_poster/get_settings",
+        entry_id: this._state.entry_id,
+        profile_id: profileId,
+      });
+      this._settings = result.settings;
+      this._choices = result.choices;
+      this._profiles = result.profiles || {};
+      this._state.presentation = { ...this._state.presentation,
+        ...this._profiles[profileId]?.presentation };
+      this._state.heading = this._state.presentation.coming_soon_text;
+      this._renderIdentity = null;
+      this._render();
+    } catch (error) {
+      const status = this.shadowRoot.querySelector(".studio-status");
+      if (status) status.textContent = error?.message || "Unable to load profile.";
+    }
+  }
+
+  async _profileAction(action) {
+    const status = this.shadowRoot.querySelector(".studio-status");
+    if (action === "export") {
+      const profile = this._profiles[this._settings?.profile_id || "default"];
+      if (!profile) return;
+      const blob = new Blob([JSON.stringify(profile, null, 2)],
+        { type: "application/json" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `movie-poster-${this._settings.profile_id || "default"}.json`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      if (status) status.textContent = "Profile exported.";
+      return;
+    }
+    if (action === "import") {
+      this.shadowRoot.querySelector("[data-profile-file]")?.click();
+      return;
+    }
+    if (action === "create") {
+      const name = window.prompt("Name this display profile");
+      if (!name?.trim()) return;
+      await this._manageProfile("import", { document: {
+        version: 1, name: name.trim(),
+        presentation: { ...this._state.presentation },
+      } });
+      return;
+    }
+    if (action === "delete" && this._settings?.profile_id !== "default"
+      && window.confirm(`Delete ${this._profiles[this._settings.profile_id]?.name || "this profile"}?`)) {
+      await this._manageProfile("delete", { profile_id: this._settings.profile_id });
+    }
+  }
+
+  async _importProfile(file) {
+    if (!file) return;
+    const status = this.shadowRoot.querySelector(".studio-status");
+    try {
+      const document = JSON.parse(await file.text());
+      await this._manageProfile("import", { document });
+    } catch (error) {
+      if (status) status.textContent = error?.message || "Invalid profile file.";
+    }
+  }
+
+  async _manageProfile(action, fields) {
+    const status = this.shadowRoot.querySelector(".studio-status");
+    try {
+      const result = await this._hass.callWS({
+        type: "movie_poster/manage_profile", entry_id: this._state.entry_id,
+        action, ...fields,
+      });
+      await this._switchProfile(action === "delete" ? "default" : result.profile_id);
+      if (status) status.textContent = action === "delete"
+        ? "Profile deleted." : "Profile saved.";
+    } catch (error) {
+      if (status) status.textContent = error?.message || "Unable to update profile.";
     }
   }
 
@@ -1049,7 +1161,8 @@ class MoviePosterPanel extends HTMLElement {
         border-radius: 6px; background: #241915; color: inherit; cursor: pointer;
       }
       .display-actions button:hover, .display-actions button:focus-visible {
-        border-color: var(--gold); outline: none;
+        border-color: var(--gold); outline: 3px solid var(--gold);
+        outline-offset: 2px;
       }
       .display-actions button:disabled { cursor: wait; opacity: .55; }
       .display-action-status { display: block; min-height: 1em; margin-top: 8px; color: #c6b99f; }
@@ -1101,6 +1214,11 @@ class MoviePosterPanel extends HTMLElement {
       }
       .studio button.primary { border-color: var(--gold); background: #8b571d; }
       .studio button:disabled { cursor: wait; opacity: .65; }
+      .studio :is(button, select, input):focus-visible {
+        outline: 3px solid var(--gold);
+        outline-offset: 2px;
+      }
+      .studio-profile-actions { display: flex; flex-wrap: wrap; gap: 8px; }
       .studio-preview {
         width: calc(100vw - 430px);
         min-height: 100vh;
@@ -2043,6 +2161,12 @@ class MoviePosterPanel extends HTMLElement {
       }
       @keyframes ambientArrive { from { opacity: .35; } to { opacity: .75; } }
       @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          scroll-behavior: auto !important;
+          animation-duration: .001ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: .001ms !important;
+        }
         .marquee-frame, .marquee-frame::before { animation: none; }
         .marquee-frame::before { opacity: .8; }
       }

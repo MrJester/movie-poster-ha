@@ -32,6 +32,17 @@ An optional theater logo can be loaded from an HTTPS URL or Home Assistant's
 Saved presentation changes are broadcast to open poster panels, which reconnect
 automatically after the integration reloads.
 
+Display Studio can save, import, export, and delete named display profiles.
+Select a profile for one screen with a URL such as:
+
+```text
+https://<your-home-assistant-host>/movie-poster?profile=portrait-tv
+```
+
+Screens without a `profile` query parameter use the Default profile. Automations
+can apply a saved profile to those screens with
+`movie_poster.activate_profile`; fixed-profile screens retain their own design.
+
 Movie metadata and shuffle progress are cached in Home Assistant. After a
 restart, the last complete library is available immediately while Plex refreshes
 sequentially in the background. The on-screen control overlay reports hydration

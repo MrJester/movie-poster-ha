@@ -30,3 +30,20 @@ reset_shuffle:
       required: false
       selector:
         text:
+
+activate_profile:
+  name: Activate display profile
+  description: Apply a saved display profile to browsers using the default profile.
+  fields:
+    entry_id:
+      name: Configuration entry
+      description: Optional Movie Poster configuration entry ID.
+      required: false
+      selector:
+        text:
+    profile_id:
+      name: Display profile
+      description: URL-safe ID of the saved profile to activate.
+      required: true
+      selector:
+        text:

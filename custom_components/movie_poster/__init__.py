@@ -65,6 +65,8 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant, ServiceCall
 
+    from .coordinator import MoviePosterCoordinator
+
 type MoviePosterConfigEntry = ConfigEntry[dict]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -92,7 +94,21 @@ def _async_register_services(hass: HomeAssistant) -> None:
         )
         if coordinator is None:
             return
-        if call.service == "refresh_library":
+        if call.service == "activate_profile":
+            from .profiles import stored_profiles  # noqa: PLC0415
+
+            entry = hass.config_entries.async_get_entry(coordinator.entry_id)
+            profiles = stored_profiles(entry.options if entry else {})
+            profile = profiles.get(call.data["profile_id"])
+            if entry is None or profile is None:
+                return
+            options = {**entry.options, **profile["presentation"]}
+            for key, value in profile["presentation"].items():
+                setattr(coordinator, key, value)
+            coordinator.presentation_revision += 1
+            coordinator.async_update_listeners()
+            hass.config_entries.async_update_entry(entry, options=options)
+        elif call.service == "refresh_library":
             await coordinator.async_refresh_library()
         else:
             await coordinator.async_next_poster(
@@ -104,13 +120,20 @@ def _async_register_services(hass: HomeAssistant) -> None:
         hass.services.async_register(
             DOMAIN, service, async_handle_service, schema=schema
         )
+    hass.services.async_register(
+        DOMAIN,
+        "activate_profile",
+        async_handle_service,
+        schema=vol.Schema(
+            {vol.Optional("entry_id"): str, vol.Required("profile_id"): str}
+        ),
+    )
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: MoviePosterConfigEntry
-) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: MoviePosterConfigEntry) -> bool:
     """Set up Movie Poster from a config entry."""
     from .coordinator import MoviePosterCoordinator  # noqa: PLC0415
+    from .issues import async_validate_logo  # noqa: PLC0415
     from .models import PlaybackPolicy  # noqa: PLC0415
     from .plex_client import MoviePosterPlexClient  # noqa: PLC0415
 
@@ -166,14 +189,19 @@ async def async_setup_entry(
         ),
         eyebrow_text=entry.options.get(CONF_EYEBROW_TEXT, DEFAULT_EYEBROW_TEXT),
         logo_url=entry.options.get(CONF_LOGO_URL, DEFAULT_LOGO_URL),
-        logo_position=entry.options.get(
-            CONF_LOGO_POSITION, DEFAULT_LOGO_POSITION
-        ),
+        logo_position=entry.options.get(CONF_LOGO_POSITION, DEFAULT_LOGO_POSITION),
         entry_id=entry.entry_id,
     )
     await coordinator.async_initialize()
     await coordinator.async_config_entry_first_refresh()
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+    await async_validate_logo(
+        hass, entry.entry_id, entry.options.get(CONF_LOGO_URL, DEFAULT_LOGO_URL)
+    )
+    hass.async_create_task(
+        _async_validate_source(hass, entry, coordinator),
+        f"{DOMAIN}_{entry.entry_id}_validate_source",
+    )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_reload_entry))
     return True
@@ -195,3 +223,29 @@ async def _async_reload_entry(
 ) -> None:
     """Reload after options change."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def _async_validate_source(
+    hass: HomeAssistant,
+    entry: MoviePosterConfigEntry,
+    coordinator: MoviePosterCoordinator,
+) -> None:
+    """Validate the configured library and collection without delaying setup."""
+    from .issues import async_set_source_issue  # noqa: PLC0415
+
+    library_title = entry.options.get(CONF_LIBRARY)
+    collection_title = entry.options.get(CONF_COLLECTION)
+    if not library_title:
+        return
+    try:
+        libraries = await coordinator._client.async_movie_libraries()  # noqa: SLF001
+    except Exception:  # noqa: BLE001 - connectivity has its own repair lifecycle
+        return
+    library = next((item for item in libraries if item.title == library_title), None)
+    missing = library is None or (
+        bool(collection_title) and collection_title not in library.collections
+    )
+    source = (
+        f"{library_title} — {collection_title}" if collection_title else library_title
+    )
+    async_set_source_issue(hass, entry.entry_id, active=missing, source=source)

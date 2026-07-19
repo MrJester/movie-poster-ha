@@ -19,6 +19,7 @@ from .const import (
     CONF_BODY_FONT,
     CONF_COLLECTION,
     CONF_COMING_SOON_TEXT,
+    CONF_DISPLAY_PROFILES,
     CONF_ENABLE_MOTION,
     CONF_EYEBROW_TEXT,
     CONF_FRAME_THEME,
@@ -41,6 +42,7 @@ from .const import (
     CONF_USER_ID,
     DEFAULT_GRACE_SECONDS,
     DEFAULT_LIBRARY_REFRESH_SECONDS,
+    DEFAULT_PROFILE_ID,
     DEFAULT_ROTATION_SECONDS,
     DOMAIN,
     FONTS,
@@ -49,6 +51,14 @@ from .const import (
     LOGO_POSITIONS,
     ORIENTATIONS,
     THEMES,
+)
+from .profiles import (
+    PROFILE_KEYS,
+    PROFILE_VERSION,
+    make_profile_id,
+    presentation_from_options,
+    stored_profiles,
+    validate_profile_document,
 )
 
 if TYPE_CHECKING:
@@ -59,7 +69,7 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-beta.24"
+_FRONTEND_VERSION = "0.1.0-beta.25"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
@@ -83,12 +93,14 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_get_settings)
     websocket_api.async_register_command(hass, websocket_update_settings)
     websocket_api.async_register_command(hass, websocket_display_control)
+    websocket_api.async_register_command(hass, websocket_manage_profile)
 
 
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "movie_poster/subscribe",
         vol.Optional("entry_id"): str,
+        vol.Optional("profile_id", default=DEFAULT_PROFILE_ID): str,
     }
 )
 @callback
@@ -105,8 +117,26 @@ def websocket_subscribe(
         )
         return
 
+    entry = hass.config_entries.async_get_entry(coordinator.entry_id)
+    profiles = stored_profiles(entry.options if entry else {})
+    selected_profile_id = msg["profile_id"]
+    if selected_profile_id not in profiles:
+        connection.send_error(
+            msg["id"],
+            websocket_api.ERR_NOT_FOUND,
+            f"Unknown Movie Poster profile: {selected_profile_id}",
+        )
+        return
+
     @callback
     def send_state() -> None:
+        current_entry = hass.config_entries.async_get_entry(coordinator.entry_id)
+        current_profiles = stored_profiles(
+            current_entry.options if current_entry else {}
+        )
+        active_profile = current_profiles.get(
+            selected_profile_id, current_profiles[DEFAULT_PROFILE_ID]
+        )
         connection.send_message(
             websocket_api.event_message(
                 msg["id"],
@@ -115,6 +145,8 @@ def websocket_subscribe(
                     coordinator,
                     refresh_token_id=connection.refresh_token_id,
                     can_control=connection.user.is_admin,
+                    profile_id=selected_profile_id,
+                    presentation=active_profile["presentation"],
                 ),
             )
         )
@@ -142,12 +174,8 @@ def websocket_subscribe(
         vol.Required(CONF_BACKGROUND_COLOR): vol.Match(r"^#[0-9a-fA-F]{6}$"),
         vol.Required(CONF_HEADING_FONT): vol.In(FONTS),
         vol.Required(CONF_BODY_FONT): vol.In(FONTS),
-        vol.Required(CONF_NOW_PLAYING_TEXT): vol.All(
-            str, vol.Length(min=1, max=60)
-        ),
-        vol.Required(CONF_COMING_SOON_TEXT): vol.All(
-            str, vol.Length(min=1, max=60)
-        ),
+        vol.Required(CONF_NOW_PLAYING_TEXT): vol.All(str, vol.Length(min=1, max=60)),
+        vol.Required(CONF_COMING_SOON_TEXT): vol.All(str, vol.Length(min=1, max=60)),
         vol.Required(CONF_EYEBROW_TEXT): vol.All(str, vol.Length(min=1, max=80)),
         vol.Required(CONF_LOGO_URL): vol.All(str, vol.Length(max=500)),
         vol.Required(CONF_LOGO_POSITION): vol.In(LOGO_POSITIONS),
@@ -185,6 +213,7 @@ async def websocket_update_presentation(
     {
         vol.Required("type"): "movie_poster/get_settings",
         vol.Optional("entry_id"): str,
+        vol.Optional("profile_id", default=DEFAULT_PROFILE_ID): str,
     }
 )
 @websocket_api.async_response
@@ -228,6 +257,15 @@ async def websocket_get_settings(
         f"{entry.options.get(CONF_COLLECTION, '') or ''}"
     )
     source_values = {choice["value"] for choice in sources}
+    from .issues import async_set_source_issue  # noqa: PLC0415
+
+    configured_source = current_source
+    async_set_source_issue(
+        hass,
+        entry.entry_id,
+        active=bool(sources) and configured_source not in source_values,
+        source=configured_source.replace("::", " — ").removesuffix(" — "),
+    )
     if current_source not in source_values:
         current_source = sources[0]["value"] if sources else current_source
     players = dict(playback_choices.players) if playback_choices else {}
@@ -238,11 +276,18 @@ async def websocket_get_settings(
         players[selected_player] = f"Previously selected ({selected_player})"
     if selected_user and selected_user not in users:
         users[selected_user] = f"Previously selected ({selected_user})"
+    profiles = stored_profiles(entry.options)
+    selected_profile_id = msg["profile_id"]
+    if selected_profile_id not in profiles:
+        selected_profile_id = DEFAULT_PROFILE_ID
     connection.send_result(
         msg["id"],
         {
+            "profiles": profiles,
             "settings": {
                 **entry.options,
+                **profiles[selected_profile_id]["presentation"],
+                "profile_id": selected_profile_id,
                 "source": current_source,
                 CONF_PLAYER_ID: selected_player,
                 CONF_USER_ID: selected_user,
@@ -257,6 +302,10 @@ async def websocket_get_settings(
                 ),
             },
             "choices": {
+                "profiles": [
+                    {"value": identifier, "label": profile["name"]}
+                    for identifier, profile in profiles.items()
+                ],
                 "sources": sources,
                 "players": [
                     {"value": "", "label": "Any active Plex player"},
@@ -302,6 +351,7 @@ _BEHAVIOR_SCHEMA = {
     {
         vol.Required("type"): "movie_poster/update_settings",
         vol.Optional("entry_id"): str,
+        vol.Optional("profile_id", default=DEFAULT_PROFILE_ID): str,
         **_BEHAVIOR_SCHEMA,
         vol.Required(CONF_THEME): vol.In(THEMES),
         vol.Required(CONF_ORIENTATION): vol.In(ORIENTATIONS),
@@ -355,9 +405,10 @@ async def websocket_update_settings(
             "Select a Coming Soon source",
         )
         return
+    profile_id = msg["profile_id"]
+    presentation = {key: msg[key] for key in _PRESENTATION_KEYS}
     options = {
         **entry.options,
-        **{key: msg[key] for key in _PRESENTATION_KEYS},
         CONF_LIBRARY: library,
         CONF_COLLECTION: collection or None,
         CONF_PLAYER_ID: msg[CONF_PLAYER_ID],
@@ -366,12 +417,36 @@ async def websocket_update_settings(
         CONF_ROTATION_SECONDS: msg[CONF_ROTATION_SECONDS],
         CONF_LIBRARY_REFRESH_SECONDS: msg[CONF_LIBRARY_REFRESH_SECONDS],
     }
-    for key in _PRESENTATION_KEYS:
-        setattr(coordinator, key, options[key])
+    if profile_id == DEFAULT_PROFILE_ID:
+        options.update(presentation)
+        for key in _PRESENTATION_KEYS:
+            setattr(coordinator, key, presentation[key])
+    else:
+        profiles = stored_profiles(entry.options)
+        if profile_id not in profiles:
+            connection.send_error(
+                msg["id"],
+                websocket_api.ERR_NOT_FOUND,
+                f"Unknown Movie Poster profile: {profile_id}",
+            )
+            return
+        custom_profiles = dict(entry.options.get(CONF_DISPLAY_PROFILES, {}))
+        custom_profiles[profile_id] = {
+            "name": profiles[profile_id]["name"],
+            "version": PROFILE_VERSION,
+            "presentation": presentation,
+        }
+        options[CONF_DISPLAY_PROFILES] = custom_profiles
     coordinator.presentation_revision += 1
     coordinator.async_update_listeners()
     hass.config_entries.async_update_entry(entry, options=options)
-    connection.send_result(msg["id"], {"entry_id": entry.entry_id})
+    from .issues import async_set_source_issue, async_validate_logo  # noqa: PLC0415
+
+    async_set_source_issue(hass, entry.entry_id, active=False, source=msg["source"])
+    await async_validate_logo(hass, entry.entry_id, presentation[CONF_LOGO_URL])
+    connection.send_result(
+        msg["id"], {"entry_id": entry.entry_id, "profile_id": profile_id}
+    )
 
 
 def _updated_presentation_options(
@@ -382,6 +457,82 @@ def _updated_presentation_options(
         **current,
         **{key: updates[key] for key in _PRESENTATION_KEYS},
     }
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "movie_poster/manage_profile",
+        vol.Optional("entry_id"): str,
+        vol.Required("action"): vol.In({"create", "import", "delete"}),
+        vol.Optional("profile_id"): str,
+        vol.Optional("name"): vol.All(str, vol.Length(min=1, max=60)),
+        vol.Optional("document"): dict,
+    }
+)
+@websocket_api.async_response
+async def websocket_manage_profile(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Create, import, or delete a validated display profile."""
+    coordinator = _coordinator(hass, msg.get("entry_id"))
+    entry = (
+        hass.config_entries.async_get_entry(coordinator.entry_id)
+        if coordinator
+        else None
+    )
+    if entry is None or coordinator is None:
+        connection.send_error(
+            msg["id"], websocket_api.ERR_NOT_FOUND, "Movie Poster is not configured"
+        )
+        return
+    action = msg["action"]
+    custom_profiles = dict(entry.options.get(CONF_DISPLAY_PROFILES, {}))
+    if action == "delete":
+        identifier = str(msg.get("profile_id", ""))
+        if identifier == DEFAULT_PROFILE_ID or identifier not in custom_profiles:
+            connection.send_error(
+                msg["id"], websocket_api.ERR_NOT_FOUND, "Profile cannot be deleted"
+            )
+            return
+        custom_profiles.pop(identifier)
+    else:
+        if action == "create" and not str(msg.get("name", "")).strip():
+            connection.send_error(
+                msg["id"],
+                websocket_api.ERR_INVALID_FORMAT,
+                "Profile name is required",
+            )
+            return
+        try:
+            if action == "import":
+                document = validate_profile_document(msg.get("document", {}))
+            else:
+                name = str(msg.get("name", "")).strip()
+                document = {
+                    "version": PROFILE_VERSION,
+                    "name": name,
+                    "presentation": presentation_from_options(entry.options),
+                }
+        except vol.Invalid as err:
+            connection.send_error(msg["id"], websocket_api.ERR_INVALID_FORMAT, str(err))
+            return
+        base = make_profile_id(document["name"])
+        identifier = base
+        suffix = 2
+        while identifier in custom_profiles or identifier == DEFAULT_PROFILE_ID:
+            identifier = f"{base}-{suffix}"
+            suffix += 1
+        custom_profiles[identifier] = document
+    options = {**entry.options, CONF_DISPLAY_PROFILES: custom_profiles}
+    hass.config_entries.async_update_entry(entry, options=options)
+    coordinator.presentation_revision += 1
+    coordinator.async_update_listeners()
+    connection.send_result(
+        msg["id"], {"profile_id": identifier, "profiles": stored_profiles(options)}
+    )
 
 
 @websocket_api.require_admin
@@ -445,12 +596,14 @@ def _coordinator(
     return next(iter(coordinators.values()), None)
 
 
-def _serialize_state(
+def _serialize_state(  # noqa: PLR0913
     hass: HomeAssistant,
     coordinator: MoviePosterCoordinator,
     *,
     refresh_token_id: str | None,
     can_control: bool = True,
+    profile_id: str = DEFAULT_PROFILE_ID,
+    presentation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     data: CoordinatorData = coordinator.data
     media = data.media
@@ -478,9 +631,13 @@ def _serialize_state(
             else None,
         }
     session = data.selected_session
+    active_presentation = presentation or {
+        key: getattr(coordinator, key) for key in PROFILE_KEYS
+    }
     return {
         "schema_version": 1,
         "entry_id": coordinator.entry_id,
+        "profile_id": profile_id,
         "presentation_revision": coordinator.presentation_revision,
         "health": {
             "connected": getattr(coordinator, "last_update_success", True),
@@ -501,29 +658,12 @@ def _serialize_state(
             "last_refresh": getattr(coordinator, "library_last_refresh", None),
         },
         "presentation": {
-            "theme": coordinator.theme,
-            "show_summary": coordinator.show_summary,
-            "show_progress": coordinator.show_progress,
-            "show_session": coordinator.show_session,
-            "enable_motion": coordinator.enable_motion,
-            "kiosk_mode": coordinator.kiosk_mode,
-            "orientation": coordinator.orientation,
-            "layout": coordinator.layout,
-            "frame_theme": coordinator.frame_theme,
-            "accent_color": coordinator.accent_color,
-            "background_color": coordinator.background_color,
-            "heading_font": coordinator.heading_font,
-            "body_font": coordinator.body_font,
-            "eyebrow_text": coordinator.eyebrow_text,
-            "now_playing_text": coordinator.now_playing_text,
-            "coming_soon_text": coordinator.coming_soon_text,
-            "logo_url": coordinator.logo_url,
-            "logo_position": coordinator.logo_position,
+            **active_presentation,
         },
         "mode": data.mode.mode,
-        "heading": coordinator.now_playing_text
+        "heading": active_presentation[CONF_NOW_PLAYING_TEXT]
         if data.mode.mode == "now_playing"
-        else coordinator.coming_soon_text,
+        else active_presentation[CONF_COMING_SOON_TEXT],
         "reason": data.mode.reason,
         "media": media_payload,
         "session": {

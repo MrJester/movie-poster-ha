@@ -60,6 +60,45 @@
       }
     }
   },
+  "issues": {
+    "plex_unreachable": {
+      "title": "Movie Poster cannot reach Plex",
+      "description": "Movie Poster cannot contact the configured Plex server. Cached posters remain available while it retries. Use the repair flow to test the connection."
+    },
+    "missing_source": {
+      "title": "Movie Poster source is unavailable",
+      "description": "The configured Plex library or collection `{source}` no longer exists or is unavailable. Select a replacement source."
+    },
+    "invalid_logo": {
+      "title": "Movie Poster logo cannot be found",
+      "description": "The configured logo `{logo_url}` does not exist under Home Assistant's `www` directory. Replace the logo URL or clear it."
+    }
+  },
+  "repairs": {
+    "error": {
+      "cannot_connect": "Unable to connect to Plex.",
+      "invalid_logo": "Use an existing /local/ file, an HTTPS URL, or leave the logo blank."
+    },
+    "abort": {
+      "not_loaded": "The Movie Poster configuration is not currently loaded."
+    },
+    "step": {
+      "plex_unreachable": {
+        "title": "Reconnect Movie Poster to Plex",
+        "description": "Verify Plex is running and reachable, then submit to test the connection."
+      },
+      "missing_source": {
+        "title": "Select a replacement Coming Soon source",
+        "description": "Choose an available Plex movie library or collection.",
+        "data": {"source": "Coming Soon source"}
+      },
+      "invalid_logo": {
+        "title": "Repair the display logo",
+        "description": "Enter an HTTPS URL, a `/local/filename` served from Home Assistant's `www` directory, or clear the field.",
+        "data": {"logo_url": "Logo URL"}
+      }
+    }
+  },
   "entity": {
     "button": {
       "next_poster": {"name": "Next poster"},

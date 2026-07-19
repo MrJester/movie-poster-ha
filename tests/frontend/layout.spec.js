@@ -249,6 +249,41 @@ test("Display Studio presents Frame, Theme, then Layout", async ({ page }) => {
   expect(order).toEqual(["frame_theme", "theme", "layout"]);
 });
 
+test("display remains semantic, keyboard accessible, and reduced-motion safe", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openHarness(page);
+  expect(await renderPoster(
+    page, "marquee", "classic", "cinematic", "landscape",
+  )).toEqual([]);
+  const result = await page.evaluate(() => {
+    const root = document.querySelector("movie-poster-panel").shadowRoot;
+    const heading = root.querySelector("h1");
+    const article = root.querySelector(".details");
+    const progress = root.querySelector('[role="progressbar"]');
+    const button = root.querySelector('[data-display-action="exit"]');
+    button.focus();
+    const controls = root.querySelector(".display-controls");
+    const buttonStyle = getComputedStyle(button);
+    const contentStyle = getComputedStyle(root.querySelector(".content"));
+    return {
+      live: heading.getAttribute("aria-live"),
+      labelled: article.getAttribute("aria-labelledby") === "movie-poster-title",
+      progressLabel: progress.getAttribute("aria-label"),
+      controlsVisible: getComputedStyle(controls).opacity === "1",
+      focusVisible: buttonStyle.outlineStyle !== "none"
+        && parseFloat(buttonStyle.outlineWidth) >= 2,
+      transitionMs: parseFloat(contentStyle.transitionDuration) * 1000,
+    };
+  });
+  expect(result.live).toBe("polite");
+  expect(result.labelled).toBe(true);
+  expect(result.progressLabel).toBe("Playback progress");
+  expect(result.controlsVisible).toBe(true);
+  expect(result.focusVisible).toBe(true);
+  expect(result.transitionMs).toBeLessThanOrEqual(1);
+});
+
 for (const viewport of VIEWPORTS) {
   test(`Display Studio stays usable on ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });

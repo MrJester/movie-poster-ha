@@ -31,6 +31,8 @@ CONF_COMING_SOON_TEXT: Final = "coming_soon_text"
 CONF_EYEBROW_TEXT: Final = "eyebrow_text"
 CONF_LOGO_URL: Final = "logo_url"
 CONF_LOGO_POSITION: Final = "logo_position"
+CONF_DISPLAY_PROFILES: Final = "display_profiles"
+DEFAULT_PROFILE_ID: Final = "default"
 
 THEME_CLASSIC: Final = "classic"
 THEME_ART_DECO: Final = "art_deco"
