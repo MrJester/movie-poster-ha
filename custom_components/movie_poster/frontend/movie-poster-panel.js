@@ -1297,6 +1297,10 @@ class MoviePosterPanel extends HTMLElement {
         .studio {
           max-height: calc(54dvh - 16px);
         }
+        .studio-preview.orientation-portrait .marquee-frame,
+        .studio-preview.orientation-auto .marquee-frame {
+          width: min(96vw, calc(25.875dvh - 12px));
+        }
         .studio button,
         .studio select,
         .studio input[type="text"],

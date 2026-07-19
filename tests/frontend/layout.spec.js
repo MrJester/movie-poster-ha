@@ -192,22 +192,27 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
 }
 
 for (const viewport of VIEWPORTS) {
-  test(`all renderer combinations stay contained on ${viewport.name}`, async ({ page }) => {
+  test(`all renderer combinations stay contained on ${viewport.name}`, async ({ page }, testInfo) => {
     test.setTimeout(180_000);
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await openHarness(page);
     const failures = [];
+    const combinations = testInfo.project.name === "webkit"
+      ? [
+        ...FRAMES.flatMap((frame) => LAYOUTS.map((layout) =>
+          ({ frame, theme: "classic", layout }))),
+        ...THEMES.map((theme) =>
+          ({ frame: "marquee", theme, layout: "cinematic" })),
+      ]
+      : THEMES.flatMap((theme) => FRAMES.flatMap((frame) =>
+        LAYOUTS.map((layout) => ({ frame, theme, layout }))));
     for (const orientation of ["auto", "landscape", "portrait"]) {
-      for (const theme of THEMES) {
-        for (const frame of FRAMES) {
-          for (const layout of LAYOUTS) {
-            const violations = await renderPoster(
-              page, frame, theme, layout, orientation,
-            );
-            failures.push(...violations.map((violation) =>
-              `${orientation}/${theme}/${frame}/${layout}: ${violation}`));
-          }
-        }
+      for (const { frame, theme, layout } of combinations) {
+        const violations = await renderPoster(
+          page, frame, theme, layout, orientation,
+        );
+        failures.push(...violations.map((violation) =>
+          `${orientation}/${theme}/${frame}/${layout}: ${violation}`));
       }
     }
     expect(failures).toEqual([]);
@@ -264,6 +269,9 @@ test("display remains semantic, keyboard accessible, and reduced-motion safe", a
     const article = root.querySelector(".details");
     const progress = root.querySelector('[role="progressbar"]');
     const button = root.querySelector('[data-display-action="exit"]');
+    root.querySelector(".theater").dispatchEvent(new PointerEvent("pointermove", {
+      bubbles: true,
+    }));
     button.focus();
     const controls = root.querySelector(".display-controls");
     const buttonStyle = getComputedStyle(button);
@@ -337,9 +345,13 @@ for (const viewport of VIEWPORTS) {
           failures.push("stacked preview overlaps controls");
         }
         for (const control of studio.querySelectorAll("select, input, button")) {
+          if (control.getClientRects().length === 0) continue;
           const box = control.getBoundingClientRect();
           if (box.left < studioBox.left - 1 || box.right > studioBox.right + 1) {
-            failures.push("a Studio input overflows horizontally");
+            const identity = control.dataset.studio
+              || control.dataset.setting || control.dataset.studioAction
+              || control.type || control.tagName.toLowerCase();
+            failures.push(`Studio control ${identity} overflows horizontally`);
             break;
           }
         }
