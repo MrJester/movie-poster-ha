@@ -597,25 +597,39 @@ class MoviePosterPanel extends HTMLElement {
         || window.matchMedia("(max-width: 720px)").matches);
     const stacked = theater?.classList.contains("layout-poster")
       || theater?.classList.contains("orientation-portrait") || autoStacks;
-    const detailsStyle = details ? getComputedStyle(details) : null;
-    const detailsHeight = stacked && details
-      ? details.offsetHeight
-        + (parseFloat(detailsStyle.marginTop) || 0)
-        + (parseFloat(contentStyle.rowGap || contentStyle.gap) || 0)
-      : 0;
-    const frameBottom = frame.getBoundingClientRect().bottom
-      - parseFloat(frameStyle.borderBottomWidth)
-      - parseFloat(frameStyle.paddingBottom);
-    const posterTop = poster.getBoundingClientRect().top;
-    const available = frameBottom - posterTop
-      - parseFloat(contentStyle.paddingBottom) - plaqueHeight - detailsHeight - 12;
     const minimum = frame.classList.contains("frame-ultra-compact")
       ? 36
       : Math.min(160, Math.max(56, frame.clientHeight * 0.18));
-    frame.style.setProperty(
-      "--fitted-poster-height",
-      `${Math.max(minimum, available)}px`,
-    );
+    if (!stacked) frame.style.removeProperty("--fitted-poster-width");
+    const fit = () => {
+      const detailsStyle = details ? getComputedStyle(details) : null;
+      const detailsHeight = stacked && details
+        ? details.offsetHeight
+          + (parseFloat(detailsStyle.marginTop) || 0)
+          + (parseFloat(contentStyle.rowGap || contentStyle.gap) || 0)
+        : 0;
+      const frameBottom = frame.getBoundingClientRect().bottom
+        - parseFloat(frameStyle.borderBottomWidth)
+        - parseFloat(frameStyle.paddingBottom);
+      const posterTop = poster.getBoundingClientRect().top;
+      const available = frameBottom - posterTop
+        - parseFloat(contentStyle.paddingBottom) - plaqueHeight - detailsHeight - 12;
+      frame.style.setProperty(
+        "--fitted-poster-height",
+        `${Math.max(minimum, available)}px`,
+      );
+      if (stacked) {
+        frame.style.setProperty(
+          "--fitted-poster-width",
+          `${poster.getBoundingClientRect().width}px`,
+        );
+      }
+    };
+    fit();
+    if (stacked) {
+      fit();
+      fit();
+    }
   }
 
   _displayControls() {
@@ -1752,7 +1766,7 @@ class MoviePosterPanel extends HTMLElement {
         font-size: clamp(1.4rem, 7cqw, 4rem);
       }
       .orientation-portrait .summary {
-        width: min(78vw, 500px);
+        width: var(--fitted-poster-width, min(78vw, 500px));
         max-width: 100%;
         margin-inline: auto;
         text-align: center;
@@ -1779,7 +1793,7 @@ class MoviePosterPanel extends HTMLElement {
         }
         .orientation-auto .details { text-align: center; }
         .orientation-auto .summary {
-          width: min(78vw, 500px);
+          width: var(--fitted-poster-width, min(78vw, 500px));
           max-width: 100%;
           margin-inline: auto;
           text-align: center;
@@ -2121,7 +2135,7 @@ class MoviePosterPanel extends HTMLElement {
         }
         .orientation-portrait .summary,
         .orientation-auto .summary {
-          max-width: 48ch;
+          max-width: 100%;
           margin-inline: auto;
           font-size: clamp(1.25rem, 1.15vw, 1.65rem);
           line-height: 1.5;

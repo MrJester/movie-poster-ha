@@ -16,6 +16,7 @@ from .normalizer import normalize_movie, normalize_session
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
+    from plexapi.myplex import MyPlexAccount
 
 _REQUEST_TIMEOUT = 10
 
@@ -100,7 +101,7 @@ class MoviePosterPlexClient:
             raise PlexConnectionError from err
 
     async def async_playback_choices(self) -> PlexPlaybackChoices:
-        """Return players and users registered with this Plex server."""
+        """Return players and Plex Home users owned by this Plex account."""
         if self._server is None:
             await self.async_connect()
         return await self._hass.async_add_executor_job(self._playback_choices)
@@ -110,26 +111,46 @@ class MoviePosterPlexClient:
             raise PlexConnectionError
         players: dict[str, str] = {}
         users: dict[str, str] = {}
-        for device in self._optional_server_items("systemDevices"):
+        account = self._optional_myplex_account()
+        if account is None:
+            return PlexPlaybackChoices(players=(), users=())
+
+        for device in account.devices():
             identifier = getattr(device, "clientIdentifier", None)
             name = getattr(device, "name", None)
-            if identifier:
+            provides = getattr(device, "provides", ()) or ()
+            if isinstance(provides, str):
+                provides = provides.split(",")
+            if identifier and "player" in provides:
                 players[str(identifier)] = str(name or identifier)
-        for client in self._optional_server_items("clients"):
-            identifier = getattr(client, "machineIdentifier", None)
-            name = getattr(client, "title", None) or getattr(
-                client, "product", None
-            )
-            if identifier:
-                players[str(identifier)] = str(name or identifier)
-        for account in self._optional_server_items("systemAccounts"):
-            name = getattr(account, "name", None)
+        owner_name = (
+            getattr(account, "title", None)
+            or getattr(account, "username", None)
+            or getattr(account, "friendlyName", None)
+        )
+        if owner_name:
+            users[str(owner_name).casefold()] = str(owner_name)
+        for user in account.users():
+            if not getattr(user, "home", False):
+                continue
+            name = getattr(user, "title", None) or getattr(user, "username", None)
             if name:
                 users[str(name).casefold()] = str(name)
         return PlexPlaybackChoices(
             players=tuple(sorted(players.items(), key=lambda item: item[1].casefold())),
             users=tuple(sorted(users.items(), key=lambda item: item[1].casefold())),
         )
+
+    def _optional_myplex_account(self) -> MyPlexAccount | None:
+        """Return the authenticated Plex account when plex.tv is reachable."""
+        if self._server is None:
+            return None
+        try:
+            return self._server.myPlexAccount()
+        except Unauthorized as err:
+            raise PlexAuthenticationError from err
+        except (AttributeError, BadRequest, NotFound, RequestException):
+            return None
 
     def _optional_server_items(self, method: str) -> tuple[Any, ...]:
         """Return optional discovery results without failing all Studio choices."""
