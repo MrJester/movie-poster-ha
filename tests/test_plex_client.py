@@ -65,15 +65,24 @@ async def test_session_normalization_stays_inside_executor() -> None:
     assert normalized[0][1].subtitle == "Loaded lazily"
 
 
-async def test_playback_choices_include_idle_clients_and_server_accounts() -> None:
-    """Studio can select Plex players and users without active playback."""
+async def test_playback_choices_include_server_devices_and_local_accounts() -> None:
+    """Studio lists server-local players and users without active playback."""
     client = MoviePosterPlexClient(
         FakeHass(), "http://plex:32400", "test-token", verify_ssl=False
     )
     client._server = SimpleNamespace(
-        sessions=list,
+        sessions=lambda: [
+            SimpleNamespace(
+                player=SimpleNamespace(
+                    machineIdentifier="remote-player", title="Remote Player"
+                ),
+                user=SimpleNamespace(title="Remote Friend"),
+            )
+        ],
+        systemDevices=lambda: [
+            SimpleNamespace(clientIdentifier="theater", name="Theater TV"),
+        ],
         clients=lambda: [
-            SimpleNamespace(machineIdentifier="theater", title="Theater TV"),
             SimpleNamespace(machineIdentifier="laptop", title="Ryan's Laptop"),
         ],
         systemAccounts=lambda: [
@@ -89,3 +98,5 @@ async def test_playback_choices_include_idle_clients_and_server_accounts() -> No
         ("theater", "Theater TV"),
     )
     assert choices.users == (("guest", "Guest"), ("ryan", "Ryan"))
+    assert "remote-player" not in dict(choices.players)
+    assert "remote friend" not in dict(choices.users)

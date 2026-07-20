@@ -100,7 +100,7 @@ class MoviePosterPlexClient:
             raise PlexConnectionError from err
 
     async def async_playback_choices(self) -> PlexPlaybackChoices:
-        """Return active sessions plus Plex clients and server accounts."""
+        """Return players and users registered with this Plex server."""
         if self._server is None:
             await self.async_connect()
         return await self._hass.async_add_executor_job(self._playback_choices)
@@ -110,10 +110,11 @@ class MoviePosterPlexClient:
             raise PlexConnectionError
         players: dict[str, str] = {}
         users: dict[str, str] = {}
-        for session in self._optional_server_items("sessions"):
-            candidate, _media = normalize_session(session)
-            players[candidate.player_id] = candidate.player_name
-            users[candidate.user_id] = candidate.user_name
+        for device in self._optional_server_items("systemDevices"):
+            identifier = getattr(device, "clientIdentifier", None)
+            name = getattr(device, "name", None)
+            if identifier:
+                players[str(identifier)] = str(name or identifier)
         for client in self._optional_server_items("clients"):
             identifier = getattr(client, "machineIdentifier", None)
             name = getattr(client, "title", None) or getattr(
