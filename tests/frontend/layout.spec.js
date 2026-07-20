@@ -263,7 +263,7 @@ test("display remains semantic, keyboard accessible, and reduced-motion safe", a
   expect(await renderPoster(
     page, "marquee", "classic", "cinematic", "landscape",
   )).toEqual([]);
-  const result = await page.evaluate(() => {
+  const result = await page.evaluate(async () => {
     const root = document.querySelector("movie-poster-panel").shadowRoot;
     const heading = root.querySelector("h1");
     const article = root.querySelector(".details");
@@ -273,6 +273,8 @@ test("display remains semantic, keyboard accessible, and reduced-motion safe", a
       bubbles: true,
     }));
     button.focus();
+    await new Promise((resolve) => requestAnimationFrame(() =>
+      requestAnimationFrame(resolve)));
     const controls = root.querySelector(".display-controls");
     const buttonStyle = getComputedStyle(button);
     const contentStyle = getComputedStyle(root.querySelector(".content"));

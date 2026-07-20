@@ -1279,6 +1279,7 @@ class MoviePosterPanel extends HTMLElement {
           width: auto;
           max-height: calc(46vh - 16px);
           max-height: calc(46dvh - 16px);
+          scrollbar-gutter: auto;
           padding-bottom: max(14px, calc(env(safe-area-inset-bottom) + 8px));
         }
         .studio-preview.orientation-landscape .marquee-frame,
@@ -1309,7 +1310,7 @@ class MoviePosterPanel extends HTMLElement {
           font-size: 16px;
         }
       }
-      @media (max-width: 900px) and (orientation: portrait) {
+      @media (max-width: 720px) and (orientation: portrait) {
         .studio-preview.orientation-auto .marquee-frame {
           width: min(96vw, 28.688vh);
         }
