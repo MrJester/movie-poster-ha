@@ -338,8 +338,14 @@ for (const viewport of VIEWPORTS) {
           || studioBox.right > innerWidth + 1 || studioBox.bottom > innerHeight + 1) {
           failures.push("Studio controls fall outside viewport");
         }
-        if (studio.scrollWidth > studio.clientWidth + 1) {
-          failures.push("Studio controls overflow horizontally");
+        for (const child of studio.querySelectorAll(":scope > *")) {
+          if (child.getClientRects().length === 0) continue;
+          const box = child.getBoundingClientRect();
+          if (box.left < studioBox.left - 1 || box.right > studioBox.right + 1) {
+            const identity = child.className || child.tagName.toLowerCase();
+            failures.push(`Studio content ${identity} overflows horizontally`);
+            break;
+          }
         }
         if (innerWidth > 900) {
           if (frameBox.right > studioBox.left - 8) failures.push("preview overlaps controls");

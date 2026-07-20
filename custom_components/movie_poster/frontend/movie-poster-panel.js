@@ -1302,6 +1302,9 @@ class MoviePosterPanel extends HTMLElement {
         .studio-preview.orientation-auto .marquee-frame {
           width: min(96vw, calc(25.875dvh - 12px));
         }
+        .studio-preview.orientation-landscape .marquee-frame {
+          width: min(96vw, calc(61.333dvh - 16px));
+        }
         .studio button,
         .studio select,
         .studio input[type="text"],
