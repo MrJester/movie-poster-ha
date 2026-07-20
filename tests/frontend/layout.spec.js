@@ -243,6 +243,28 @@ test("themes recolor without changing frame or layout geometry", async ({ page }
     .toBe(THEMES.length);
 });
 
+test("stacked summaries match the poster width and center their text", async ({ page }) => {
+  await page.setViewportSize({ width: 1080, height: 1920 });
+  await openHarness(page);
+  for (const orientation of ["auto", "portrait"]) {
+    expect(await renderPoster(
+      page, "marquee", "classic", "cinematic", orientation,
+    )).toEqual([]);
+    const geometry = await page.evaluate(() => {
+      const root = document.querySelector("movie-poster-panel").shadowRoot;
+      const poster = root.querySelector(".poster").getBoundingClientRect();
+      const summary = root.querySelector(".summary");
+      const summaryBox = summary.getBoundingClientRect();
+      return {
+        widthDifference: Math.abs(poster.width - summaryBox.width),
+        textAlign: getComputedStyle(summary).textAlign,
+      };
+    });
+    expect(geometry.widthDifference).toBeLessThanOrEqual(1);
+    expect(geometry.textAlign).toBe("center");
+  }
+});
+
 test("Display Studio presents Frame, Theme, then Layout", async ({ page }) => {
   await openHarness(page, "?studio=1");
   const order = await page.evaluate(() => {

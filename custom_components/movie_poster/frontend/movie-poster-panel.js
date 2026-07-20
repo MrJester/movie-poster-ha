@@ -1752,6 +1752,10 @@ class MoviePosterPanel extends HTMLElement {
         font-size: clamp(1.4rem, 7cqw, 4rem);
       }
       .orientation-portrait .summary {
+        width: min(78vw, 500px);
+        max-width: 100%;
+        margin-inline: auto;
+        text-align: center;
         display: -webkit-box;
         overflow: hidden;
         -webkit-box-orient: vertical;
@@ -1775,6 +1779,10 @@ class MoviePosterPanel extends HTMLElement {
         }
         .orientation-auto .details { text-align: center; }
         .orientation-auto .summary {
+          width: min(78vw, 500px);
+          max-width: 100%;
+          margin-inline: auto;
+          text-align: center;
           display: -webkit-box;
           overflow: hidden;
           -webkit-box-orient: vertical;
