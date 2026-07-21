@@ -65,40 +65,36 @@ async def test_session_normalization_stays_inside_executor() -> None:
     assert normalized[0][1].subtitle == "Loaded lazily"
 
 
-async def test_playback_choices_only_include_owned_devices_and_home_users() -> None:
-    """Studio excludes other users and their server-wide devices."""
+async def test_playback_choices_only_include_server_devices_and_local_users() -> None:
+    """Studio excludes account-wide Plex.tv devices and users."""
     client = MoviePosterPlexClient(
         FakeHass(), "http://plex:32400", "test-token", verify_ssl=False
     )
-    account = SimpleNamespace(
-        title="Ryan",
-        devices=lambda: [
-            SimpleNamespace(
-                clientIdentifier="theater", name="Theater TV", provides="player"
-            ),
-            SimpleNamespace(
-                clientIdentifier="controller", name="Plex Dash", provides="controller"
-            ),
-        ],
-        users=lambda: [
-            SimpleNamespace(title="Guest", home=True),
-            SimpleNamespace(title="Remote Friend", home=False),
-        ],
-    )
     client._server = SimpleNamespace(
-        myPlexAccount=lambda: account,
         systemDevices=lambda: [
-            SimpleNamespace(clientIdentifier="remote-player", name="Remote Player")
+            SimpleNamespace(clientIdentifier="theater", name="Theater TV")
         ],
-        systemAccounts=lambda: [SimpleNamespace(name="Remote Friend")],
+        clients=lambda: [
+            SimpleNamespace(machineIdentifier="laptop", title="Ryan's Laptop")
+        ],
+        systemAccounts=lambda: [
+            SimpleNamespace(name="Ryan"),
+            SimpleNamespace(name="Guest"),
+        ],
+        myPlexAccount=lambda: SimpleNamespace(
+            devices=lambda: [
+                SimpleNamespace(clientIdentifier="remote-player", name="Remote Player")
+            ],
+            users=lambda: [SimpleNamespace(title="Remote Friend")],
+        ),
     )
 
     choices = await client.async_playback_choices()
 
     assert choices.players == (
+        ("laptop", "Ryan's Laptop"),
         ("theater", "Theater TV"),
     )
     assert choices.users == (("guest", "Guest"), ("ryan", "Ryan"))
     assert "remote-player" not in dict(choices.players)
     assert "remote friend" not in dict(choices.users)
-    assert "controller" not in dict(choices.players)
