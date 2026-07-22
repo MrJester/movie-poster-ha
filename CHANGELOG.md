@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.31
+
+- Derive owner and shared-user player choices only from server playback history
+  and active sessions, excluding the broader Plex.tv account device list.
+
 ## 0.1.0-beta.30
 
 - Group server-known Plex players by the users who played from them.

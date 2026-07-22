@@ -107,7 +107,7 @@ class MoviePosterPlexClient:
             await self.async_connect()
         return await self._hass.async_add_executor_job(self._playback_choices)
 
-    def _playback_choices(self) -> PlexPlaybackChoices:  # noqa: C901, PLR0912
+    def _playback_choices(self) -> PlexPlaybackChoices:  # noqa: C901
         if self._server is None:
             raise PlexConnectionError
         players: dict[str, str] = {}
@@ -149,10 +149,7 @@ class MoviePosterPlexClient:
             player_ids_by_user.setdefault(candidate.user_id, set()).add(
                 candidate.player_id
             )
-        owner_user_id, owned_device_ids = self._optional_owner_choices(users)
-        if owner_user_id:
-            owner_players = player_ids_by_user.setdefault(owner_user_id, set())
-            owner_players.update(owned_device_ids.intersection(players))
+        owner_user_id = self._optional_owner_user_id(users)
         return PlexPlaybackChoices(
             players=tuple(sorted(players.items(), key=lambda item: item[1].casefold())),
             users=tuple(sorted(users.items(), key=lambda item: item[1].casefold())),
@@ -185,37 +182,24 @@ class MoviePosterPlexClient:
         except (AttributeError, BadRequest, NotFound, RequestException):
             return ()
 
-    def _optional_owner_choices(
-        self, users: dict[str, str]
-    ) -> tuple[str, set[str]]:
-        """Return the authenticated owner and that account's player devices."""
+    def _optional_owner_user_id(self, users: dict[str, str]) -> str:
+        """Match the authenticated account owner to a server user."""
         if self._server is None:
-            return "", set()
+            return ""
         try:
             account = self._server.myPlexAccount()
-            devices = account.devices()
         except Unauthorized as err:
             raise PlexAuthenticationError from err
         except (AttributeError, BadRequest, NotFound, RequestException):
-            return "", set()
-        owner_user_id = ""
+            return ""
         for name in (
             getattr(account, "title", None),
             getattr(account, "username", None),
             getattr(account, "friendlyName", None),
         ):
             if name and str(name).casefold() in users:
-                owner_user_id = str(name).casefold()
-                break
-        owned_device_ids = set()
-        for device in devices:
-            provides = getattr(device, "provides", ()) or ()
-            if isinstance(provides, str):
-                provides = provides.split(",")
-            identifier = getattr(device, "clientIdentifier", None)
-            if identifier and "player" in provides:
-                owned_device_ids.add(str(identifier))
-        return owner_user_id, owned_device_ids
+                return str(name).casefold()
+        return ""
 
     def _optional_server_items(self, method: str) -> tuple[Any, ...]:
         """Return optional discovery results without failing all Studio choices."""

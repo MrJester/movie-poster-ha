@@ -82,14 +82,13 @@ async def test_playback_choices_group_server_players_by_user() -> None:
             SimpleNamespace(id=1, name="Ryan"),
             SimpleNamespace(id=2, name="Guest"),
         ],
-        bandwidth=lambda **_: [SimpleNamespace(accountID=2, deviceID=11)],
+        bandwidth=lambda **_: [
+            SimpleNamespace(accountID=1, deviceID=10),
+            SimpleNamespace(accountID=2, deviceID=11),
+        ],
         sessions=list,
         myPlexAccount=lambda: SimpleNamespace(
             title="Ryan",
-            devices=lambda: [
-                SimpleNamespace(clientIdentifier="theater", provides="player"),
-                SimpleNamespace(clientIdentifier="remote-player", provides="player"),
-            ],
             users=lambda: [SimpleNamespace(title="Remote Friend")],
         ),
     )
