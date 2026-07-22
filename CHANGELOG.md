@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-beta.30
+
+- Group server-known Plex players by the users who played from them.
+- Default Preferred Player choices to devices owned by the authenticated account.
+- Filter Preferred Player immediately when Preferred User changes in Display Studio.
+- Require both preferences to match when a user and player are selected together.
+
 ## 0.1.0-beta.20
 
 - Add exhaustive browser coverage for 1,470 viewport, orientation, theme, frame, and layout combinations.

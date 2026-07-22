@@ -103,7 +103,10 @@ class MoviePosterPanel extends HTMLElement {
     this._requestedProfileId = new URLSearchParams(window.location.search).get("profile") || "default";
     this._studioLoaded = false;
     this._settings = null;
-    this._choices = { sources: [], players: [], users: [], profiles: [] };
+    this._choices = {
+      sources: [], players: [], users: [], profiles: [],
+      owner_user_id: "", player_ids_by_user: {},
+    };
     this._profiles = {};
     if (this._studio) this._state = studioState();
   }
@@ -729,10 +732,10 @@ class MoviePosterPanel extends HTMLElement {
       ${this._settings ? `<label class="studio-wide">Coming Soon source<select data-setting="source">
         ${options(this._choices.sources, settings.source)}</select></label>
       <label>Preferred player<select data-setting="player_id">
-        ${options(this._choices.players, settings.player_id || "")}</select></label>
+        ${options(this._studioPlayerChoices(), settings.player_id || "")}</select></label>
       <label>Preferred user<select data-setting="user_id">
         ${options(this._choices.users, settings.user_id || "")}</select></label>
-      <small class="studio-wide">Choose a player or a user. Selecting one clears the other; leave both on Any to follow all Plex playback.</small>
+      <small class="studio-wide">Players are scoped to the selected user. With Any user selected, players default to the Plex account owner; leave player on Any to follow that user on every known device.</small>
       <label>Stop grace (seconds)<input type="number" min="0" max="600"
         data-setting="grace_seconds" value="${Number(settings.grace_seconds ?? 30)}"></label>
       <label>Poster rotation (seconds)<input type="number" min="2" max="3600"
@@ -834,14 +837,9 @@ class MoviePosterPanel extends HTMLElement {
       control.addEventListener("change", () => {
         this._settings[control.dataset.setting] = control.type === "number"
           ? Number(control.value) : control.value;
-        if (control.value && control.dataset.setting === "player_id") {
-          this._settings.user_id = "";
-          const user = this.shadowRoot.querySelector('[data-setting="user_id"]');
-          if (user) user.value = "";
-        } else if (control.value && control.dataset.setting === "user_id") {
-          this._settings.player_id = "";
-          const player = this.shadowRoot.querySelector('[data-setting="player_id"]');
-          if (player) player.value = "";
+        if (control.dataset.setting === "user_id") {
+          this._normalizePlaybackSettings();
+          this._render();
         }
       });
     });
@@ -856,6 +854,19 @@ class MoviePosterPanel extends HTMLElement {
     });
     this.shadowRoot.querySelector("[data-profile-file]")
       ?.addEventListener("change", (event) => this._importProfile(event.target.files?.[0]));
+  }
+
+  _studioPlayerChoices() {
+    const userId = this._settings?.user_id || this._choices.owner_user_id || "";
+    const allowed = new Set(this._choices.player_ids_by_user?.[userId] || []);
+    return (this._choices.players || []).filter(({ value }) =>
+      value === "" || allowed.has(value));
+  }
+
+  _normalizePlaybackSettings() {
+    if (!this._settings) return;
+    const allowed = new Set(this._studioPlayerChoices().map(({ value }) => value));
+    if (!allowed.has(this._settings.player_id || "")) this._settings.player_id = "";
   }
 
   async _saveStudio() {
@@ -914,6 +925,7 @@ class MoviePosterPanel extends HTMLElement {
       });
       this._settings = result.settings;
       this._choices = result.choices;
+      this._normalizePlaybackSettings();
       this._profiles = result.profiles || {};
       this._render();
     } catch (error) {
@@ -937,6 +949,7 @@ class MoviePosterPanel extends HTMLElement {
       });
       this._settings = result.settings;
       this._choices = result.choices;
+      this._normalizePlaybackSettings();
       this._profiles = result.profiles || {};
       this._state.presentation = { ...this._state.presentation,
         ...this._profiles[profileId]?.presentation };

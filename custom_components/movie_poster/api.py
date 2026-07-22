@@ -69,7 +69,7 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-beta.29"
+_FRONTEND_VERSION = "0.1.0-beta.30"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
@@ -270,6 +270,10 @@ async def websocket_get_settings(
         current_source = sources[0]["value"] if sources else current_source
     players = dict(playback_choices.players) if playback_choices else {}
     users = dict(playback_choices.users) if playback_choices else {}
+    owner_user_id = playback_choices.owner_user_id if playback_choices else ""
+    player_ids_by_user = (
+        dict(playback_choices.player_ids_by_user) if playback_choices else {}
+    )
     selected_player = entry.options.get(CONF_PLAYER_ID, "")
     selected_user = entry.options.get(CONF_USER_ID, "")
     if selected_player and selected_player not in players:
@@ -325,6 +329,8 @@ async def websocket_get_settings(
                         )
                     ],
                 ],
+                "owner_user_id": owner_user_id,
+                "player_ids_by_user": player_ids_by_user,
             },
         },
     )

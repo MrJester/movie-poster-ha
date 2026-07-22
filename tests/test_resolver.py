@@ -55,3 +55,20 @@ def test_playing_wins_over_paused_when_unfiltered() -> None:
         candidate("2", player="bedroom", user="ryan"),
     ]
     assert select_session(sessions, PlaybackPolicy()).session_id == "2"
+
+
+def test_user_and_player_preferences_must_both_match() -> None:
+    """A scoped player cannot match playback from a different user."""
+    sessions = [
+        candidate("1", player="theater", user="guest"),
+        candidate("2", player="theater", user="ryan"),
+        candidate("3", player="bedroom", user="ryan"),
+    ]
+    selected = select_session(
+        sessions,
+        PlaybackPolicy(
+            player_ids=("theater",), user_ids=("ryan",), allow_any=False
+        ),
+    )
+    assert selected is not None
+    assert selected.session_id == "2"

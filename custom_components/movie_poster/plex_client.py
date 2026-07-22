@@ -43,6 +43,8 @@ class PlexPlaybackChoices:
 
     players: tuple[tuple[str, str], ...]
     users: tuple[tuple[str, str], ...]
+    owner_user_id: str
+    player_ids_by_user: tuple[tuple[str, tuple[str, ...]], ...]
 
 
 class MoviePosterPlexClient:
@@ -105,16 +107,23 @@ class MoviePosterPlexClient:
             await self.async_connect()
         return await self._hass.async_add_executor_job(self._playback_choices)
 
-    def _playback_choices(self) -> PlexPlaybackChoices:
+    def _playback_choices(self) -> PlexPlaybackChoices:  # noqa: C901, PLR0912
         if self._server is None:
             raise PlexConnectionError
         players: dict[str, str] = {}
         users: dict[str, str] = {}
+        account_ids: dict[int, str] = {}
+        device_ids: dict[int, str] = {}
+        player_ids_by_user: dict[str, set[str]] = {}
         for device in self._optional_server_items("systemDevices"):
             identifier = getattr(device, "clientIdentifier", None)
             name = getattr(device, "name", None)
             if identifier:
-                players[str(identifier)] = str(name or identifier)
+                player_id = str(identifier)
+                players[player_id] = str(name or identifier)
+                device_id = getattr(device, "id", None)
+                if device_id is not None:
+                    device_ids[int(device_id)] = player_id
         for client in self._optional_server_items("clients"):
             identifier = getattr(client, "machineIdentifier", None)
             name = getattr(client, "title", None) or getattr(
@@ -125,11 +134,88 @@ class MoviePosterPlexClient:
         for account in self._optional_server_items("systemAccounts"):
             name = getattr(account, "name", None)
             if name:
-                users[str(name).casefold()] = str(name)
+                user_id = str(name).casefold()
+                users[user_id] = str(name)
+                account_id = getattr(account, "id", None)
+                if account_id is not None:
+                    account_ids[int(account_id)] = user_id
+        for record in self._optional_bandwidth_items():
+            user_id = account_ids.get(getattr(record, "accountID", None))
+            player_id = device_ids.get(getattr(record, "deviceID", None))
+            if user_id and player_id:
+                player_ids_by_user.setdefault(user_id, set()).add(player_id)
+        for candidate in self._optional_session_candidates():
+            players[candidate.player_id] = candidate.player_name
+            player_ids_by_user.setdefault(candidate.user_id, set()).add(
+                candidate.player_id
+            )
+        owner_user_id, owned_device_ids = self._optional_owner_choices(users)
+        if owner_user_id:
+            owner_players = player_ids_by_user.setdefault(owner_user_id, set())
+            owner_players.update(owned_device_ids.intersection(players))
         return PlexPlaybackChoices(
             players=tuple(sorted(players.items(), key=lambda item: item[1].casefold())),
             users=tuple(sorted(users.items(), key=lambda item: item[1].casefold())),
+            owner_user_id=owner_user_id,
+            player_ids_by_user=tuple(
+                (user_id, tuple(sorted(player_ids)))
+                for user_id, player_ids in sorted(player_ids_by_user.items())
+            ),
         )
+
+    def _optional_bandwidth_items(self) -> tuple[Any, ...]:
+        """Return aggregated user/device playback associations when available."""
+        if self._server is None:
+            return ()
+        try:
+            return tuple(self._server.bandwidth(timespan="months"))
+        except Unauthorized as err:
+            raise PlexAuthenticationError from err
+        except (AttributeError, BadRequest, NotFound, RequestException):
+            return ()
+
+    def _optional_session_candidates(self) -> tuple[Any, ...]:
+        """Return active sessions without making discovery depend on them."""
+        if self._server is None:
+            return ()
+        try:
+            return tuple(normalize_session(item) for item in self._server.sessions())
+        except Unauthorized as err:
+            raise PlexAuthenticationError from err
+        except (AttributeError, BadRequest, NotFound, RequestException):
+            return ()
+
+    def _optional_owner_choices(
+        self, users: dict[str, str]
+    ) -> tuple[str, set[str]]:
+        """Return the authenticated owner and that account's player devices."""
+        if self._server is None:
+            return "", set()
+        try:
+            account = self._server.myPlexAccount()
+            devices = account.devices()
+        except Unauthorized as err:
+            raise PlexAuthenticationError from err
+        except (AttributeError, BadRequest, NotFound, RequestException):
+            return "", set()
+        owner_user_id = ""
+        for name in (
+            getattr(account, "title", None),
+            getattr(account, "username", None),
+            getattr(account, "friendlyName", None),
+        ):
+            if name and str(name).casefold() in users:
+                owner_user_id = str(name).casefold()
+                break
+        owned_device_ids = set()
+        for device in devices:
+            provides = getattr(device, "provides", ()) or ()
+            if isinstance(provides, str):
+                provides = provides.split(",")
+            identifier = getattr(device, "clientIdentifier", None)
+            if identifier and "player" in provides:
+                owned_device_ids.add(str(identifier))
+        return owner_user_id, owned_device_ids
 
     def _optional_server_items(self, method: str) -> tuple[Any, ...]:
         """Return optional discovery results without failing all Studio choices."""

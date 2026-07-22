@@ -35,8 +35,10 @@ def select_session(
         session
         for session in candidates
         if policy.allow_any
-        or session.player_id in policy.player_ids
-        or session.user_id in policy.user_ids
+        or (
+            (not policy.player_ids or session.player_id in policy.player_ids)
+            and (not policy.user_ids or session.user_id in policy.user_ids)
+        )
     ]
     if not eligible:
         return None
