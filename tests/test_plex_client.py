@@ -66,7 +66,7 @@ async def test_session_normalization_stays_inside_executor() -> None:
 
 
 async def test_playback_choices_group_server_players_by_user() -> None:
-    """Studio groups server players by owner and playback history."""
+    """Owner devices are registered devices, not the owner's broad history."""
     client = MoviePosterPlexClient(
         FakeHass(), "http://plex:32400", "test-token", verify_ssl=False
     )
@@ -84,12 +84,29 @@ async def test_playback_choices_group_server_players_by_user() -> None:
         ],
         bandwidth=lambda **_: [
             SimpleNamespace(accountID=1, deviceID=10),
+            SimpleNamespace(accountID=1, deviceID=11),
             SimpleNamespace(accountID=2, deviceID=11),
         ],
         sessions=list,
         myPlexAccount=lambda: SimpleNamespace(
             title="Ryan",
-            users=lambda: [SimpleNamespace(title="Remote Friend")],
+            devices=lambda: [
+                SimpleNamespace(
+                    clientIdentifier="theater",
+                    name="Theater TV",
+                    provides="player",
+                ),
+                SimpleNamespace(
+                    clientIdentifier="owner-phone",
+                    name="Owner Phone",
+                    provides=["player"],
+                ),
+                SimpleNamespace(
+                    clientIdentifier="server-id",
+                    name="Plex Server",
+                    provides="server",
+                ),
+            ],
         ),
     )
 
@@ -97,6 +114,7 @@ async def test_playback_choices_group_server_players_by_user() -> None:
 
     assert choices.players == (
         ("guest-tv", "Guest TV"),
+        ("owner-phone", "Owner Phone"),
         ("laptop", "Ryan's Laptop"),
         ("theater", "Theater TV"),
     )
@@ -104,7 +122,7 @@ async def test_playback_choices_group_server_players_by_user() -> None:
     assert choices.owner_user_id == "ryan"
     assert dict(choices.player_ids_by_user) == {
         "guest": ("guest-tv",),
-        "ryan": ("theater",),
+        "ryan": ("owner-phone", "theater"),
     }
     assert "remote-player" not in dict(choices.players)
     assert "remote friend" not in dict(choices.users)

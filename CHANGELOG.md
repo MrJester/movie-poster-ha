@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-beta.32
+
+- Use the authenticated Plex account's registered player devices as the
+  authoritative Preferred Player list when Preferred User is set to Any.
+- Keep historical playback associations only for explicitly selected shared
+  users, preventing shared history from expanding the owner's player list.
+
 ## 0.1.0-beta.31
 
 - Derive owner and shared-user player choices only from server playback history
