@@ -21,9 +21,7 @@
 
 ## 1.0 punch-down
 
-- Complete automated browser coverage for responsive layouts, reconnects, and
-  Studio saves. Reconnect and Studio-save tests added; pending Chromium/WebKit
-  CI validation.
+- Complete automated browser coverage for responsive layouts, reconnects, and Studio saves. ✅
 - Add Home Assistant repairs for Plex connectivity and invalid library/collection selections. ✅
 - Finish keyboard, reduced-motion, contrast, and screen-reader accessibility review. ✅
 - Add import/export and validation for reusable display profiles. ✅
