@@ -24,6 +24,15 @@ const FRAMES = new Set([
   "marquee", "cyber_noir", "comic_hero", "theater_classic",
   "indie_nature", "golden_age", "steampunk",
 ]);
+const FRAME_LABELS = {
+  marquee: "Marquee",
+  cyber_noir: "Cyber Noir",
+  comic_hero: "Comic Hero",
+  theater_classic: "Theater Classic",
+  indie_nature: "Indie Nature",
+  golden_age: "Golden Age",
+  steampunk: "Steampunk",
+};
 const normalizeFrame = (value) => FRAMES.has(value) ? value : "marquee";
 const FONTS = new Set(["system", "cinematic", "serif", "modern", "condensed"]);
 const normalizeFont = (value) => FONTS.has(value) ? value : "system";
@@ -758,7 +767,7 @@ class MoviePosterPanel extends HTMLElement {
       <label>Frame<select data-studio="frame_theme">
         ${["marquee", "cyber_noir", "comic_hero", "theater_classic",
           "indie_nature", "golden_age", "steampunk"].map((value) =>
-          `<option value="${value}" ${presentation.frame_theme === value ? "selected" : ""}>${value.replace("_", " ")}</option>`
+          `<option value="${value}" ${presentation.frame_theme === value ? "selected" : ""}>${FRAME_LABELS[value]}</option>`
         ).join("")}
       </select></label>
       <label>Theme<select data-studio="theme">
@@ -1474,24 +1483,213 @@ class MoviePosterPanel extends HTMLElement {
         -webkit-line-clamp: 3;
       }
 
-      /* Illuminated glass frame with a cyan title plinth. */
+      /* Smoked-glass near-future display enclosure. */
       .frame-cyber_noir .marquee-frame {
-        border: 2px solid #bcefff88;
-        border-radius: 2px;
-        background: linear-gradient(145deg, #101820f5, #020507fa);
-        box-shadow: inset 0 0 0 10px #071016, inset 0 0 0 12px #55ddff55,
-          0 0 28px #41dfff88, 0 28px 90px #000;
+        --cyber-cyan: #42e8ff;
+        --cyber-magenta: #ff3ea5;
+        --cyber-white: #d9f8ff;
+        --cyber-muted: #6f929d;
+        padding: clamp(30px, 4vw, 62px);
+        border: 3px solid #233841;
+        border-radius: 0;
+        clip-path: polygon(28px 0, calc(100% - 48px) 0, 100% 38px,
+          100% calc(100% - 56px), calc(100% - 34px) 100%, 54px 100%,
+          0 calc(100% - 42px), 0 30px);
+        background:
+          linear-gradient(90deg, transparent 0 7%, #42e8ff18 7.2% 7.45%,
+            transparent 7.7% 92%, #ff3ea516 92.25% 92.5%, transparent 92.8%),
+          repeating-linear-gradient(90deg, #ffffff05 0 1px, transparent 1px 46px),
+          linear-gradient(145deg, #17262df8, #071116 18%, #020609 52%,
+            #0a151af9 84%, #17262df8);
+        box-shadow: inset 0 0 0 2px #05090b, inset 0 0 0 9px #111e24,
+          inset 0 0 0 11px #263b44, inset 0 0 55px #000,
+          0 36px 100px #000, 0 0 26px #42e8ff24;
       }
       .frame-cyber_noir .marquee-frame::before {
-        inset: 8px; border: 1px solid #6ee9ff; border-radius: 0;
-        filter: drop-shadow(0 0 8px #35dfff); animation: cyberPulse 2s ease-in-out infinite;
+        inset: 14px;
+        border: 1px solid #314851;
+        border-radius: 0;
+        clip-path: polygon(18px 0, calc(100% - 30px) 0, 100% 22px,
+          100% calc(100% - 34px), calc(100% - 22px) 100%, 34px 100%,
+          0 calc(100% - 25px), 0 18px);
+        filter: drop-shadow(0 0 3px #42e8ff38);
+        animation: none;
+      }
+      .frame-cyber_noir .marquee-frame::after {
+        content: "";
+        position: absolute;
+        z-index: 3;
+        inset: 28px 16px 34px;
+        pointer-events: none;
+        background:
+          linear-gradient(var(--cyber-cyan), var(--cyber-cyan)) left 18% top/2px 21% no-repeat,
+          linear-gradient(var(--cyber-cyan), var(--cyber-cyan)) left 18% bottom/2px 34% no-repeat,
+          linear-gradient(var(--cyber-magenta), var(--cyber-magenta)) right 12% top 31%/3px 7% no-repeat,
+          linear-gradient(var(--cyber-cyan), var(--cyber-cyan)) right 12% bottom 7%/3px 18% no-repeat;
+        opacity: .86;
+        filter: drop-shadow(0 0 5px #42e8ff99);
+        animation: cyberRail 4.8s ease-in-out infinite;
+      }
+      .frame-cyber_noir .marquee {
+        position: relative;
+        margin: 0 clamp(6px, 1.2vw, 18px) clamp(18px, 2vw, 30px);
+        padding: clamp(15px, 1.8vw, 25px) clamp(22px, 3vw, 44px)
+          clamp(18px, 2vw, 29px);
+        overflow: hidden;
+        border: 1px solid #263b44;
+        border-bottom-color: #42e8ff88;
+        clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 12px),
+          calc(100% - 12px) 100%, 0 100%, 0 14px);
+        background:
+          linear-gradient(112deg, transparent 0 67%, #d9f8ff0a 67.2% 78%,
+            transparent 78.2%),
+          linear-gradient(180deg, #0b151bea, #03080bed);
+        box-shadow: inset 0 1px #d9f8ff12, inset 0 -10px 24px #0008,
+          0 8px 22px #0009;
+        text-align: left;
+      }
+      .frame-cyber_noir .marquee::after {
+        content: "";
+        position: absolute;
+        left: clamp(22px, 3vw, 44px);
+        right: clamp(22px, 3vw, 44px);
+        bottom: 9px;
+        height: 2px;
+        background: linear-gradient(90deg, var(--cyber-cyan) 0 72%,
+          transparent 72% 75%, var(--cyber-magenta) 75% 81%,
+          transparent 81% 94%, var(--cyber-cyan) 94% 100%);
+        box-shadow: 0 0 7px #42e8ff66;
+      }
+      .theater.frame-cyber_noir .eyebrow {
+        color: var(--cyber-muted);
+        font-family: "Arial Narrow", Arial, sans-serif;
+        font-weight: 500;
+        letter-spacing: .34em;
+      }
+      .theater.frame-cyber_noir .eyebrow::before {
+        content: "SYS // ";
+        color: var(--cyber-cyan);
+      }
+      .theater.frame-cyber_noir h1 {
+        margin-top: 8px;
+        color: var(--cyber-white);
+        font-family: "Arial Narrow", Arial, sans-serif;
+        font-weight: 500;
+        letter-spacing: .22em;
+        text-shadow: 0 0 12px #42e8ff42;
+      }
+      .frame-cyber_noir .content {
+        gap: clamp(18px, 3vw, 44px);
+        padding-inline: clamp(22px, 4vw, 58px);
+      }
+      .frame-cyber_noir .poster-wrap {
+        position: relative;
+        padding: clamp(7px, .8vw, 12px);
+        border: 1px solid #263c45;
+        clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px),
+          calc(100% - 12px) 100%, 0 100%, 0 12px);
+        background:
+          linear-gradient(135deg, #42e8ff22, transparent 14% 86%, #ff3ea518),
+          #03080be8;
+        box-shadow: inset 0 0 24px #000, 0 16px 38px #000b;
+      }
+      .theater.frame-cyber_noir .poster {
+        border: 1px solid #42e8ffaa;
+        border-radius: 0;
+        background: #020609;
+        box-shadow: 0 18px 42px #000, 0 0 0 5px #020609,
+          0 0 0 6px #263c45, 0 0 18px #42e8ff22;
       }
       .frame-cyber_noir .frame-plaque {
-        display: block; border: 1px solid #8beeff; background: #73e5ff1f;
-        color: #bff7ff; box-shadow: inset 0 0 16px #42dbff45, 0 0 20px #42dbff55;
+        display: block;
+        margin-top: clamp(12px, 1.4vw, 20px);
+        padding: clamp(12px, 1.5vw, 20px);
+        border: 1px solid #263c45;
+        border-left: 3px solid var(--cyber-cyan);
+        color: var(--cyber-white);
+        clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px),
+          calc(100% - 10px) 100%, 0 100%);
+        background:
+          linear-gradient(90deg, #42e8ff0c, transparent 45%),
+          linear-gradient(#0b151bd9, #03080bec);
+        box-shadow: inset 0 1px #d9f8ff12, 0 10px 24px #0009;
+        text-align: left;
       }
-      .frame-cyber_noir .ornament { background: linear-gradient(#55e5ff, transparent, #55e5ff); width: 2px; }
-      @keyframes cyberPulse { 50% { opacity: .52; filter: drop-shadow(0 0 3px #35dfff); } }
+      .frame-cyber_noir .frame-plaque strong {
+        color: var(--cyber-cyan);
+        font-family: "Arial Narrow", Arial, sans-serif;
+        font-weight: 500;
+        letter-spacing: .18em;
+      }
+      .frame-cyber_noir .frame-plaque span {
+        color: var(--cyber-muted);
+        font-family: "Arial Narrow", Arial, sans-serif;
+      }
+      .frame-cyber_noir .details {
+        padding: clamp(18px, 2.4vw, 36px);
+        border: 1px solid #20343d;
+        border-left: 2px solid #42e8ff88;
+        clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px),
+          calc(100% - 14px) 100%, 0 100%);
+        background:
+          repeating-linear-gradient(0deg, #ffffff03 0 1px, transparent 1px 28px),
+          linear-gradient(135deg, #0a1419d9, #020609e8);
+        box-shadow: inset 0 1px #d9f8ff12, 0 18px 38px #0009;
+      }
+      .theater.frame-cyber_noir .meta {
+        color: var(--cyber-cyan);
+        font-family: "Arial Narrow", Arial, sans-serif;
+        font-weight: 500;
+        letter-spacing: .17em;
+        text-transform: uppercase;
+      }
+      .theater.frame-cyber_noir .summary {
+        color: #afc8cf;
+        font-family: var(--body-font, "Trebuchet MS", Arial, sans-serif);
+      }
+      .theater.frame-cyber_noir .session {
+        padding-top: 12px;
+        border-top: 1px solid #263c45;
+        color: var(--cyber-muted);
+        font-family: "Arial Narrow", Arial, sans-serif;
+        letter-spacing: .13em;
+        text-transform: uppercase;
+      }
+      .theater.frame-cyber_noir .progress {
+        height: 4px;
+        overflow: visible;
+        background: repeating-linear-gradient(90deg, #29414a 0 10%,
+          transparent 10% 12%);
+      }
+      .theater.frame-cyber_noir .progress i {
+        background: repeating-linear-gradient(90deg, var(--cyber-cyan) 0 10%,
+          transparent 10% 12%);
+        box-shadow: 0 0 8px #42e8ff88;
+      }
+      .frame-cyber_noir .ornament {
+        top: 16%;
+        bottom: 10%;
+        width: clamp(5px, .55vw, 9px);
+        border: 1px solid #263c45;
+        background: repeating-linear-gradient(180deg, var(--cyber-cyan) 0 14px,
+          transparent 14px 33px);
+        box-shadow: 0 0 6px #42e8ff55;
+      }
+      .frame-cyber_noir .ornament-left { left: clamp(18px, 2.1vw, 32px); }
+      .frame-cyber_noir .ornament-right {
+        right: clamp(18px, 2.1vw, 32px);
+        background: repeating-linear-gradient(180deg, var(--cyber-magenta) 0 8px,
+          transparent 8px 54px);
+        box-shadow: 0 0 6px #ff3ea555;
+      }
+      .motion-off.frame-cyber_noir .marquee-frame::after {
+        animation: none;
+        opacity: .78;
+      }
+      @keyframes cyberRail {
+        0%, 100% { opacity: .64; }
+        50% { opacity: .94; }
+      }
 
       /* Layered comic-book energy frame. */
       .frame-comic_hero .marquee-frame {

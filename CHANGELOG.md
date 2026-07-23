@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-beta.33
+
+- Rebuild Cyber Noir as a complete smoked-glass and gunmetal display enclosure
+  with chamfered geometry, terminal typography, segmented cyan rails, restrained
+  magenta signals, technical metadata, and no inherited gold theater styling.
+- Present decorative frame names in title case throughout Display Studio.
+
 ## 0.1.0-beta.32
 
 - Use the authenticated Plex account's registered player devices as the

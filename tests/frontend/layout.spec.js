@@ -267,15 +267,61 @@ test("stacked summaries match the poster width and center their text", async ({ 
 
 test("Display Studio presents Frame, Theme, then Layout", async ({ page }) => {
   await openHarness(page, "?studio=1");
-  const order = await page.evaluate(() => {
+  const result = await page.evaluate(() => {
     const panel = document.createElement("movie-poster-panel");
     document.body.append(panel);
     panel._render();
-    return [...panel.shadowRoot.querySelectorAll("[data-studio]")]
-      .map((control) => control.dataset.studio)
-      .filter((name) => ["frame_theme", "theme", "layout"].includes(name));
+    return {
+      order: [...panel.shadowRoot.querySelectorAll("[data-studio]")]
+        .map((control) => control.dataset.studio)
+        .filter((name) => ["frame_theme", "theme", "layout"].includes(name)),
+      frameLabels: [...panel.shadowRoot
+        .querySelectorAll('[data-studio="frame_theme"] option')]
+        .map((option) => option.textContent),
+    };
   });
-  expect(order).toEqual(["frame_theme", "theme", "layout"]);
+  expect(result.order).toEqual(["frame_theme", "theme", "layout"]);
+  expect(result.frameLabels).toEqual([
+    "Marquee", "Cyber Noir", "Comic Hero", "Theater Classic",
+    "Indie Nature", "Golden Age", "Steampunk",
+  ]);
+});
+
+test("Cyber Noir keeps its cold material system across themes", async ({ page }) => {
+  await page.setViewportSize({ width: 1080, height: 1920 });
+  await openHarness(page);
+  const materials = [];
+  for (const theme of THEMES) {
+    expect(await renderPoster(
+      page, "cyber_noir", theme, "cinematic", "portrait",
+    )).toEqual([]);
+    materials.push(await page.evaluate(() => {
+      const root = document.querySelector("movie-poster-panel").shadowRoot;
+      const frame = root.querySelector(".marquee-frame");
+      const heading = root.querySelector("h1");
+      const poster = root.querySelector(".poster");
+      return {
+        cyan: getComputedStyle(frame).getPropertyValue("--cyber-cyan").trim(),
+        clipPath: getComputedStyle(frame).clipPath,
+        frameBorder: getComputedStyle(frame).borderTopColor,
+        frameRadius: getComputedStyle(frame).borderTopLeftRadius,
+        headingColor: getComputedStyle(heading).color,
+        headingShadow: getComputedStyle(heading).textShadow,
+        posterBorder: getComputedStyle(poster).borderTopColor,
+        posterRadius: getComputedStyle(poster).borderTopLeftRadius,
+      };
+    }));
+  }
+  for (const material of materials) {
+    expect(material.cyan).toBe("#42e8ff");
+    expect(material.clipPath).not.toBe("none");
+    expect(material.frameBorder).toBe("rgb(35, 56, 65)");
+    expect(material.frameRadius).toBe("0px");
+    expect(material.headingColor).toBe("rgb(217, 248, 255)");
+    expect(material.headingShadow).toContain("rgba(66, 232, 255");
+    expect(material.posterBorder).toContain("rgba(66, 232, 255");
+    expect(material.posterRadius).toBe("0px");
+  }
 });
 
 test("display resubscribes after a presentation revision changes", async ({ page }) => {
