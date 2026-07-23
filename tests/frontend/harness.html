@@ -8,4 +8,26 @@
     <script src="../../custom_components/movie_poster/frontend/movie-poster-panel.js"></script>
   </head>
   <body></body>
+  <script>
+    window.studioStateForTest = () => ({
+      schema_version: 1,
+      entry_id: "frontend-test",
+      presentation_revision: 0,
+      health: { connected: true, message: null },
+      operations: { can_control: false },
+      presentation: {
+        theme: "classic", orientation: "auto", layout: "cinematic",
+        frame_theme: "marquee", show_summary: true, show_progress: true,
+        show_session: true, enable_motion: false, kiosk_mode: false,
+        accent_color: "#f6cf70", background_color: "#090706",
+        heading_font: "cinematic", body_font: "system",
+        now_playing_text: "Now Playing", coming_soon_text: "Coming Soon",
+        eyebrow_text: "Theater Presentation", logo_url: "", logo_position: "right"
+      },
+      mode: "coming_soon",
+      heading: "Coming Soon",
+      media: null,
+      session: null
+    });
+  </script>
 </html>

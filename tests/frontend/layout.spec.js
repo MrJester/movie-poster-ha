@@ -278,6 +278,114 @@ test("Display Studio presents Frame, Theme, then Layout", async ({ page }) => {
   expect(order).toEqual(["frame_theme", "theme", "layout"]);
 });
 
+test("display resubscribes after a presentation revision changes", async ({ page }) => {
+  await openHarness(page);
+  const initial = await page.evaluate(() => {
+    const subscriptions = [];
+    let unsubscribeCount = 0;
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    panel.hass = {
+      connection: {
+        subscribeMessage: (callback, request) => {
+          subscriptions.push({ callback, request });
+          return Promise.resolve(() => { unsubscribeCount += 1; });
+        },
+      },
+    };
+    window.__subscriptionTest = {
+      subscriptions,
+      unsubscribeCount: () => unsubscribeCount,
+    };
+    return {
+      count: subscriptions.length,
+      request: subscriptions[0]?.request,
+    };
+  });
+  expect(initial.count).toBe(1);
+  expect(initial.request).toEqual({
+    type: "movie_poster/subscribe",
+    profile_id: "default",
+  });
+
+  await page.evaluate(async () => {
+    const { subscriptions } = window.__subscriptionTest;
+    const state = (revision) => ({
+      ...window.studioStateForTest(),
+      presentation_revision: revision,
+    });
+    subscriptions[0].callback(state(1));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    subscriptions[0].callback(state(2));
+  });
+  await expect.poll(() => page.evaluate(() =>
+    window.__subscriptionTest.subscriptions.length), { timeout: 4_000 }).toBe(2);
+  expect(await page.evaluate(() =>
+    window.__subscriptionTest.unsubscribeCount())).toBe(1);
+});
+
+test("Display Studio saves edited behavior and presentation settings", async ({ page }) => {
+  await openHarness(page, "?studio=1");
+  await page.evaluate(() => {
+    const calls = [];
+    const panel = document.createElement("movie-poster-panel");
+    panel._state.entry_id = "studio-entry";
+    panel._settings = {
+      profile_id: "default",
+      source: "Movies::Coming Soon",
+      player_id: "",
+      user_id: "",
+      grace_seconds: 30,
+      rotation_seconds: 60,
+      library_refresh_seconds: 900,
+    };
+    panel._choices = {
+      profiles: [{ value: "default", label: "Default" }],
+      sources: [{ value: "Movies::Coming Soon", label: "Movies — Coming Soon" }],
+      players: [{ value: "", label: "Any active Plex player" }],
+      users: [{ value: "", label: "Any active Plex user" }],
+      owner_user_id: "",
+      player_ids_by_user: {},
+    };
+    panel._hass = {
+      callWS: async (request) => {
+        calls.push(request);
+        return {};
+      },
+    };
+    panel._returnToSettings = () => { window.__studioReturned = true; };
+    window.__studioCalls = calls;
+    document.body.append(panel);
+    panel._render();
+  });
+
+  const root = page.locator("movie-poster-panel");
+  await root.evaluate((panel) => {
+    const field = panel.shadowRoot.querySelector('[data-setting="rotation_seconds"]');
+    field.value = "45";
+    field.dispatchEvent(new Event("change", { bubbles: true }));
+    const theme = panel.shadowRoot.querySelector('[data-studio="theme"]');
+    theme.value = "neon";
+    theme.dispatchEvent(new Event("change", { bubbles: true }));
+    panel.shadowRoot.querySelector('[data-studio-action="save"]').click();
+  });
+
+  await expect.poll(() => page.evaluate(() => window.__studioCalls.length)).toBe(1);
+  const request = await page.evaluate(() => window.__studioCalls[0]);
+  expect(request).toMatchObject({
+    type: "movie_poster/update_settings",
+    entry_id: "studio-entry",
+    profile_id: "default",
+    source: "Movies::Coming Soon",
+    rotation_seconds: 45,
+    theme: "neon",
+  });
+  await expect.poll(() => root.evaluate((panel) =>
+    panel.shadowRoot.querySelector(".studio-status").textContent))
+    .toContain("Saved.");
+  await expect.poll(() => page.evaluate(() => window.__studioReturned)).toBe(true);
+});
+
 test("display remains semantic, keyboard accessible, and reduced-motion safe", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.emulateMedia({ reducedMotion: "reduce" });
