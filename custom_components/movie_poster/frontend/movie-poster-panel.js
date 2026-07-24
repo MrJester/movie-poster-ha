@@ -1809,6 +1809,48 @@ class MoviePosterPanel extends HTMLElement {
       .theme-oled .session { color: #666; }
       .theme-oled .progress { background: #222; }
       .theme-oled .progress i { background: #fff; }
+
+      /* Production Cyber Noir uses rendered material overlays. Dynamic content
+         remains HTML beneath the transparent center and inside edge. */
+      .frame-cyber_noir .marquee-frame {
+        padding: 14cqw 9cqw;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        clip-path: none;
+        background: transparent;
+        box-shadow: 0 34px 90px #000c, 0 0 38px #42e8ff1f;
+      }
+      .frame-cyber_noir .marquee-frame::before { display: none; }
+      .frame-cyber_noir .marquee-frame::after {
+        content: "";
+        position: absolute;
+        z-index: 4;
+        inset: 0;
+        pointer-events: none;
+        opacity: 1;
+        background: url("/movie_poster_static/assets/cyber-noir-frame-landscape.png")
+          center / 100% 100% no-repeat;
+        filter: drop-shadow(0 20px 32px #000c);
+        animation: none;
+      }
+      .frame-cyber_noir .frame-ornaments { display: none; }
+      .frame-cyber_noir.orientation-portrait .marquee-frame {
+        padding: 17cqw 14cqw;
+      }
+      .frame-cyber_noir.orientation-portrait .marquee-frame::after {
+        background-image:
+          url("/movie_poster_static/assets/cyber-noir-frame-portrait.png");
+      }
+      @media (max-width: 720px), (orientation: portrait) {
+        .frame-cyber_noir.orientation-auto .marquee-frame {
+          padding: 17cqw 14cqw;
+        }
+        .frame-cyber_noir.orientation-auto .marquee-frame::after {
+          background-image:
+            url("/movie_poster_static/assets/cyber-noir-frame-portrait.png");
+        }
+      }
       @keyframes reveal {
         from { opacity: 0; transform: scale(.992); }
         to { opacity: 1; transform: scale(1); }

@@ -300,10 +300,12 @@ test("Cyber Noir keeps its cold material system across themes", async ({ page })
       const frame = root.querySelector(".marquee-frame");
       const heading = root.querySelector("h1");
       const poster = root.querySelector(".poster");
+      const overlay = getComputedStyle(frame, "::after");
       return {
         cyan: getComputedStyle(frame).getPropertyValue("--cyber-cyan").trim(),
-        clipPath: getComputedStyle(frame).clipPath,
-        frameBorder: getComputedStyle(frame).borderTopColor,
+        overlayImage: overlay.backgroundImage,
+        overlaySize: overlay.backgroundSize,
+        frameBorder: getComputedStyle(frame).borderTopWidth,
         frameRadius: getComputedStyle(frame).borderTopLeftRadius,
         headingColor: getComputedStyle(heading).color,
         headingShadow: getComputedStyle(heading).textShadow,
@@ -314,8 +316,9 @@ test("Cyber Noir keeps its cold material system across themes", async ({ page })
   }
   for (const material of materials) {
     expect(material.cyan).toBe("#42e8ff");
-    expect(material.clipPath).not.toBe("none");
-    expect(material.frameBorder).toBe("rgb(35, 56, 65)");
+    expect(material.overlayImage).toContain("cyber-noir-frame-portrait.png");
+    expect(material.overlaySize).toBe("100% 100%");
+    expect(material.frameBorder).toBe("0px");
     expect(material.frameRadius).toBe("0px");
     expect(material.headingColor).toBe("rgb(217, 248, 255)");
     expect(material.headingShadow).toContain("rgba(66, 232, 255");

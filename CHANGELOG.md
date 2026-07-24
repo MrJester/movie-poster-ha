@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-beta.34
+
+- Replace Cyber Noir's CSS-only outer enclosure with dedicated transparent,
+  high-detail gunmetal assets matched to the renderer's portrait and landscape
+  aspect ratios.
+- Keep headings, posters, metadata, progress, and lighting live and responsive
+  beneath the rendered material overlay.
+
 ## 0.1.0-beta.33
 
 - Rebuild Cyber Noir as a complete smoked-glass and gunmetal display enclosure
