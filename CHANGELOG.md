@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-beta.35
+
+- Fit Cyber Noir's live content against an explicit inner stage aligned with
+  the rendered bezel opening, preventing poster details from extending behind
+  or outside the frame in portrait and compact layouts.
+
 ## 0.1.0-beta.34
 
 - Replace Cyber Noir's CSS-only outer enclosure with dedicated transparent,

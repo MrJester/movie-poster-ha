@@ -454,6 +454,7 @@ class MoviePosterPanel extends HTMLElement {
           ${state.health?.connected === false ? "" : "hidden"}>
           ${escapeHtml(state.health?.message)}</p>
         <section class="marquee-frame${logoUrl ? ` has-logo logo-at-${logoPosition}` : ""}">
+          <div class="frame-stage">
           <div class="marquee-bulbs" aria-hidden="true">
           </div>
           ${logoUrl ? `<div class="brand-row logo-${logoPosition}">
@@ -497,6 +498,7 @@ class MoviePosterPanel extends HTMLElement {
                 aria-valuenow="${Math.round(progress)}">
                 <i style="width:${progress}%"></i></div>` : ""}
             </article>
+          </div>
           </div>
         </section>
       </main>`;
@@ -597,7 +599,9 @@ class MoviePosterPanel extends HTMLElement {
     const marquee = frame.querySelector(".marquee");
     const content = frame.querySelector(".content");
     if (!poster || !marquee || !content) return;
-    const frameStyle = getComputedStyle(frame);
+    const stage = frame.querySelector(".frame-stage");
+    const fitBoundary = frame.closest(".frame-cyber_noir") && stage ? stage : frame;
+    const boundaryStyle = getComputedStyle(fitBoundary);
     const contentStyle = getComputedStyle(content);
     const plaque = frame.querySelector(".frame-plaque");
     const plaqueHeight = plaque && getComputedStyle(plaque).display !== "none"
@@ -620,9 +624,9 @@ class MoviePosterPanel extends HTMLElement {
           + (parseFloat(detailsStyle.marginTop) || 0)
           + (parseFloat(contentStyle.rowGap || contentStyle.gap) || 0)
         : 0;
-      const frameBottom = frame.getBoundingClientRect().bottom
-        - parseFloat(frameStyle.borderBottomWidth)
-        - parseFloat(frameStyle.paddingBottom);
+      const frameBottom = fitBoundary.getBoundingClientRect().bottom
+        - parseFloat(boundaryStyle.borderBottomWidth)
+        - parseFloat(boundaryStyle.paddingBottom);
       const posterTop = poster.getBoundingClientRect().top;
       const available = frameBottom - posterTop
         - parseFloat(contentStyle.paddingBottom) - plaqueHeight - detailsHeight - 12;
@@ -1366,6 +1370,7 @@ class MoviePosterPanel extends HTMLElement {
         box-shadow: 0 0 0 3px var(--gold-deep), 0 28px 90px #000;
         animation: reveal .55s ease-out both;
       }
+      .frame-stage { display: contents; }
       .frame-ornaments { position: absolute; inset: 0; pointer-events: none; }
       .brand-logo {
         position: absolute;
@@ -1813,7 +1818,7 @@ class MoviePosterPanel extends HTMLElement {
       /* Production Cyber Noir uses rendered material overlays. Dynamic content
          remains HTML beneath the transparent center and inside edge. */
       .frame-cyber_noir .marquee-frame {
-        padding: 14cqw 9cqw;
+        padding: 0;
         overflow: visible;
         border: 0;
         border-radius: 0;
@@ -1834,17 +1839,35 @@ class MoviePosterPanel extends HTMLElement {
         filter: drop-shadow(0 20px 32px #000c);
         animation: none;
       }
+      .frame-cyber_noir .frame-stage {
+        position: absolute;
+        z-index: 1;
+        inset: 11% 9%;
+        display: flex;
+        min-width: 0;
+        min-height: 0;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .frame-cyber_noir .frame-stage > .marquee {
+        flex: 0 0 auto;
+      }
+      .frame-cyber_noir .frame-stage > .content {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+      }
       .frame-cyber_noir .frame-ornaments { display: none; }
-      .frame-cyber_noir.orientation-portrait .marquee-frame {
-        padding: 17cqw 14cqw;
+      .frame-cyber_noir.orientation-portrait .frame-stage {
+        inset: 10% 14%;
       }
       .frame-cyber_noir.orientation-portrait .marquee-frame::after {
         background-image:
           url("/movie_poster_static/assets/cyber-noir-frame-portrait.png");
       }
       @media (max-width: 720px), (orientation: portrait) {
-        .frame-cyber_noir.orientation-auto .marquee-frame {
-          padding: 17cqw 14cqw;
+        .frame-cyber_noir.orientation-auto .frame-stage {
+          inset: 10% 14%;
         }
         .frame-cyber_noir.orientation-auto .marquee-frame::after {
           background-image:
