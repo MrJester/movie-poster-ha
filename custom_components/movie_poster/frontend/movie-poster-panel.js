@@ -454,6 +454,7 @@ class MoviePosterPanel extends HTMLElement {
           ${state.health?.connected === false ? "" : "hidden"}>
           ${escapeHtml(state.health?.message)}</p>
         <section class="marquee-frame${logoUrl ? ` has-logo logo-at-${logoPosition}` : ""}">
+          <div class="cyber-frame-lights" aria-hidden="true"></div>
           <div class="frame-stage">
           <div class="marquee-bulbs" aria-hidden="true">
           </div>
@@ -1863,6 +1864,28 @@ class MoviePosterPanel extends HTMLElement {
         filter: drop-shadow(0 20px 32px #000c);
         animation: none;
       }
+      .cyber-frame-lights { display: none; }
+      .frame-cyber_noir .cyber-frame-lights {
+        position: absolute;
+        z-index: 6;
+        inset: 0;
+        display: block;
+        pointer-events: none;
+        background:
+          linear-gradient(90deg, transparent, #d9fbff 42% 58%,
+            transparent) 72% 8.3% / 12% 1.15% no-repeat,
+          linear-gradient(180deg, transparent, #d9fbff 42% 58%,
+            transparent) 3.8% 29% / .75% 10% no-repeat,
+          linear-gradient(180deg, transparent, #d9fbff 42% 58%,
+            transparent) 97.1% 65% / .75% 10% no-repeat,
+          linear-gradient(90deg, transparent, #d9fbff 42% 58%,
+            transparent) 29% 95.2% / 12% 1.15% no-repeat;
+        filter: drop-shadow(0 0 4px #42e8ffff)
+          drop-shadow(0 0 12px #42e8ffdd)
+          drop-shadow(0 0 28px #42e8ff99);
+        opacity: .28;
+        animation: cyberFixturePulse 1.65s ease-in-out infinite alternate;
+      }
       .frame-cyber_noir .frame-stage {
         position: absolute;
         z-index: 1;
@@ -1907,6 +1930,21 @@ class MoviePosterPanel extends HTMLElement {
       .frame-cyber_noir.orientation-portrait .marquee-frame::before {
         inset: 10% 13.5%;
       }
+      .frame-cyber_noir.orientation-portrait .cyber-frame-lights {
+        background:
+          linear-gradient(90deg, transparent, #d9fbff 42% 58%,
+            transparent) 26% 6.6% / 13% .75% no-repeat,
+          linear-gradient(90deg, transparent, #d9fbff 42% 58%,
+            transparent) 74% 6.6% / 13% .75% no-repeat,
+          linear-gradient(180deg, transparent, #d9fbff 42% 58%,
+            transparent) 88.7% 27% / 1.1% 11% no-repeat,
+          linear-gradient(180deg, transparent, #d9fbff 42% 58%,
+            transparent) 89% 76% / 1.1% 13% no-repeat,
+          linear-gradient(90deg, transparent, #d9fbff 42% 58%,
+            transparent) 26% 94.8% / 13% .75% no-repeat,
+          linear-gradient(90deg, transparent, #d9fbff 42% 58%,
+            transparent) 74% 94.8% / 13% .75% no-repeat;
+      }
       .frame-cyber_noir.orientation-portrait .marquee-frame::after {
         background-image:
           url("/movie_poster_static/assets/cyber-noir-frame-portrait.png");
@@ -1918,6 +1956,21 @@ class MoviePosterPanel extends HTMLElement {
         .frame-cyber_noir.orientation-auto .marquee-frame::before {
           inset: 10% 13.5%;
         }
+        .frame-cyber_noir.orientation-auto .cyber-frame-lights {
+          background:
+            linear-gradient(90deg, transparent, #d9fbff 42% 58%,
+              transparent) 26% 6.6% / 13% .75% no-repeat,
+            linear-gradient(90deg, transparent, #d9fbff 42% 58%,
+              transparent) 74% 6.6% / 13% .75% no-repeat,
+            linear-gradient(180deg, transparent, #d9fbff 42% 58%,
+              transparent) 88.7% 27% / 1.1% 11% no-repeat,
+            linear-gradient(180deg, transparent, #d9fbff 42% 58%,
+              transparent) 89% 76% / 1.1% 13% no-repeat,
+            linear-gradient(90deg, transparent, #d9fbff 42% 58%,
+              transparent) 26% 94.8% / 13% .75% no-repeat,
+            linear-gradient(90deg, transparent, #d9fbff 42% 58%,
+              transparent) 74% 94.8% / 13% .75% no-repeat;
+        }
         .frame-cyber_noir.orientation-auto .marquee-frame::after {
           background-image:
             url("/movie_poster_static/assets/cyber-noir-frame-portrait.png");
@@ -1926,6 +1979,10 @@ class MoviePosterPanel extends HTMLElement {
       .motion-off.frame-cyber_noir .marquee-frame::before {
         animation: none;
         opacity: .5;
+      }
+      .motion-off.frame-cyber_noir .cyber-frame-lights {
+        animation: none;
+        opacity: .55;
       }
       @keyframes cyberChase {
         0% {
@@ -1949,6 +2006,21 @@ class MoviePosterPanel extends HTMLElement {
             drop-shadow(0 0 5px #d9fbffff)
             drop-shadow(0 0 14px #42e8ffff)
             drop-shadow(0 0 30px #42e8ffaa);
+        }
+      }
+      @keyframes cyberFixturePulse {
+        from {
+          opacity: .12;
+          filter: brightness(.7)
+            drop-shadow(0 0 2px #42e8ff88)
+            drop-shadow(0 0 6px #42e8ff44);
+        }
+        to {
+          opacity: 1;
+          filter: brightness(2)
+            drop-shadow(0 0 5px #d9fbffff)
+            drop-shadow(0 0 16px #42e8ffff)
+            drop-shadow(0 0 38px #42e8ffcc);
         }
       }
       @keyframes reveal {

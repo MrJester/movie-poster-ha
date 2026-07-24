@@ -274,7 +274,6 @@ test("Cyber Noir keeps posters readable in short stacked desktop layouts", async
     )).toEqual([]);
     expect(await renderPoster(
       page, "cyber_noir", theme, "cinematic", "portrait",
-      { enableMotion: true },
     )).toEqual([]);
   }
 });
@@ -335,7 +334,7 @@ test("Cyber Noir keeps its cold material system across themes", async ({ page })
     expect(material.cyan).toBe("#42e8ff");
     expect(material.overlayImage).toContain("cyber-noir-frame-portrait.png");
     expect(material.overlaySize).toBe("100% 100%");
-    expect(material.railAnimation).toBe("cyberChase, cyberPulse");
+    expect(material.railAnimation).toBe("none");
     expect(material.railGlow).toContain("drop-shadow");
     expect(material.frameBorder).toBe("0px");
     expect(material.frameRadius).toBe("0px");
@@ -344,6 +343,23 @@ test("Cyber Noir keeps its cold material system across themes", async ({ page })
     expect(material.posterBorder).toContain("rgba(66, 232, 255");
     expect(material.posterRadius).toBe("0px");
   }
+  expect(await renderPoster(
+    page, "cyber_noir", "classic", "cinematic", "portrait",
+    { enableMotion: true },
+  )).toEqual([]);
+  const poweredAnimation = await page.evaluate(() => {
+    const root = document.querySelector("movie-poster-panel").shadowRoot;
+    return {
+      rail: getComputedStyle(
+        root.querySelector(".marquee-frame"), "::before",
+      ).animationName,
+      fixtures: getComputedStyle(
+        root.querySelector(".cyber-frame-lights"),
+      ).animationName,
+    };
+  });
+  expect(poweredAnimation.rail).toBe("cyberChase, cyberPulse");
+  expect(poweredAnimation.fixtures).toBe("cyberFixturePulse");
 });
 
 test("display resubscribes after a presentation revision changes", async ({ page }) => {

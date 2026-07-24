@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-beta.39
+
+- Pulse a dedicated cyan light layer aligned to Cyber Noir's rendered fixtures,
+  creating a pronounced dim-to-bright bloom instead of relying only on the
+  subtle inner chase rail.
+- Keep animated rendering out of exhaustive containment loops and verify motion
+  once in a focused browser assertion.
+
 ## 0.1.0-beta.38
 
 - Separate Cyber Noir's cyan rail movement from a stronger breathing pulse,
