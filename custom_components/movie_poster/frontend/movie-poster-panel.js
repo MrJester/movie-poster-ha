@@ -1857,6 +1857,25 @@ class MoviePosterPanel extends HTMLElement {
         min-height: 0;
         overflow: hidden;
       }
+      .frame-cyber_noir.layout-poster .marquee-frame.frame-short .details {
+        display: none;
+      }
+      .frame-cyber_noir.orientation-portrait
+        .marquee-frame.frame-short .subtitle,
+      .frame-cyber_noir.orientation-portrait
+        .marquee-frame.frame-short .meta,
+      .frame-cyber_noir.orientation-portrait
+        .marquee-frame.frame-short .summary,
+      .frame-cyber_noir.orientation-portrait
+        .marquee-frame.frame-short .session,
+      .frame-cyber_noir.orientation-portrait
+        .marquee-frame.frame-short .progress {
+        display: none;
+      }
+      .frame-cyber_noir.orientation-portrait
+        .marquee-frame.frame-short .details h2 {
+        margin-block: 2px 0;
+      }
       .frame-cyber_noir .frame-ornaments { display: none; }
       .frame-cyber_noir.orientation-portrait .frame-stage {
         inset: 10% 14%;

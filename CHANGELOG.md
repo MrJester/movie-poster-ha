@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-beta.36
+
+- Prioritize readable Cyber Noir poster artwork in short desktop frames by
+  removing the redundant details block from Poster layout and compacting
+  secondary metadata in portrait Cinematic layout.
+
 ## 0.1.0-beta.35
 
 - Fit Cyber Noir's live content against an explicit inner stage aligned with

@@ -265,6 +265,19 @@ test("stacked summaries match the poster width and center their text", async ({ 
   }
 });
 
+test("Cyber Noir keeps posters readable in short stacked desktop layouts", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openHarness(page);
+  for (const theme of THEMES) {
+    expect(await renderPoster(
+      page, "cyber_noir", theme, "poster", "auto",
+    )).toEqual([]);
+    expect(await renderPoster(
+      page, "cyber_noir", theme, "cinematic", "portrait",
+    )).toEqual([]);
+  }
+});
+
 test("Display Studio presents Frame, Theme, then Layout", async ({ page }) => {
   await openHarness(page, "?studio=1");
   const result = await page.evaluate(() => {
