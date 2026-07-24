@@ -1846,8 +1846,10 @@ class MoviePosterPanel extends HTMLElement {
         filter: drop-shadow(0 0 3px #42e8ffff)
           drop-shadow(0 0 9px #42e8ffaa)
           drop-shadow(0 0 18px #42e8ff66);
-        opacity: .72;
-        animation: cyberChase 4.6s linear infinite;
+        opacity: .7;
+        animation:
+          cyberChase 6.4s linear infinite,
+          cyberPulse 1.8s ease-in-out infinite alternate;
       }
       .frame-cyber_noir .marquee-frame::after {
         content: "";
@@ -1928,20 +1930,25 @@ class MoviePosterPanel extends HTMLElement {
       @keyframes cyberChase {
         0% {
           background-position: -34% 0, 100% -34%, 134% 100%, 0 134%;
-          filter: drop-shadow(0 0 3px #42e8ffff)
-            drop-shadow(0 0 8px #42e8ff99)
-            drop-shadow(0 0 16px #42e8ff55);
-        }
-        50% {
-          filter: drop-shadow(0 0 4px #d9fbffff)
-            drop-shadow(0 0 11px #42e8ffcc)
-            drop-shadow(0 0 22px #42e8ff77);
         }
         100% {
           background-position: 134% 0, 100% 134%, -34% 100%, 0 -34%;
-          filter: drop-shadow(0 0 3px #42e8ffff)
-            drop-shadow(0 0 8px #42e8ff99)
-            drop-shadow(0 0 16px #42e8ff55);
+        }
+      }
+      @keyframes cyberPulse {
+        from {
+          opacity: .42;
+          filter: brightness(.82)
+            drop-shadow(0 0 2px #42e8ffdd)
+            drop-shadow(0 0 6px #42e8ff66)
+            drop-shadow(0 0 12px #42e8ff33);
+        }
+        to {
+          opacity: 1;
+          filter: brightness(1.65)
+            drop-shadow(0 0 5px #d9fbffff)
+            drop-shadow(0 0 14px #42e8ffff)
+            drop-shadow(0 0 30px #42e8ffaa);
         }
       }
       @keyframes reveal {

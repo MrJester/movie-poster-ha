@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.38
+
+- Separate Cyber Noir's cyan rail movement from a stronger breathing pulse,
+  expanding the bloom and brightness rhythm without speeding up the chase.
+
 ## 0.1.0-beta.37
 
 - Add a restrained cyan chase and bloom around Cyber Noir's powered inner rail,

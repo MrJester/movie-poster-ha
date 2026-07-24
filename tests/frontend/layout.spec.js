@@ -335,7 +335,7 @@ test("Cyber Noir keeps its cold material system across themes", async ({ page })
     expect(material.cyan).toBe("#42e8ff");
     expect(material.overlayImage).toContain("cyber-noir-frame-portrait.png");
     expect(material.overlaySize).toBe("100% 100%");
-    expect(material.railAnimation).toBe("cyberChase");
+    expect(material.railAnimation).toBe("cyberChase, cyberPulse");
     expect(material.railGlow).toContain("drop-shadow");
     expect(material.frameBorder).toBe("0px");
     expect(material.frameRadius).toBe("0px");
