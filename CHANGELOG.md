@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.37
+
+- Add a restrained cyan chase and bloom around Cyber Noir's powered inner rail,
+  with portrait alignment and a static low-glow state when motion is disabled.
+
 ## 0.1.0-beta.36
 
 - Prioritize readable Cyber Noir poster artwork in short desktop frames by

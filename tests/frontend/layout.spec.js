@@ -91,7 +91,7 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
         show_summary: true,
         show_progress: true,
         show_session: true,
-        enable_motion: false,
+        enable_motion: variant.enableMotion ?? false,
         kiosk_mode: false,
         accent_color: "#f6cf70",
         background_color: "#090706",
@@ -274,6 +274,7 @@ test("Cyber Noir keeps posters readable in short stacked desktop layouts", async
     )).toEqual([]);
     expect(await renderPoster(
       page, "cyber_noir", theme, "cinematic", "portrait",
+      { enableMotion: true },
     )).toEqual([]);
   }
 });
@@ -314,10 +315,13 @@ test("Cyber Noir keeps its cold material system across themes", async ({ page })
       const heading = root.querySelector("h1");
       const poster = root.querySelector(".poster");
       const overlay = getComputedStyle(frame, "::after");
+      const poweredRail = getComputedStyle(frame, "::before");
       return {
         cyan: getComputedStyle(frame).getPropertyValue("--cyber-cyan").trim(),
         overlayImage: overlay.backgroundImage,
         overlaySize: overlay.backgroundSize,
+        railAnimation: poweredRail.animationName,
+        railGlow: poweredRail.filter,
         frameBorder: getComputedStyle(frame).borderTopWidth,
         frameRadius: getComputedStyle(frame).borderTopLeftRadius,
         headingColor: getComputedStyle(heading).color,
@@ -331,6 +335,8 @@ test("Cyber Noir keeps its cold material system across themes", async ({ page })
     expect(material.cyan).toBe("#42e8ff");
     expect(material.overlayImage).toContain("cyber-noir-frame-portrait.png");
     expect(material.overlaySize).toBe("100% 100%");
+    expect(material.railAnimation).toBe("cyberChase");
+    expect(material.railGlow).toContain("drop-shadow");
     expect(material.frameBorder).toBe("0px");
     expect(material.frameRadius).toBe("0px");
     expect(material.headingColor).toBe("rgb(217, 248, 255)");

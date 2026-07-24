@@ -1826,7 +1826,29 @@ class MoviePosterPanel extends HTMLElement {
         background: transparent;
         box-shadow: 0 34px 90px #000c, 0 0 38px #42e8ff1f;
       }
-      .frame-cyber_noir .marquee-frame::before { display: none; }
+      .frame-cyber_noir .marquee-frame::before {
+        content: "";
+        position: absolute;
+        z-index: 5;
+        inset: 9.5% 8.5%;
+        display: block;
+        pointer-events: none;
+        border-radius: 2cqw;
+        background:
+          linear-gradient(90deg, transparent 0 20%, #aaf8ff 48%,
+            var(--cyber-cyan) 55%, transparent 82%) top left / 34% 2px repeat-x,
+          linear-gradient(180deg, transparent 0 20%, #aaf8ff 48%,
+            var(--cyber-cyan) 55%, transparent 82%) top right / 2px 34% repeat-y,
+          linear-gradient(270deg, transparent 0 20%, #aaf8ff 48%,
+            var(--cyber-cyan) 55%, transparent 82%) bottom right / 34% 2px repeat-x,
+          linear-gradient(0deg, transparent 0 20%, #aaf8ff 48%,
+            var(--cyber-cyan) 55%, transparent 82%) bottom left / 2px 34% repeat-y;
+        filter: drop-shadow(0 0 3px #42e8ffff)
+          drop-shadow(0 0 9px #42e8ffaa)
+          drop-shadow(0 0 18px #42e8ff66);
+        opacity: .72;
+        animation: cyberChase 4.6s linear infinite;
+      }
       .frame-cyber_noir .marquee-frame::after {
         content: "";
         position: absolute;
@@ -1880,6 +1902,9 @@ class MoviePosterPanel extends HTMLElement {
       .frame-cyber_noir.orientation-portrait .frame-stage {
         inset: 10% 14%;
       }
+      .frame-cyber_noir.orientation-portrait .marquee-frame::before {
+        inset: 10% 13.5%;
+      }
       .frame-cyber_noir.orientation-portrait .marquee-frame::after {
         background-image:
           url("/movie_poster_static/assets/cyber-noir-frame-portrait.png");
@@ -1888,9 +1913,35 @@ class MoviePosterPanel extends HTMLElement {
         .frame-cyber_noir.orientation-auto .frame-stage {
           inset: 10% 14%;
         }
+        .frame-cyber_noir.orientation-auto .marquee-frame::before {
+          inset: 10% 13.5%;
+        }
         .frame-cyber_noir.orientation-auto .marquee-frame::after {
           background-image:
             url("/movie_poster_static/assets/cyber-noir-frame-portrait.png");
+        }
+      }
+      .motion-off.frame-cyber_noir .marquee-frame::before {
+        animation: none;
+        opacity: .5;
+      }
+      @keyframes cyberChase {
+        0% {
+          background-position: -34% 0, 100% -34%, 134% 100%, 0 134%;
+          filter: drop-shadow(0 0 3px #42e8ffff)
+            drop-shadow(0 0 8px #42e8ff99)
+            drop-shadow(0 0 16px #42e8ff55);
+        }
+        50% {
+          filter: drop-shadow(0 0 4px #d9fbffff)
+            drop-shadow(0 0 11px #42e8ffcc)
+            drop-shadow(0 0 22px #42e8ff77);
+        }
+        100% {
+          background-position: 134% 0, 100% 134%, -34% 100%, 0 -34%;
+          filter: drop-shadow(0 0 3px #42e8ffff)
+            drop-shadow(0 0 8px #42e8ff99)
+            drop-shadow(0 0 16px #42e8ff55);
         }
       }
       @keyframes reveal {
