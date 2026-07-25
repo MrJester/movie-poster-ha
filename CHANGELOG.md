@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.40
+
+- Move the portrait Cyber Noir chase rail's left edge inside the transparent
+  opening so its cyan bloom no longer spills across the beveled metal.
+
 ## 0.1.0-beta.39
 
 - Pulse a dedicated cyan light layer aligned to Cyber Noir's rendered fixtures,
