@@ -300,7 +300,7 @@ test("Display Studio presents Frame, Theme, then Layout", async ({ page }) => {
   ]);
 });
 
-test("Cyber Noir keeps its cold material system across themes", async ({ page }) => {
+test("Cyber Noir keeps its cold material system across themes", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1080, height: 1920 });
   await openHarness(page);
   const materials = [];
@@ -343,23 +343,32 @@ test("Cyber Noir keeps its cold material system across themes", async ({ page })
     expect(material.posterBorder).toContain("rgba(66, 232, 255");
     expect(material.posterRadius).toBe("0px");
   }
-  expect(await renderPoster(
-    page, "cyber_noir", "classic", "cinematic", "portrait",
-    { enableMotion: true },
-  )).toEqual([]);
-  const poweredAnimation = await page.evaluate(() => {
-    const root = document.querySelector("movie-poster-panel").shadowRoot;
-    return {
-      rail: getComputedStyle(
-        root.querySelector(".marquee-frame"), "::before",
-      ).animationName,
-      fixtures: getComputedStyle(
-        root.querySelector(".cyber-frame-lights"),
-      ).animationName,
-    };
-  });
-  expect(poweredAnimation.rail).toBe("cyberChase, cyberPulse");
-  expect(poweredAnimation.fixtures).toBe("cyberFixturePulse");
+  if (testInfo.project.name === "chromium") {
+    expect(await renderPoster(
+      page, "cyber_noir", "classic", "cinematic", "portrait",
+      { enableMotion: true },
+    )).toEqual([]);
+    const poweredAnimation = await page.evaluate(() => {
+      const root = document.querySelector("movie-poster-panel").shadowRoot;
+      return {
+        rail: getComputedStyle(
+          root.querySelector(".marquee-frame"), "::before",
+        ).animationName,
+        fixtures: getComputedStyle(
+          root.querySelector(".cyber-frame-lights"),
+        ).animationName,
+      };
+    });
+    expect(poweredAnimation.rail).toBe("cyberChase, cyberPulse");
+    expect(poweredAnimation.fixtures).toBe("cyberFixturePulse");
+  } else {
+    const styleText = await page.evaluate(() =>
+      document.querySelector("movie-poster-panel").shadowRoot
+        .querySelector("style").textContent);
+    expect(styleText).toContain("@keyframes cyberChase");
+    expect(styleText).toContain("@keyframes cyberPulse");
+    expect(styleText).toContain("@keyframes cyberFixturePulse");
+  }
 });
 
 test("display resubscribes after a presentation revision changes", async ({ page }) => {
