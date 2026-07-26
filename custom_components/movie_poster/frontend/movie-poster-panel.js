@@ -1928,7 +1928,7 @@ class MoviePosterPanel extends HTMLElement {
         inset: 10% 14%;
       }
       .frame-cyber_noir.orientation-portrait .marquee-frame::before {
-        inset: 10% 13.5% 10% 15%;
+        inset: 10% 15%;
       }
       .frame-cyber_noir.orientation-portrait .cyber-frame-lights {
         background:
@@ -1954,7 +1954,7 @@ class MoviePosterPanel extends HTMLElement {
           inset: 10% 14%;
         }
         .frame-cyber_noir.orientation-auto .marquee-frame::before {
-          inset: 10% 13.5% 10% 15%;
+          inset: 10% 15%;
         }
         .frame-cyber_noir.orientation-auto .cyber-frame-lights {
           background:

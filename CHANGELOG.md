@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.41
+
+- Narrow and center the portrait Cyber Noir chase rail so both glowing side
+  edges remain inside the transparent frame opening.
+
 ## 0.1.0-beta.40
 
 - Move the portrait Cyber Noir chase rail's left edge inside the transparent
