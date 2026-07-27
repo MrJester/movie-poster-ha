@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-beta.42
+
+- Refine Cyber Noir with a quieter inner chase rail, sharper cyan fixture cores,
+  localized metal reflections, and staggered top, side, and bottom pulses.
+- Remove the redundant empty details panel from compact portrait presentations
+  when no summary is displayed.
+
 ## 0.1.0-beta.41
 
 - Narrow and center the portrait Cyber Noir chase rail so both glowing side

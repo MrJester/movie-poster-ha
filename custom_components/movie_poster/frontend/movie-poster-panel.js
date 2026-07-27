@@ -454,7 +454,11 @@ class MoviePosterPanel extends HTMLElement {
           ${state.health?.connected === false ? "" : "hidden"}>
           ${escapeHtml(state.health?.message)}</p>
         <section class="marquee-frame${logoUrl ? ` has-logo logo-at-${logoPosition}` : ""}">
-          <div class="cyber-frame-lights" aria-hidden="true"></div>
+          <div class="cyber-frame-lights" aria-hidden="true">
+            <i class="cyber-light-group cyber-light-group-a"></i>
+            <i class="cyber-light-group cyber-light-group-b"></i>
+            <i class="cyber-light-group cyber-light-group-c"></i>
+          </div>
           <div class="frame-stage">
           <div class="marquee-bulbs" aria-hidden="true">
           </div>
@@ -1871,20 +1875,43 @@ class MoviePosterPanel extends HTMLElement {
         inset: 0;
         display: block;
         pointer-events: none;
+      }
+      .frame-cyber_noir .cyber-light-group {
+        position: absolute;
+        inset: 0;
+        display: block;
+        filter: drop-shadow(0 0 3px #42e8ffee)
+          drop-shadow(0 0 9px #42e8ff99);
+        opacity: .35;
+        animation: cyberFixturePulse 2.4s ease-in-out infinite alternate;
+      }
+      .frame-cyber_noir .cyber-light-group-a {
         background:
+          radial-gradient(ellipse, #42e8ff88 0 12%, transparent 68%)
+            72% 8.3% / 22% 6% no-repeat,
           linear-gradient(90deg, transparent, #d9fbff 42% 58%,
-            transparent) 72% 8.3% / 12% 1.15% no-repeat,
+            transparent) 72% 8.3% / 12% 1.15% no-repeat;
+        animation-delay: 0s;
+      }
+      .frame-cyber_noir .cyber-light-group-b {
+        background:
+          radial-gradient(ellipse, #42e8ff77 0 10%, transparent 68%)
+            3.8% 29% / 6% 20% no-repeat,
           linear-gradient(180deg, transparent, #d9fbff 42% 58%,
             transparent) 3.8% 29% / .75% 10% no-repeat,
+          radial-gradient(ellipse, #42e8ff77 0 10%, transparent 68%)
+            97.1% 65% / 6% 20% no-repeat,
           linear-gradient(180deg, transparent, #d9fbff 42% 58%,
-            transparent) 97.1% 65% / .75% 10% no-repeat,
+            transparent) 97.1% 65% / .75% 10% no-repeat;
+        animation-delay: -.8s;
+      }
+      .frame-cyber_noir .cyber-light-group-c {
+        background:
+          radial-gradient(ellipse, #42e8ff66 0 10%, transparent 68%)
+            29% 95.2% / 22% 6% no-repeat,
           linear-gradient(90deg, transparent, #d9fbff 42% 58%,
             transparent) 29% 95.2% / 12% 1.15% no-repeat;
-        filter: drop-shadow(0 0 4px #42e8ffff)
-          drop-shadow(0 0 12px #42e8ffdd)
-          drop-shadow(0 0 28px #42e8ff99);
-        opacity: .28;
-        animation: cyberFixturePulse 1.65s ease-in-out infinite alternate;
+        animation-delay: -1.6s;
       }
       .frame-cyber_noir .frame-stage {
         position: absolute;
@@ -1923,6 +1950,10 @@ class MoviePosterPanel extends HTMLElement {
         .marquee-frame.frame-short .details h2 {
         margin-block: 2px 0;
       }
+      .frame-cyber_noir.orientation-portrait
+        .marquee-frame.frame-short .details:not(:has(.summary)) {
+        display: none;
+      }
       .frame-cyber_noir .frame-ornaments { display: none; }
       .frame-cyber_noir.orientation-portrait .frame-stage {
         inset: 10% 14%;
@@ -1930,18 +1961,36 @@ class MoviePosterPanel extends HTMLElement {
       .frame-cyber_noir.orientation-portrait .marquee-frame::before {
         inset: 10% 15%;
       }
-      .frame-cyber_noir.orientation-portrait .cyber-frame-lights {
+      .frame-cyber_noir.orientation-portrait .cyber-light-group-a {
         background:
+          radial-gradient(ellipse, #42e8ff88 0 12%, transparent 68%)
+            26% 6.6% / 24% 4% no-repeat,
           linear-gradient(90deg, transparent, #d9fbff 42% 58%,
             transparent) 26% 6.6% / 13% .75% no-repeat,
+          radial-gradient(ellipse, #42e8ff88 0 12%, transparent 68%)
+            74% 6.6% / 24% 4% no-repeat,
           linear-gradient(90deg, transparent, #d9fbff 42% 58%,
-            transparent) 74% 6.6% / 13% .75% no-repeat,
+            transparent) 74% 6.6% / 13% .75% no-repeat;
+      }
+      .frame-cyber_noir.orientation-portrait .cyber-light-group-b {
+        background:
+          radial-gradient(ellipse, #42e8ff77 0 10%, transparent 68%)
+            88.7% 27% / 7% 22% no-repeat,
           linear-gradient(180deg, transparent, #d9fbff 42% 58%,
             transparent) 88.7% 27% / 1.1% 11% no-repeat,
+          radial-gradient(ellipse, #42e8ff77 0 10%, transparent 68%)
+            89% 76% / 7% 24% no-repeat,
           linear-gradient(180deg, transparent, #d9fbff 42% 58%,
-            transparent) 89% 76% / 1.1% 13% no-repeat,
+            transparent) 89% 76% / 1.1% 13% no-repeat;
+      }
+      .frame-cyber_noir.orientation-portrait .cyber-light-group-c {
+        background:
+          radial-gradient(ellipse, #42e8ff66 0 10%, transparent 68%)
+            26% 94.8% / 24% 4% no-repeat,
           linear-gradient(90deg, transparent, #d9fbff 42% 58%,
             transparent) 26% 94.8% / 13% .75% no-repeat,
+          radial-gradient(ellipse, #42e8ff66 0 10%, transparent 68%)
+            74% 94.8% / 24% 4% no-repeat,
           linear-gradient(90deg, transparent, #d9fbff 42% 58%,
             transparent) 74% 94.8% / 13% .75% no-repeat;
       }
@@ -1956,18 +2005,36 @@ class MoviePosterPanel extends HTMLElement {
         .frame-cyber_noir.orientation-auto .marquee-frame::before {
           inset: 10% 15%;
         }
-        .frame-cyber_noir.orientation-auto .cyber-frame-lights {
+        .frame-cyber_noir.orientation-auto .cyber-light-group-a {
           background:
+            radial-gradient(ellipse, #42e8ff88 0 12%, transparent 68%)
+              26% 6.6% / 24% 4% no-repeat,
             linear-gradient(90deg, transparent, #d9fbff 42% 58%,
               transparent) 26% 6.6% / 13% .75% no-repeat,
+            radial-gradient(ellipse, #42e8ff88 0 12%, transparent 68%)
+              74% 6.6% / 24% 4% no-repeat,
             linear-gradient(90deg, transparent, #d9fbff 42% 58%,
-              transparent) 74% 6.6% / 13% .75% no-repeat,
+              transparent) 74% 6.6% / 13% .75% no-repeat;
+        }
+        .frame-cyber_noir.orientation-auto .cyber-light-group-b {
+          background:
+            radial-gradient(ellipse, #42e8ff77 0 10%, transparent 68%)
+              88.7% 27% / 7% 22% no-repeat,
             linear-gradient(180deg, transparent, #d9fbff 42% 58%,
               transparent) 88.7% 27% / 1.1% 11% no-repeat,
+            radial-gradient(ellipse, #42e8ff77 0 10%, transparent 68%)
+              89% 76% / 7% 24% no-repeat,
             linear-gradient(180deg, transparent, #d9fbff 42% 58%,
-              transparent) 89% 76% / 1.1% 13% no-repeat,
+              transparent) 89% 76% / 1.1% 13% no-repeat;
+        }
+        .frame-cyber_noir.orientation-auto .cyber-light-group-c {
+          background:
+            radial-gradient(ellipse, #42e8ff66 0 10%, transparent 68%)
+              26% 94.8% / 24% 4% no-repeat,
             linear-gradient(90deg, transparent, #d9fbff 42% 58%,
               transparent) 26% 94.8% / 13% .75% no-repeat,
+            radial-gradient(ellipse, #42e8ff66 0 10%, transparent 68%)
+              74% 94.8% / 24% 4% no-repeat,
             linear-gradient(90deg, transparent, #d9fbff 42% 58%,
               transparent) 74% 94.8% / 13% .75% no-repeat;
         }
@@ -1980,9 +2047,9 @@ class MoviePosterPanel extends HTMLElement {
         animation: none;
         opacity: .5;
       }
-      .motion-off.frame-cyber_noir .cyber-frame-lights {
+      .motion-off.frame-cyber_noir .cyber-light-group {
         animation: none;
-        opacity: .55;
+        opacity: .48;
       }
       @keyframes cyberChase {
         0% {
@@ -1994,33 +2061,31 @@ class MoviePosterPanel extends HTMLElement {
       }
       @keyframes cyberPulse {
         from {
-          opacity: .42;
-          filter: brightness(.82)
-            drop-shadow(0 0 2px #42e8ffdd)
-            drop-shadow(0 0 6px #42e8ff66)
-            drop-shadow(0 0 12px #42e8ff33);
+          opacity: .12;
+          filter: brightness(.72)
+            drop-shadow(0 0 2px #42e8ff66)
+            drop-shadow(0 0 5px #42e8ff33);
         }
         to {
-          opacity: 1;
-          filter: brightness(1.65)
-            drop-shadow(0 0 5px #d9fbffff)
-            drop-shadow(0 0 14px #42e8ffff)
-            drop-shadow(0 0 30px #42e8ffaa);
+          opacity: .38;
+          filter: brightness(1.1)
+            drop-shadow(0 0 3px #42e8ffaa)
+            drop-shadow(0 0 8px #42e8ff55);
         }
       }
       @keyframes cyberFixturePulse {
         from {
-          opacity: .12;
-          filter: brightness(.7)
-            drop-shadow(0 0 2px #42e8ff88)
-            drop-shadow(0 0 6px #42e8ff44);
+          opacity: .22;
+          filter: brightness(.78)
+            drop-shadow(0 0 2px #42e8ff77)
+            drop-shadow(0 0 5px #42e8ff33);
         }
         to {
           opacity: 1;
-          filter: brightness(2)
-            drop-shadow(0 0 5px #d9fbffff)
-            drop-shadow(0 0 16px #42e8ffff)
-            drop-shadow(0 0 38px #42e8ffcc);
+          filter: brightness(1.75)
+            drop-shadow(0 0 4px #d9fbffff)
+            drop-shadow(0 0 12px #42e8ffdd)
+            drop-shadow(0 0 26px #42e8ff88);
         }
       }
       @keyframes reveal {

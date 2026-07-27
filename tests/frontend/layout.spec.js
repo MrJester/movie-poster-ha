@@ -354,9 +354,9 @@ test("Cyber Noir keeps its cold material system across themes", async ({ page },
         rail: getComputedStyle(
           root.querySelector(".marquee-frame"), "::before",
         ).animationName,
-        fixtures: getComputedStyle(
-          root.querySelector(".cyber-frame-lights"),
-        ).animationName,
+      fixtures: getComputedStyle(
+        root.querySelector(".cyber-light-group-a"),
+      ).animationName,
       };
     });
     expect(poweredAnimation.rail).toBe("cyberChase, cyberPulse");
