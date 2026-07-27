@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -52,6 +54,14 @@ from .const import (
     ORIENTATIONS,
     THEMES,
 )
+from .presentation_library import PresentationLibrary
+from .presentation_package import MAX_PACKAGE_BYTES, build_package, read_package
+from .presentation_resources import (
+    blank_design,
+    builtin_catalog,
+    design_from_legacy_presentation,
+    semantic_style_for_presentation,
+)
 from .profiles import (
     PROFILE_KEYS,
     PROFILE_VERSION,
@@ -69,7 +79,7 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-beta.43"
+_FRONTEND_VERSION = "0.1.0-beta.44"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
@@ -94,6 +104,7 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_update_settings)
     websocket_api.async_register_command(hass, websocket_display_control)
     websocket_api.async_register_command(hass, websocket_manage_profile)
+    websocket_api.async_register_command(hass, websocket_presentation_library)
 
 
 @websocket_api.websocket_command(
@@ -147,6 +158,7 @@ def websocket_subscribe(
                     can_control=connection.user.is_admin,
                     profile_id=selected_profile_id,
                     presentation=active_profile["presentation"],
+                    design=active_profile["design"],
                 ),
             )
         )
@@ -288,6 +300,8 @@ async def websocket_get_settings(
         msg["id"],
         {
             "profiles": profiles,
+            "presentation_catalog": builtin_catalog(),
+            "design": profiles[selected_profile_id]["design"],
             "settings": {
                 **entry.options,
                 **profiles[selected_profile_id]["presentation"],
@@ -440,7 +454,10 @@ async def websocket_update_settings(
         custom_profiles[profile_id] = {
             "name": profiles[profile_id]["name"],
             "version": PROFILE_VERSION,
+            "description": profiles[profile_id].get("description", ""),
+            "author": profiles[profile_id].get("author", ""),
             "presentation": presentation,
+            "design": design_from_legacy_presentation(presentation),
         }
         options[CONF_DISPLAY_PROFILES] = custom_profiles
     coordinator.presentation_revision += 1
@@ -517,10 +534,14 @@ async def websocket_manage_profile(
                 document = validate_profile_document(msg.get("document", {}))
             else:
                 name = str(msg.get("name", "")).strip()
+                presentation = presentation_from_options(entry.options)
                 document = {
                     "version": PROFILE_VERSION,
                     "name": name,
-                    "presentation": presentation_from_options(entry.options),
+                    "description": "",
+                    "author": "",
+                    "presentation": presentation,
+                    "design": design_from_legacy_presentation(presentation),
                 }
         except vol.Invalid as err:
             connection.send_error(msg["id"], websocket_api.ERR_INVALID_FORMAT, str(err))
@@ -539,6 +560,74 @@ async def websocket_manage_profile(
     connection.send_result(
         msg["id"], {"profile_id": identifier, "profiles": stored_profiles(options)}
     )
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "movie_poster/presentation_library",
+        vol.Optional("entry_id"): str,
+        vol.Required("action"): vol.In(
+            {
+                "list",
+                "create",
+                "update",
+                "publish",
+                "edit",
+                "rollback",
+                "delete",
+                "export",
+                "import",
+            }
+        ),
+        vol.Optional("profile_id"): str,
+        vol.Optional("name"): vol.All(str, vol.Length(min=1, max=60)),
+        vol.Optional("document"): dict,
+        vol.Optional("blank", default=False): bool,
+        vol.Optional("revision"): vol.All(int, vol.Range(min=1)),
+        vol.Optional("package"): vol.All(
+            str,
+            vol.Length(max=(MAX_PACKAGE_BYTES * 4 // 3) + 4),
+        ),
+    }
+)
+@websocket_api.async_response
+async def websocket_presentation_library(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Manage local presentation drafts and published revisions."""
+    coordinator = _coordinator(hass, msg.get("entry_id"))
+    entry = (
+        hass.config_entries.async_get_entry(coordinator.entry_id)
+        if coordinator is not None
+        else None
+    )
+    if entry is None:
+        connection.send_error(
+            msg["id"],
+            websocket_api.ERR_NOT_FOUND,
+            "Movie Poster is not configured",
+        )
+        return
+
+    library = await _presentation_library(hass, entry.entry_id, entry.options)
+    action = msg["action"]
+    try:
+        result = await _async_library_action(library, entry.options, msg)
+    except vol.Invalid as err:
+        connection.send_error(
+            msg["id"],
+            websocket_api.ERR_INVALID_FORMAT,
+            str(err),
+        )
+        return
+
+    result["library"] = await library.async_list()
+    if action == "list":
+        result["catalog"] = builtin_catalog()
+    connection.send_result(msg["id"], result)
 
 
 @websocket_api.require_admin
@@ -602,6 +691,119 @@ def _coordinator(
     return next(iter(coordinators.values()), None)
 
 
+async def _presentation_library(
+    hass: HomeAssistant,
+    entry_id: str,
+    options: dict[str, Any],
+) -> PresentationLibrary:
+    """Return a loaded per-entry Presentation Library."""
+    key = f"{DOMAIN}_presentation_libraries"
+    libraries = hass.data.setdefault(key, {})
+    library = libraries.get(entry_id)
+    if library is None:
+        library = PresentationLibrary(hass, entry_id)
+        libraries[entry_id] = library
+    await library.async_import_legacy(options)
+    return library
+
+
+async def _async_library_action(
+    library: PresentationLibrary,
+    options: dict[str, Any],
+    msg: dict[str, Any],
+) -> dict[str, Any]:
+    """Apply one validated Presentation Library action."""
+    action = msg["action"]
+    result: dict[str, Any] = {}
+    if action == "create":
+        presentation = presentation_from_options(options)
+        document = {
+            "version": PROFILE_VERSION,
+            "name": _required_name(msg),
+            "description": "",
+            "author": "",
+            "presentation": presentation,
+            "design": blank_design()
+            if msg["blank"]
+            else design_from_legacy_presentation(presentation),
+        }
+        result["profile_id"] = await library.async_create_draft(document)
+    elif action == "update":
+        await library.async_update_draft(
+            _required_profile_id(msg),
+            msg.get("document", {}),
+        )
+    elif action == "publish":
+        result["revision"] = await library.async_publish(_required_profile_id(msg))
+    elif action == "edit":
+        result["document"] = await library.async_edit_published(
+            _required_profile_id(msg)
+        )
+    elif action == "rollback":
+        await library.async_rollback(
+            _required_profile_id(msg),
+            _required_revision(msg),
+        )
+    elif action == "delete":
+        await library.async_delete(_required_profile_id(msg))
+    elif action == "export":
+        identifier = _required_profile_id(msg)
+        profile = await library.async_active_profile(identifier)
+        assets = await library.async_assets(identifier)
+        result["package"] = base64.b64encode(
+            build_package(identifier, profile, assets)
+        ).decode("ascii")
+    elif action == "import":
+        package = _decode_package(msg)
+        imported = read_package(package)
+        result["profile_id"] = await library.async_create_draft(
+            imported["profile"],
+            identifier=imported["manifest"]["package_id"],
+            assets=imported["assets"],
+        )
+    return result
+
+
+def _required_profile_id(msg: dict[str, Any]) -> str:
+    """Return a required Profile identifier for library mutations."""
+    identifier = str(msg.get("profile_id", "")).strip()
+    if not identifier:
+        message = "Profile ID is required"
+        raise vol.Invalid(message)
+    return identifier
+
+
+def _required_name(msg: dict[str, Any]) -> str:
+    """Return a required display name."""
+    name = str(msg.get("name", "")).strip()
+    if not name:
+        message = "Profile name is required"
+        raise vol.Invalid(message)
+    return name
+
+
+def _required_revision(msg: dict[str, Any]) -> int:
+    """Return a required revision number."""
+    revision = msg.get("revision")
+    if revision is None:
+        message = "Revision is required"
+        raise vol.Invalid(message)
+    return int(revision)
+
+
+def _decode_package(msg: dict[str, Any]) -> bytes:
+    """Decode one required base64 package payload."""
+    value = msg.get("package")
+    if not isinstance(value, str) or not value:
+        message = "Package payload is required"
+        raise vol.Invalid(message)
+    try:
+        return base64.b64decode(value, validate=True)
+    except (binascii.Error, ValueError) as err:
+        message = "Package payload is not valid base64"
+        raise vol.Invalid(message) from err
+
+
 def _serialize_state(  # noqa: PLR0913
     hass: HomeAssistant,
     coordinator: MoviePosterCoordinator,
@@ -610,6 +812,7 @@ def _serialize_state(  # noqa: PLR0913
     can_control: bool = True,
     profile_id: str = DEFAULT_PROFILE_ID,
     presentation: dict[str, Any] | None = None,
+    design: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     data: CoordinatorData = coordinator.data
     media = data.media
@@ -666,6 +869,8 @@ def _serialize_state(  # noqa: PLR0913
         "presentation": {
             **active_presentation,
         },
+        "design": design or design_from_legacy_presentation(active_presentation),
+        "design_style": semantic_style_for_presentation(active_presentation),
         "mode": data.mode.mode,
         "heading": active_presentation[CONF_NOW_PLAYING_TEXT]
         if data.mode.mode == "now_playing"

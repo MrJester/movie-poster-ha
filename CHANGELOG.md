@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.0-beta.44
+
+- Introduce schema-versioned Frame, Theme, Layout, component, animation, and
+  Profile resources with normalized geometry, universal semantic styles, and
+  automatic migration from legacy flat Profiles.
+- Add an immutable built-in presentation catalog plus a responsive reference
+  renderer for Marquee, Classic, and Cinematic.
+- Add a local Presentation Library with autosaved drafts, immutable published
+  revisions, rollback, deletion, and migration of existing custom Profiles.
+- Add secure `.movieposter` import and export with packaged assets, hashes,
+  traversal and symlink protection, bounded archive extraction, signature
+  checks, and fail-closed validation.
+- Add the first visual-editor canvas with blank or preset starting points,
+  dynamic components, drag and resize, exact normalized geometry, layers,
+  visibility, per-orientation geometry overrides, colors, opacity, type size,
+  alignment, glow, preview states, autosave, and explicit publishing.
+
 ## 0.1.0-beta.43
 
 - Capitalize every Display Studio theme label.

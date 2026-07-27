@@ -5,6 +5,7 @@ try {
   playwrightTest = require("playwright/test");
 }
 const { defineConfig } = playwrightTest;
+const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
 module.exports = defineConfig({
   testDir: "tests/frontend",
@@ -15,7 +16,11 @@ module.exports = defineConfig({
     headless: true,
   },
   projects: [
-    { name: "chromium", use: { browserName: "chromium" } },
+    { name: "chromium", use: {
+      browserName: "chromium",
+      ...(chromiumExecutable
+        ? { launchOptions: { executablePath: chromiumExecutable } } : {}),
+    } },
     { name: "webkit", use: { browserName: "webkit" } },
   ],
   webServer: process.env.PLAYWRIGHT_FILE_MODE === "1" ? undefined : {

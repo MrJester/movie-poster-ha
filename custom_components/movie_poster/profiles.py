@@ -53,8 +53,9 @@ from .const import (
     ORIENTATIONS,
     THEMES,
 )
+from .presentation_resources import DESIGN_SCHEMA, design_from_legacy_presentation
 
-PROFILE_VERSION = 1
+PROFILE_VERSION = 2
 PROFILE_KEYS = (
     CONF_THEME,
     CONF_ORIENTATION,
@@ -136,11 +137,15 @@ def make_profile_id(name: str) -> str:
 
 def stored_profiles(options: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Return valid stored profiles plus the implicit default profile."""
+    default_presentation = presentation_from_options(options)
     result = {
         DEFAULT_PROFILE_ID: {
             "name": "Default",
             "version": PROFILE_VERSION,
-            "presentation": presentation_from_options(options),
+            "description": "",
+            "author": "",
+            "presentation": default_presentation,
+            "design": design_from_legacy_presentation(default_presentation),
         }
     }
     raw = options.get(CONF_DISPLAY_PROFILES, {})
@@ -150,24 +155,53 @@ def stored_profiles(options: dict[str, Any]) -> dict[str, dict[str, Any]]:
         if identifier == DEFAULT_PROFILE_ID or not isinstance(value, dict):
             continue
         try:
-            presentation = PRESENTATION_SCHEMA(value.get("presentation", {}))
+            profile = _migrate_profile_document(value)
         except vol.Invalid:
             continue
-        result[str(identifier)] = {
-            "name": str(value.get("name", identifier))[:60],
-            "version": PROFILE_VERSION,
-            "presentation": presentation,
-        }
+        result[str(identifier)] = profile
     return result
 
 
 def validate_profile_document(document: dict[str, Any]) -> dict[str, Any]:
-    """Validate an imported profile document."""
+    """Validate and migrate an imported profile document."""
+    return _migrate_profile_document(document)
+
+
+def _migrate_profile_document(document: dict[str, Any]) -> dict[str, Any]:
+    """Return the current representation of a legacy or current Profile."""
+    version = document.get("version", 1)
+    if version == 1:
+        legacy = vol.Schema(
+            {
+                vol.Required("version"): vol.Equal(1),
+                vol.Required("name"): vol.All(str, vol.Length(min=1, max=60)),
+                vol.Required("presentation"): PRESENTATION_SCHEMA,
+            },
+            extra=vol.PREVENT_EXTRA,
+        )(document)
+        return {
+            "version": PROFILE_VERSION,
+            "name": legacy["name"],
+            "description": "",
+            "author": "",
+            "presentation": legacy["presentation"],
+            "design": design_from_legacy_presentation(legacy["presentation"]),
+        }
+
     return vol.Schema(
         {
             vol.Required("version"): vol.Equal(PROFILE_VERSION),
             vol.Required("name"): vol.All(str, vol.Length(min=1, max=60)),
+            vol.Optional("description", default=""): vol.All(
+                str,
+                vol.Length(max=500),
+            ),
+            vol.Optional("author", default=""): vol.All(
+                str,
+                vol.Length(max=120),
+            ),
             vol.Required("presentation"): PRESENTATION_SCHEMA,
+            vol.Required("design"): DESIGN_SCHEMA,
         },
         extra=vol.PREVENT_EXTRA,
     )(document)

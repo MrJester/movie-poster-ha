@@ -21,6 +21,22 @@ const THEME_LABELS = {
   minimal: "Minimal",
   oled: "OLED",
 };
+const SEMANTIC_COLOR_PROPERTIES = {
+  light_primary: "--mp-light-primary",
+  light_secondary: "--mp-light-secondary",
+  accent_primary: "--mp-accent-primary",
+  accent_secondary: "--mp-accent-secondary",
+  text_heading: "--mp-text-heading",
+  text_body: "--mp-text-body",
+  text_muted: "--mp-text-muted",
+  text_inverse: "--mp-text-inverse",
+  surface: "--mp-surface",
+  surface_elevated: "--mp-surface-elevated",
+  backdrop: "--mp-backdrop",
+  border: "--mp-border",
+  progress_track: "--mp-progress-track",
+  progress_fill: "--mp-progress-fill",
+};
 
 const normalizeTheme = (value) => THEMES.has(value) ? value : "classic";
 const ORIENTATIONS = new Set(["auto", "landscape", "portrait"]);
@@ -45,6 +61,10 @@ const FONTS = new Set(["system", "cinematic", "serif", "modern", "condensed"]);
 const normalizeFont = (value) => FONTS.has(value) ? value : "system";
 const normalizeColor = (value, fallback) => /^#[0-9a-f]{6}$/i.test(value ?? "")
   ? value : fallback;
+const semanticColorStyle = (colors) => Object.entries(SEMANTIC_COLOR_PROPERTIES)
+  .flatMap(([key, property]) => /^#[0-9a-f]{6}$/i.test(colors?.[key] || "")
+    ? [`${property}:${colors[key]}`] : [])
+  .join(";");
 const normalizeText = (value, fallback) => String(value ?? "").trim() || fallback;
 const LOGO_POSITIONS = new Set(["left", "center", "right"]);
 const normalizeLogoPosition = (value) => LOGO_POSITIONS.has(value) ? value : "right";
@@ -124,6 +144,12 @@ class MoviePosterPanel extends HTMLElement {
       owner_user_id: "", player_ids_by_user: {},
     };
     this._profiles = {};
+    this._presentationLibrary = null;
+    this._editorProfileId = null;
+    this._editorDocument = null;
+    this._editorSelectedId = null;
+    this._editorPreviewState = "coming_soon";
+    this._editorSaveTimer = null;
     if (this._studio) this._state = studioState();
   }
 
@@ -148,6 +174,7 @@ class MoviePosterPanel extends HTMLElement {
     clearTimeout(this._retryTimer);
     clearTimeout(this._reloadTimer);
     clearTimeout(this._controlsTimer);
+    clearTimeout(this._editorSaveTimer);
     this._bulbObserver?.disconnect();
     this._bulbObserver = null;
     document.removeEventListener("visibilitychange", this._resumeHandler);
@@ -442,6 +469,11 @@ class MoviePosterPanel extends HTMLElement {
     const orientation = normalizeOrientation(presentation.orientation);
     const layout = normalizeLayout(presentation.layout);
     const frame = normalizeFrame(presentation.frame_theme);
+    const referenceRenderer = frame === "marquee"
+      && theme === "classic"
+      && layout === "cinematic";
+    const rendererClass = referenceRenderer ? " renderer-reference" : "";
+    const editorClass = this._editorDocument ? " visual-editor-active" : "";
     const headingFont = normalizeFont(presentation.heading_font || "cinematic");
     const bodyFont = normalizeFont(presentation.body_font);
     const accentColor = normalizeColor(presentation.accent_color, "#f6cf70");
@@ -450,16 +482,17 @@ class MoviePosterPanel extends HTMLElement {
     const logoPosition = normalizeLogoPosition(presentation.logo_position);
     const backdrop = media.backdrop_url
       ? `url('${escapeHtml(media.backdrop_url)}')` : "none";
-    const presentationStyle = `style="--backdrop:${backdrop};--gold:${accentColor};--ink:${backgroundColor}"`;
+    const presentationStyle = `style="--backdrop:${backdrop};--gold:${accentColor};--ink:${backgroundColor};${semanticColorStyle(state.design_style?.colors)}"`;
 
     this.shadowRoot.innerHTML = `${this._styles()}${this._studioControls()}
-      <main class="theater${studioClass} theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}${transitionClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
+      <main class="theater${studioClass}${rendererClass}${editorClass} theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}${transitionClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
         ${presentationStyle} aria-label="Movie Poster display">
         <div class="ambient"></div>
         ${this._displayControls()}
         <p class="connection-warning" role="status"
           ${state.health?.connected === false ? "" : "hidden"}>
           ${escapeHtml(state.health?.message)}</p>
+        ${this._editorCanvas()}
         <section class="marquee-frame${logoUrl ? ` has-logo logo-at-${logoPosition}` : ""}">
           <div class="cyber-frame-lights" aria-hidden="true">
             <i class="cyber-light-group cyber-light-group-a"></i>
@@ -744,10 +777,78 @@ class MoviePosterPanel extends HTMLElement {
     }
   }
 
+  _editorCanvas() {
+    if (!this._studio || !this._editorDocument) return "";
+    const components = this._editorDocument.design?.components || [];
+    const media = this._state?.media || {};
+    const content = (component) => {
+      switch (component.type) {
+        case "poster":
+          return media.poster_url
+            ? `<img src="${escapeHtml(media.poster_url)}" alt="">`
+            : "Poster";
+        case "backdrop":
+          return media.backdrop_url
+            ? `<img src="${escapeHtml(media.backdrop_url)}" alt="">`
+            : "Backdrop";
+        case "logo":
+          return this._state.presentation?.logo_url
+            ? `<img src="${escapeHtml(this._state.presentation.logo_url)}" alt="">`
+            : "Logo";
+        case "mode_heading": return escapeHtml(this._state.heading || "Coming Soon");
+        case "title": return escapeHtml(media.title || "Movie Title");
+        case "subtitle": return escapeHtml(media.subtitle || "Subtitle or tagline");
+        case "year": return escapeHtml(media.year || "2026");
+        case "content_rating": return escapeHtml(media.content_rating || "PG-13");
+        case "runtime": return formatRuntime(media.duration_ms) || "2h 3m";
+        case "summary": return escapeHtml(media.summary || "Movie summary");
+        case "progress": return `<i style="width:35%"></i>`;
+        case "active_user": return escapeHtml(this._state.session?.user || "Movie Fan");
+        case "player_name": return escapeHtml(this._state.session?.player || "Theater");
+        case "playback_state": return escapeHtml(this._state.session?.state || "Playing");
+        case "static_text": return escapeHtml(component.text || "Custom text");
+        default: return escapeHtml(component.type);
+      }
+    };
+    return `<section class="visual-editor-canvas" aria-label="Presentation canvas">
+      ${components.filter((component) => component.visible !== false)
+        .sort((a, b) => a.z_index - b.z_index)
+        .map((component) => {
+          const bounds = this._editorBounds(component);
+          const selected = component.id === this._editorSelectedId ? " selected" : "";
+          return `<button type="button" class="editor-component component-${component.type}${selected}"
+            data-editor-component="${escapeHtml(component.id)}"
+            style="${this._editorComponentStyle(component, bounds)}">
+            <span class="editor-component-content">${content(component)}</span>
+            <span class="editor-component-label">${escapeHtml(component.type.replaceAll("_", " "))}</span>
+            <span class="editor-resize-handle" data-editor-resize aria-hidden="true"></span>
+          </button>`;
+        }).join("")}
+    </section>`;
+  }
+
   _studioControls() {
     if (!this._studio) return "";
     const presentation = this._state?.presentation ?? {};
     const settings = this._settings ?? {};
+    const editorComponents = this._editorDocument?.design?.components || [];
+    const selectedComponent = editorComponents.find(
+      (component) => component.id === this._editorSelectedId,
+    );
+    const selectedBounds = selectedComponent
+      ? this._editorBounds(selectedComponent) : null;
+    const editorOrientation = this._editorOrientation();
+    const hasOrientationOverride = Boolean(
+      selectedComponent?.orientation_overrides?.[editorOrientation]?.bounds,
+    );
+    const libraryProfiles = Object.entries(
+      this._presentationLibrary?.profiles || {},
+    );
+    const componentTypes = [
+      "poster", "backdrop", "logo", "mode_heading", "title", "subtitle",
+      "year", "content_rating", "runtime", "summary", "progress",
+      "active_user", "player_name", "playback_state", "static_text",
+    ];
     const options = (items, selected) => items.map(({ value, label }) =>
       `<option value="${escapeHtml(value)}" ${selected === value ? "selected" : ""}>${escapeHtml(label)}</option>`
     ).join("");
@@ -769,6 +870,102 @@ class MoviePosterPanel extends HTMLElement {
         data-setting="library_refresh_seconds" value="${Number(settings.library_refresh_seconds ?? 900)}"></label>`
         : `<p class="studio-wide">Loading Plex libraries, players, and users…</p>`}
       <h3>Presentation</h3>
+      <div class="studio-profile-actions studio-wide">
+        <button type="button" data-editor-action="new-preset">Customize preset</button>
+        <button type="button" data-editor-action="new-blank">Start blank</button>
+        <button type="button" data-editor-action="import-package">Import .movieposter</button>
+        <input type="file" accept=".movieposter,application/zip"
+          data-editor-package-file hidden>
+        ${this._editorDocument
+          ? `<button type="button" class="primary" data-editor-action="publish">Publish</button>
+             <button type="button" data-editor-action="close">Close editor</button>`
+          : ""}
+      </div>
+      ${libraryProfiles.length ? `
+        <label class="studio-wide">Presentation Library
+          <span class="studio-inline">
+            <select data-editor-library-select>
+              ${libraryProfiles.map(([identifier, item]) => {
+                const document = item.draft
+                  || item.published?.find(
+                    (revision) => revision.revision === item.active_revision,
+                  )?.profile;
+                return `<option value="${escapeHtml(identifier)}">${escapeHtml(document?.name || identifier)}${item.draft ? " — Draft" : ""}</option>`;
+              }).join("")}
+            </select>
+            <button type="button" data-editor-action="open-library">Open</button>
+          </span>
+        </label>
+        <div class="studio-profile-actions studio-wide">
+          <button type="button" data-editor-action="export-package">Export .movieposter</button>
+        </div>` : ""}
+      ${this._editorDocument ? `
+        <p class="studio-wide editor-draft-label">
+          Editing draft: <strong>${escapeHtml(this._editorDocument.name)}</strong>
+        </p>
+        <label class="studio-wide">Preview state<select data-editor-preview>
+          ${[
+            ["coming_soon", "Coming Soon"],
+            ["now_playing", "Now Playing"],
+            ["paused", "Paused"],
+            ["no_artwork", "No artwork"],
+            ["stress", "Long-content stress test"],
+            ["connection_warning", "Connection warning"],
+          ].map(([value, label]) =>
+            `<option value="${value}" ${this._editorPreviewState === value ? "selected" : ""}>${label}</option>`
+          ).join("")}
+        </select></label>
+        <label class="studio-wide">Add dynamic component
+          <span class="studio-inline">
+            <select data-editor-add-type>
+              ${componentTypes.map((type) =>
+                `<option value="${type}">${escapeHtml(type.replaceAll("_", " "))}</option>`
+              ).join("")}
+            </select>
+            <button type="button" data-editor-action="add">Add</button>
+          </span>
+        </label>
+        ${selectedComponent ? `
+          <fieldset class="editor-properties studio-wide">
+            <legend>${escapeHtml(selectedComponent.type.replaceAll("_", " "))}</legend>
+            ${["x", "y", "width", "height"].map((field) =>
+              `<label>${field}<input type="number" min="${field === "width" || field === "height" ? ".1" : "0"}"
+                max="100" step=".1" data-editor-bound="${field}"
+                value="${Number(selectedBounds[field])}"></label>`
+            ).join("")}
+            <label>Layer<input type="number" min="-100" max="100"
+              data-editor-z value="${Number(selectedComponent.z_index)}"></label>
+            <label class="studio-check"><input type="checkbox" data-editor-visible
+              ${selectedComponent.visible !== false ? "checked" : ""}>Visible</label>
+            <label class="studio-check studio-wide"><input type="checkbox"
+              data-editor-orientation-override ${hasOrientationOverride ? "checked" : ""}>
+              Override geometry in ${editorOrientation}</label>
+            ${selectedComponent.type === "static_text"
+              ? `<label class="studio-wide">Text<input type="text" maxlength="500"
+                data-editor-text value="${escapeHtml(selectedComponent.text || "")}"></label>`
+              : ""}
+            <label>Text color<input type="color" data-editor-style="text_color"
+              value="${normalizeColor(selectedComponent.style?.text_color, "#ffffff")}"></label>
+            <label>Background<input type="color" data-editor-style="background_color"
+              value="${normalizeColor(selectedComponent.style?.background_color, "#10151b")}"></label>
+            <label>Font size<input type="number" min=".1" max="20" step=".1"
+              data-editor-style="font_size"
+              value="${Number(selectedComponent.style?.font_size ?? 3)}"></label>
+            <label>Opacity<input type="number" min="0" max="1" step=".05"
+              data-editor-style="opacity"
+              value="${Number(selectedComponent.style?.opacity ?? 1)}"></label>
+            <label>Alignment<select data-editor-style="text_align">
+              ${["left", "center", "right"].map((value) =>
+                `<option value="${value}" ${(selectedComponent.style?.text_align || "center") === value ? "selected" : ""}>${value}</option>`
+              ).join("")}
+            </select></label>
+            <label>Glow<input type="number" min="0" max="1" step=".05"
+              data-editor-style="glow"
+              value="${Number(selectedComponent.style?.glow ?? 0)}"></label>
+            <button type="button" data-editor-action="delete-component">Remove component</button>
+          </fieldset>` : `<small class="studio-wide">Select a component on the canvas to edit it.</small>`}
+        <small class="studio-wide">Drag components to move them. Drag the lower-right handle to resize. Changes autosave to this draft.</small>
+      ` : ""}
       <label class="studio-wide">Display profile<select data-profile-select>
         ${options(this._choices.profiles || [], settings.profile_id || this._requestedProfileId)}
       </select></label>
@@ -879,6 +1076,384 @@ class MoviePosterPanel extends HTMLElement {
     });
     this.shadowRoot.querySelector("[data-profile-file]")
       ?.addEventListener("change", (event) => this._importProfile(event.target.files?.[0]));
+    this.shadowRoot.querySelectorAll("[data-editor-action]").forEach((button) => {
+      button.addEventListener("click", () =>
+        this._editorAction(button.dataset.editorAction));
+    });
+    this.shadowRoot.querySelectorAll("[data-editor-component]").forEach((component) => {
+      component.addEventListener("pointerdown", (event) =>
+        this._startEditorPointer(event, component));
+    });
+    this.shadowRoot.querySelectorAll("[data-editor-bound]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const component = this._selectedEditorComponent();
+        if (!component) return;
+        const field = input.dataset.editorBound;
+        const minimum = field === "width" || field === "height" ? 0.1 : 0;
+        const bounds = this._editorBounds(component);
+        const maximum = field === "x" ? 100 - bounds.width
+          : field === "y" ? 100 - bounds.height
+            : field === "width" ? 100 - bounds.x : 100 - bounds.y;
+        bounds[field] = Math.min(
+          maximum, Math.max(minimum, Number(input.value)),
+        );
+        this._render();
+        this._scheduleEditorSave();
+      });
+    });
+    this.shadowRoot.querySelector("[data-editor-z]")
+      ?.addEventListener("change", (event) => {
+        const component = this._selectedEditorComponent();
+        if (!component) return;
+        component.z_index = Math.min(100, Math.max(-100, Number(event.target.value)));
+        this._render();
+        this._scheduleEditorSave();
+      });
+    this.shadowRoot.querySelector("[data-editor-visible]")
+      ?.addEventListener("change", (event) => {
+        const component = this._selectedEditorComponent();
+        if (!component) return;
+        component.visible = event.target.checked;
+        this._render();
+        this._scheduleEditorSave();
+      });
+    this.shadowRoot.querySelector("[data-editor-text]")
+      ?.addEventListener("change", (event) => {
+        const component = this._selectedEditorComponent();
+        if (!component) return;
+        component.text = event.target.value;
+        this._render();
+        this._scheduleEditorSave();
+      });
+    this.shadowRoot.querySelectorAll("[data-editor-style]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const component = this._selectedEditorComponent();
+        if (!component) return;
+        component.style ||= {};
+        component.style[input.dataset.editorStyle] = input.type === "number"
+          ? Number(input.value) : input.value;
+        this._render();
+        this._scheduleEditorSave();
+      });
+    });
+    this.shadowRoot.querySelector("[data-editor-preview]")
+      ?.addEventListener("change", (event) =>
+        this._applyEditorPreview(event.target.value));
+    this.shadowRoot.querySelector("[data-editor-orientation-override]")
+      ?.addEventListener("change", (event) => {
+        const component = this._selectedEditorComponent();
+        if (!component) return;
+        const orientation = this._editorOrientation();
+        if (event.target.checked) {
+          component.orientation_overrides[orientation] = {
+            bounds: { ...component.bounds },
+          };
+        } else {
+          delete component.orientation_overrides[orientation];
+        }
+        this._render();
+        this._scheduleEditorSave();
+      });
+    this.shadowRoot.querySelector("[data-editor-package-file]")
+      ?.addEventListener("change", (event) =>
+        this._importPresentationPackage(event.target.files?.[0]));
+  }
+
+  async _editorAction(action) {
+    const status = this.shadowRoot.querySelector(".studio-status");
+    if (action === "new-preset" || action === "new-blank") {
+      const name = window.prompt(action === "new-blank"
+        ? "Name this blank presentation" : "Name this customized presentation");
+      if (!name?.trim()) return;
+      try {
+        const result = await this._callLibrary("create", {
+          name: name.trim(), blank: action === "new-blank",
+        });
+        this._openEditor(result.profile_id, result.library);
+      } catch (error) {
+        if (status) status.textContent = error?.message || "Unable to create draft.";
+      }
+      return;
+    }
+    if (action === "close") {
+      this._editorProfileId = null;
+      this._editorDocument = null;
+      this._editorSelectedId = null;
+      this._render();
+      return;
+    }
+    if (action === "open-library") {
+      const identifier = this.shadowRoot
+        .querySelector("[data-editor-library-select]")?.value;
+      if (!identifier) return;
+      const item = this._presentationLibrary?.profiles?.[identifier];
+      try {
+        if (item?.draft) {
+          this._openEditor(identifier);
+        } else {
+          const result = await this._callLibrary("edit", {
+            profile_id: identifier,
+          });
+          this._openEditor(identifier, result.library);
+        }
+      } catch (error) {
+        if (status) status.textContent = error?.message || "Unable to open profile.";
+      }
+      return;
+    }
+    if (action === "export-package") {
+      const identifier = this.shadowRoot
+        .querySelector("[data-editor-library-select]")?.value;
+      if (!identifier) return;
+      try {
+        const result = await this._callLibrary("export", {
+          profile_id: identifier,
+        });
+        const binary = window.atob(result.package);
+        const bytes = Uint8Array.from(binary, (character) =>
+          character.charCodeAt(0));
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(new Blob([bytes], {
+          type: "application/zip",
+        }));
+        link.download = `${identifier}.movieposter`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+        if (status) status.textContent = "Presentation package exported.";
+      } catch (error) {
+        if (status) status.textContent = error?.message || "Unable to export package.";
+      }
+      return;
+    }
+    if (action === "import-package") {
+      this.shadowRoot.querySelector("[data-editor-package-file]")?.click();
+      return;
+    }
+    if (action === "publish") {
+      try {
+        await this._flushEditorSave();
+        const result = await this._callLibrary("publish", {
+          profile_id: this._editorProfileId,
+        });
+        this._presentationLibrary = result.library;
+        if (status) status.textContent = `Published revision ${result.revision}.`;
+      } catch (error) {
+        if (status) status.textContent = error?.message || "Unable to publish draft.";
+      }
+      return;
+    }
+    if (action === "add") {
+      const type = this.shadowRoot.querySelector("[data-editor-add-type]")?.value;
+      if (!type || !this._editorDocument) return;
+      const components = this._editorDocument.design.components;
+      const base = type.replaceAll("_", "-");
+      let identifier = base;
+      let suffix = 2;
+      while (components.some((component) => component.id === identifier)) {
+        identifier = `${base}-${suffix++}`;
+      }
+      components.push({
+        id: identifier, type,
+        bounds: { x: 30, y: 30, width: 40, height: 12 },
+        z_index: 10, visible: true,
+        style_ref: type === "progress" ? "progress_fill" : "text_heading",
+        style: {},
+        text: type === "static_text" ? "Custom text" : "",
+        orientation_overrides: {},
+      });
+      this._editorSelectedId = identifier;
+      this._render();
+      this._scheduleEditorSave();
+      return;
+    }
+    if (action === "delete-component") {
+      const components = this._editorDocument?.design?.components;
+      if (!components) return;
+      this._editorDocument.design.components = components.filter(
+        (component) => component.id !== this._editorSelectedId,
+      );
+      this._editorSelectedId = null;
+      this._render();
+      this._scheduleEditorSave();
+    }
+  }
+
+  _selectedEditorComponent() {
+    return this._editorDocument?.design?.components?.find(
+      (component) => component.id === this._editorSelectedId,
+    );
+  }
+
+  _editorOrientation() {
+    const configured = normalizeOrientation(this._state?.presentation?.orientation);
+    if (configured !== "auto") return configured;
+    return window.matchMedia("(orientation: portrait)").matches
+      ? "portrait" : "landscape";
+  }
+
+  _editorBounds(component) {
+    return component.orientation_overrides?.[this._editorOrientation()]?.bounds
+      || component.bounds;
+  }
+
+  _editorComponentStyle(component, bounds) {
+    const style = component.style || {};
+    const textColor = normalizeColor(style.text_color, "#ffffff");
+    const backgroundColor = normalizeColor(style.background_color, "#10151b");
+    const fontSize = Math.min(20, Math.max(0.1, Number(style.font_size ?? 3)));
+    const opacity = Math.min(1, Math.max(0, Number(style.opacity ?? 1)));
+    const alignment = ["left", "center", "right"].includes(style.text_align)
+      ? style.text_align : "center";
+    const glow = Math.min(1, Math.max(0, Number(style.glow ?? 0)));
+    return [
+      `left:${bounds.x}%`, `top:${bounds.y}%`,
+      `width:${bounds.width}%`, `height:${bounds.height}%`,
+      `z-index:${component.z_index}`, `color:${textColor}`,
+      `background-color:${backgroundColor}`, `font-size:${fontSize}cqw`,
+      `opacity:${opacity}`, `text-align:${alignment}`,
+      `text-shadow:0 0 ${glow * 24}px ${textColor}`,
+    ].join(";");
+  }
+
+  _startEditorPointer(event, element) {
+    if (event.button !== 0 || !this._editorDocument) return;
+    event.preventDefault();
+    const identifier = element.dataset.editorComponent;
+    this._editorSelectedId = identifier;
+    const component = this._selectedEditorComponent();
+    const canvas = this.shadowRoot.querySelector(".visual-editor-canvas");
+    if (!component || !canvas) return;
+    element.classList.add("selected");
+    const canvasBox = canvas.getBoundingClientRect();
+    const bounds = this._editorBounds(component);
+    const start = {
+      x: event.clientX, y: event.clientY,
+      bounds: { ...bounds },
+      resize: Boolean(event.target.closest("[data-editor-resize]")),
+    };
+    element.setPointerCapture(event.pointerId);
+    const move = (moveEvent) => {
+      const dx = ((moveEvent.clientX - start.x) / canvasBox.width) * 100;
+      const dy = ((moveEvent.clientY - start.y) / canvasBox.height) * 100;
+      if (start.resize) {
+        bounds.width = Math.min(
+          100 - bounds.x, Math.max(0.1, start.bounds.width + dx),
+        );
+        bounds.height = Math.min(
+          100 - bounds.y, Math.max(0.1, start.bounds.height + dy),
+        );
+      } else {
+        bounds.x = Math.min(
+          100 - bounds.width, Math.max(0, start.bounds.x + dx),
+        );
+        bounds.y = Math.min(
+          100 - bounds.height, Math.max(0, start.bounds.y + dy),
+        );
+      }
+      Object.assign(element.style, {
+        left: `${bounds.x}%`,
+        top: `${bounds.y}%`,
+        width: `${bounds.width}%`,
+        height: `${bounds.height}%`,
+      });
+    };
+    const finish = () => {
+      element.removeEventListener("pointermove", move);
+      element.removeEventListener("pointerup", finish);
+      element.removeEventListener("pointercancel", finish);
+      this._render();
+      this._scheduleEditorSave();
+    };
+    element.addEventListener("pointermove", move);
+    element.addEventListener("pointerup", finish);
+    element.addEventListener("pointercancel", finish);
+  }
+
+  _scheduleEditorSave() {
+    clearTimeout(this._editorSaveTimer);
+    this._editorSaveTimer = setTimeout(() => {
+      this._flushEditorSave().catch((error) => {
+        const status = this.shadowRoot.querySelector(".studio-status");
+        if (status) status.textContent = error?.message || "Unable to autosave draft.";
+      });
+    }, 450);
+  }
+
+  async _flushEditorSave() {
+    clearTimeout(this._editorSaveTimer);
+    this._editorSaveTimer = null;
+    if (!this._editorDocument || !this._editorProfileId) return;
+    const result = await this._callLibrary("update", {
+      profile_id: this._editorProfileId,
+      document: this._editorDocument,
+    });
+    this._presentationLibrary = result.library;
+  }
+
+  async _callLibrary(action, fields = {}) {
+    if (!this._hass || !this._state?.entry_id) throw new Error("Studio is offline");
+    return this._hass.callWS({
+      type: "movie_poster/presentation_library",
+      entry_id: this._state.entry_id,
+      action,
+      ...fields,
+    });
+  }
+
+  _openEditor(profileId, library = this._presentationLibrary) {
+    const draft = library?.profiles?.[profileId]?.draft;
+    if (!draft) return;
+    this._presentationLibrary = library;
+    this._editorProfileId = profileId;
+    this._editorDocument = structuredClone(draft);
+    this._editorSelectedId = this._editorDocument.design.components[0]?.id || null;
+    this._render();
+  }
+
+  _applyEditorPreview(preview) {
+    const sample = studioState();
+    sample.entry_id = this._state.entry_id;
+    sample.presentation = {
+      ...sample.presentation,
+      ...this._state.presentation,
+    };
+    this._editorPreviewState = preview;
+    if (preview === "now_playing" || preview === "paused") {
+      sample.mode = "now_playing";
+      sample.heading = sample.presentation.now_playing_text;
+      sample.session.state = preview === "paused" ? "paused" : "playing";
+    } else if (preview === "no_artwork") {
+      sample.media.poster_url = null;
+      sample.media.backdrop_url = null;
+    } else if (preview === "stress") {
+      sample.media.title = "The Impossibly Long Motion Picture Title That Must Fit";
+      sample.media.subtitle = "A deliberately lengthy subtitle used to validate responsive typography";
+      sample.media.summary = "This stress-test summary intentionally contains much more copy than a typical presentation. It verifies that the authored component remains inside its normalized bounds without escaping the canvas, covering neighboring controls, or making the complete design larger than the available viewport.";
+    } else if (preview === "connection_warning") {
+      sample.health = {
+        connected: false,
+        message: "Plex is temporarily unavailable. Retrying automatically.",
+      };
+    }
+    this._state = sample;
+    this._render();
+  }
+
+  async _importPresentationPackage(file) {
+    if (!file) return;
+    const status = this.shadowRoot.querySelector(".studio-status");
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let binary = "";
+      for (const byte of bytes) binary += String.fromCharCode(byte);
+      const result = await this._callLibrary("import", {
+        package: window.btoa(binary),
+      });
+      this._openEditor(result.profile_id, result.library);
+      if (status) status.textContent = "Presentation package imported as a draft.";
+    } catch (error) {
+      if (status) status.textContent = error?.message || "Invalid presentation package.";
+    }
   }
 
   _studioPlayerChoices() {
@@ -952,6 +1527,8 @@ class MoviePosterPanel extends HTMLElement {
       this._choices = result.choices;
       this._normalizePlaybackSettings();
       this._profiles = result.profiles || {};
+      const library = await this._callLibrary("list");
+      this._presentationLibrary = library.library;
       this._render();
     } catch (error) {
       const status = this.shadowRoot.querySelector(".studio-status");
@@ -1292,6 +1869,26 @@ class MoviePosterPanel extends HTMLElement {
         outline-offset: 2px;
       }
       .studio-profile-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+      .studio-inline {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+      }
+      .editor-draft-label {
+        margin: 0;
+        padding: 8px 10px;
+        border-left: 3px solid var(--gold);
+        background: #ffffff0a;
+      }
+      .editor-properties {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin: 0;
+        padding: 10px;
+        border: 1px solid #ffffff24;
+      }
+      .editor-properties legend { padding-inline: 6px; color: var(--gold); }
       .studio-preview {
         width: calc(100vw - 430px);
         min-height: 100vh;
@@ -2748,6 +3345,243 @@ class MoviePosterPanel extends HTMLElement {
         .orientation-auto .frame-plaque span {
           margin-top: 3px;
           font-size: .58rem;
+        }
+      }
+      /* Declarative reference renderer: the complete authored canvas is
+         contained and scaled as one unit. Other combinations remain on the
+         compatibility renderer until converted and visually approved. */
+      .renderer-reference {
+        color: var(--mp-text-body, #e8dcc2);
+        background:
+          radial-gradient(circle at 50% 0%,
+            color-mix(in srgb, var(--mp-accent-secondary, #7a251d) 42%, transparent),
+            transparent 45%),
+          var(--mp-backdrop, #090706);
+      }
+      .renderer-reference .marquee-frame {
+        border-color: var(--mp-border, #b77a24);
+        background: linear-gradient(145deg,
+          var(--mp-surface-elevated, #4a1711),
+          var(--mp-surface, #32110d) 48%,
+          var(--mp-backdrop, #090706));
+        box-shadow:
+          0 0 0 3px var(--mp-accent-primary, #f6cf70),
+          0 28px 90px #000;
+      }
+      .renderer-reference .marquee {
+        border-color: var(--mp-border, #b77a24);
+        background: linear-gradient(
+          var(--mp-surface-elevated, #4a1711),
+          var(--mp-surface, #32110d)
+        );
+      }
+      .renderer-reference :is(h1, .details h2) {
+        color: var(--mp-text-heading, #fff7df);
+      }
+      .renderer-reference :is(.subtitle, .summary) {
+        color: var(--mp-text-body, #e8dcc2);
+      }
+      .renderer-reference :is(.meta, .session, .eyebrow) {
+        color: var(--mp-text-muted, #c9bfa8);
+      }
+      .renderer-reference .progress {
+        background: var(--mp-progress-track, #3b2118);
+      }
+      .renderer-reference .progress i {
+        background: var(--mp-progress-fill, #f6cf70);
+      }
+      .renderer-reference.orientation-landscape .marquee-frame {
+        width: min(1500px,
+          calc(100vw - clamp(32px, 4.8vw, 80px)),
+          calc((100dvh - clamp(32px, 4.8vw, 80px)) * 4 / 3));
+        min-height: 0;
+        aspect-ratio: 4 / 3;
+      }
+      .renderer-reference.orientation-portrait .marquee-frame {
+        width: min(1080px,
+          calc(100vw - clamp(32px, 4.8vw, 80px)),
+          calc((100dvh - clamp(32px, 4.8vw, 80px)) * 9 / 16));
+        min-height: 0;
+        aspect-ratio: 9 / 16;
+      }
+      @media (orientation: landscape) {
+        .renderer-reference.orientation-auto .marquee-frame {
+          width: min(1500px,
+            calc(100vw - clamp(32px, 4.8vw, 80px)),
+            calc((100dvh - clamp(32px, 4.8vw, 80px)) * 4 / 3));
+          min-height: 0;
+          aspect-ratio: 4 / 3;
+        }
+      }
+      @media (orientation: portrait) {
+        .renderer-reference.orientation-auto .marquee-frame {
+          width: min(1080px,
+            calc(100vw - clamp(32px, 4.8vw, 80px)),
+            calc((100dvh - clamp(32px, 4.8vw, 80px)) * 9 / 16));
+          min-height: 0;
+          aspect-ratio: 9 / 16;
+        }
+      }
+      .studio-preview.renderer-reference.orientation-landscape .marquee-frame {
+        width: min(calc(100vw - 462px), calc((100dvh - 48px) * 4 / 3));
+      }
+      .studio-preview.renderer-reference.orientation-portrait .marquee-frame {
+        width: min(calc(100vw - 462px), calc((100dvh - 48px) * 9 / 16));
+      }
+      @media (min-width: 901px) and (orientation: landscape) {
+        .studio-preview.renderer-reference.orientation-auto .marquee-frame {
+          width: min(calc(100vw - 462px), calc((100dvh - 48px) * 4 / 3));
+        }
+      }
+      @media (min-width: 901px) and (orientation: portrait) {
+        .studio-preview.renderer-reference.orientation-auto .marquee-frame {
+          width: min(calc(100vw - 462px), calc((100dvh - 48px) * 9 / 16));
+          aspect-ratio: 9 / 16;
+        }
+      }
+      @media (max-width: 900px) {
+        .studio-preview.renderer-reference.orientation-landscape .marquee-frame {
+          width: min(96vw, calc((54dvh - 20px) * 4 / 3));
+        }
+        .studio-preview.renderer-reference.orientation-portrait .marquee-frame {
+          width: min(96vw, calc((54dvh - 20px) * 9 / 16));
+        }
+      }
+      @media (max-width: 900px) and (orientation: landscape) {
+        .studio-preview.renderer-reference.orientation-auto .marquee-frame {
+          width: min(96vw, calc((54dvh - 20px) * 4 / 3));
+          aspect-ratio: 4 / 3;
+        }
+      }
+      @media (max-width: 900px) and (orientation: portrait) {
+        .studio-preview.renderer-reference.orientation-auto .marquee-frame {
+          width: min(96vw, calc((54dvh - 20px) * 9 / 16));
+          aspect-ratio: 9 / 16;
+        }
+      }
+      @media (min-width: 721px) and (max-width: 900px) and (orientation: portrait) {
+        .studio-preview.renderer-reference.orientation-auto .marquee-frame,
+        .studio-preview.renderer-reference.orientation-portrait .marquee-frame {
+          width: min(96vw, calc(25.875dvh - 12px));
+        }
+        .studio-preview.renderer-reference.orientation-landscape .marquee-frame {
+          width: min(96vw, calc(61.333dvh - 16px));
+        }
+      }
+      .visual-editor-active .marquee-frame { display: none; }
+      .visual-editor-canvas {
+        position: relative;
+        z-index: 2;
+        width: min(calc(100vw - 462px), calc((100dvh - 48px) * 9 / 16));
+        max-height: calc(100dvh - 48px);
+        overflow: hidden;
+        border: 1px solid #ffffff38;
+        outline: 1px dashed #f6cf7088;
+        outline-offset: -3px;
+        aspect-ratio: 9 / 16;
+        background:
+          linear-gradient(45deg, #151515 25%, transparent 25%) 0 0/20px 20px,
+          linear-gradient(45deg, transparent 75%, #151515 75%) 0 0/20px 20px,
+          linear-gradient(45deg, transparent 75%, #151515 75%) 10px -10px/20px 20px,
+          linear-gradient(45deg, #151515 25%, #090909 25%) 10px -10px/20px 20px;
+        box-shadow: 0 24px 70px #000c;
+        touch-action: none;
+      }
+      .visual-editor-active.orientation-landscape .visual-editor-canvas {
+        width: min(calc(100vw - 462px), calc((100dvh - 48px) * 4 / 3));
+        aspect-ratio: 4 / 3;
+      }
+      @media (orientation: landscape) {
+        .visual-editor-active.orientation-auto .visual-editor-canvas {
+          width: min(calc(100vw - 462px), calc((100dvh - 48px) * 4 / 3));
+          aspect-ratio: 4 / 3;
+        }
+      }
+      .editor-component {
+        position: absolute;
+        display: block;
+        min-width: 1px;
+        min-height: 1px;
+        padding: 0;
+        overflow: hidden;
+        border: 1px solid #ffffff55;
+        border-radius: 0;
+        background: #10151bcc;
+        color: #fff;
+        cursor: move;
+        font: inherit;
+        text-align: center;
+        touch-action: none;
+      }
+      .editor-component.selected {
+        border-color: #f6cf70;
+        outline: 2px solid #f6cf7099;
+        outline-offset: 1px;
+      }
+      .editor-component-content {
+        display: grid;
+        width: 100%;
+        height: 100%;
+        place-items: center;
+        overflow: hidden;
+      }
+      .editor-component-content img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .editor-component-label {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        padding: 2px 4px;
+        background: #000c;
+        color: #fff;
+        font-size: clamp(7px, 1cqw, 11px);
+        line-height: 1;
+        text-transform: uppercase;
+      }
+      .component-backdrop .editor-component-content img { object-fit: cover; }
+      .component-progress .editor-component-content {
+        display: block;
+        height: 5px;
+        margin-top: calc(50% - 2px);
+        background: #ffffff33;
+      }
+      .component-progress .editor-component-content i {
+        display: block;
+        height: 100%;
+        background: #f6cf70;
+      }
+      .editor-resize-handle {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 14px;
+        height: 14px;
+        border: 0;
+        border-top: 2px solid #fff;
+        border-left: 2px solid #fff;
+        background: #f6cf70;
+        cursor: nwse-resize;
+      }
+      @media (max-width: 900px) {
+        .visual-editor-canvas {
+          width: min(96vw, calc((54dvh - 20px) * 9 / 16));
+          max-height: calc(54dvh - 20px);
+        }
+        .visual-editor-active.orientation-landscape .visual-editor-canvas {
+          width: min(96vw, calc((54dvh - 20px) * 4 / 3));
+        }
+        .visual-editor-active.orientation-auto .visual-editor-canvas {
+          width: min(96vw, calc((54dvh - 20px) * 9 / 16));
+          aspect-ratio: 9 / 16;
+        }
+      }
+      @media (max-width: 900px) and (orientation: landscape) {
+        .visual-editor-active.orientation-auto .visual-editor-canvas {
+          width: min(96vw, calc((54dvh - 20px) * 4 / 3));
+          aspect-ratio: 4 / 3;
         }
       }
       .theater:not(.motion-off) .content,

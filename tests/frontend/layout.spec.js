@@ -243,6 +243,38 @@ test("themes recolor without changing frame or layout geometry", async ({ page }
     .toBe(THEMES.length);
 });
 
+test("reference renderer contains the complete Marquee canvas", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openHarness(page);
+  expect(await renderPoster(
+    page, "marquee", "classic", "cinematic", "landscape",
+  )).toEqual([]);
+
+  const result = await page.evaluate(() => {
+    const root = document.querySelector("movie-poster-panel").shadowRoot;
+    const theater = root.querySelector(".theater");
+    const frame = root.querySelector(".marquee-frame");
+    const box = frame.getBoundingClientRect();
+    return {
+      enabled: theater.classList.contains("renderer-reference"),
+      contained: box.left >= 0 && box.top >= 0
+        && box.right <= innerWidth && box.bottom <= innerHeight,
+      ratio: box.width / box.height,
+    };
+  });
+  expect(result.enabled).toBe(true);
+  expect(result.contained).toBe(true);
+  expect(result.ratio).toBeCloseTo(4 / 3, 2);
+
+  expect(await renderPoster(
+    page, "cyber_noir", "classic", "cinematic", "landscape",
+  )).toEqual([]);
+  expect(await page.evaluate(() => document
+    .querySelector("movie-poster-panel").shadowRoot
+    .querySelector(".theater").classList.contains("renderer-reference")))
+    .toBe(false);
+});
+
 test("stacked summaries match the poster width and center their text", async ({ page }) => {
   await page.setViewportSize({ width: 1080, height: 1920 });
   await openHarness(page);
@@ -304,6 +336,51 @@ test("Display Studio presents Frame, Theme, then Layout", async ({ page }) => {
   expect(result.themeLabels).toEqual([
     "Classic", "Art Deco", "Neon", "Minimal", "OLED",
   ]);
+});
+
+test("visual editor starts blank and adds normalized components", async ({ page }) => {
+  await openHarness(page, "?studio=1");
+  const result = await page.evaluate(async () => {
+    const panel = document.createElement("movie-poster-panel");
+    panel._state.entry_id = "editor-entry";
+    panel._editorProfileId = "blank";
+    panel._editorDocument = {
+      version: 2,
+      name: "Blank",
+      description: "",
+      author: "",
+      presentation: { ...panel._state.presentation },
+      design: {
+        schema_version: 1,
+        resources: {
+          frame: { id: "builtin.frame.blank", version: 1 },
+          theme: { id: "builtin.theme.classic", version: 1 },
+          layout: { id: "builtin.layout.blank", version: 1 },
+        },
+        viewport: { fit: "contain", link_orientations: true },
+        components: [],
+        motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+      },
+    };
+    document.body.append(panel);
+    panel._render();
+    panel.shadowRoot.querySelector("[data-editor-add-type]").value = "title";
+    await panel._editorAction("add");
+    clearTimeout(panel._editorSaveTimer);
+    const component = panel._editorDocument.design.components[0];
+    return {
+      canvas: Boolean(panel.shadowRoot.querySelector(".visual-editor-canvas")),
+      type: component.type,
+      bounds: component.bounds,
+      selected: panel._editorSelectedId,
+    };
+  });
+  expect(result).toEqual({
+    canvas: true,
+    type: "title",
+    bounds: { x: 30, y: 30, width: 40, height: 12 },
+    selected: "title",
+  });
 });
 
 test("Cyber Noir themes recolor its powered system without changing its frame", async ({ page }, testInfo) => {
