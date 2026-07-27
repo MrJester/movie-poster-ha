@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-beta.43
+
+- Capitalize every Display Studio theme label.
+- Recolor Cyber Noir's powered rails, fixture glow, glass accents, typography,
+  poster border, plaque, metadata, and progress treatment with the selected
+  Classic, Art Deco, Neon, Minimal, or OLED palette while preserving the
+  rendered metal enclosure.
+
 ## 0.1.0-beta.42
 
 - Refine Cyber Noir with a quieter inner chase rail, sharper cyan fixture cores,
