@@ -497,3 +497,35 @@ Required automated coverage includes:
 
 Visual changes to built-in resources require reviewed before/after snapshots and
 must not be accepted solely because containment tests pass.
+
+### Live Home Assistant visual acceptance gate
+
+Automated unit, schema, package, and local browser tests are necessary but are
+not sufficient for release. Every presentation-system change must also be
+validated in an authenticated, running Home Assistant installation after the
+candidate build is installed.
+
+The live acceptance pass must:
+
+- open both the display and Display Studio through Home Assistant's actual
+  panel routing and WebSocket connection;
+- verify the installed frontend version matches the candidate commit before
+  judging the result;
+- capture and review screenshots at representative phone, tablet, desktop,
+  portrait-signage, landscape-signage, 1080p, and 4K viewports;
+- exercise real editor interactions, including preset and blank creation,
+  selection, drag, resize, exact geometry, orientation overrides, autosave,
+  publish, reopen, rollback, import, and export;
+- verify Frames, Themes, Layouts, preview states, long text, missing artwork,
+  reduced motion, and both orientations visually rather than only checking
+  element bounds;
+- confirm that the complete design remains visible, controls do not overlap the
+  preview, text remains readable, artwork is not unintentionally cropped, and
+  animation effects do not bleed outside their intended frame;
+- inspect Home Assistant browser logs and integration logs for new warnings or
+  errors; and
+- retain reviewed screenshots or a concise visual QA report with the release
+  evidence.
+
+If the live installation is still serving an earlier build, the result is
+recorded as "not yet testable" rather than treated as a pass.
