@@ -530,8 +530,18 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "comic_hero": _frame_resource(
         "comic_hero",
         "Comic Hero",
-        _bounds(8, 7, 84, 86),
-        _bounds(7, 8, 86, 84),
+        _bounds(19, 14, 62, 71),
+        _bounds(15, 21, 70, 58),
+        assets={
+            "bezel": {
+                "portrait": (
+                    "/movie_poster_static/assets/comic-hero-frame-portrait.png"
+                ),
+                "landscape": (
+                    "/movie_poster_static/assets/comic-hero-frame-landscape.png"
+                ),
+            },
+        },
         bindings={
             "ink": "border",
             "hero_fill": "accent_primary",

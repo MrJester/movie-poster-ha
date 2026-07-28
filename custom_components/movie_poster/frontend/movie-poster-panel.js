@@ -2947,43 +2947,134 @@ class MoviePosterPanel extends HTMLElement {
         50% { opacity: .94; }
       }
 
-      /* Layered comic-book energy frame. */
+      /* Photographic layered print, resin, halftone, and raised ink. */
       .frame-comic_hero .marquee-frame {
-        padding: clamp(34px, 4.5vw, 68px);
-        border: 14px solid #ef2f24;
-        border-radius: 4px;
-        background:
-          linear-gradient(135deg, #f7ba20 0 9%, transparent 9% 91%, #1768c4 91%),
-          linear-gradient(45deg, #1768c4 0 8%, transparent 8% 92%, #f7ba20 92%),
-          radial-gradient(circle, #ffffff18 0 3px, transparent 4px) 0 0/20px 20px,
-          linear-gradient(135deg, #101423, #070914);
-        box-shadow: inset 18px 0 0 #1768c4, inset -18px 0 0 #f7ba20,
-          0 30px 80px #000;
-        filter: drop-shadow(18px -14px 0 #f7ba20)
-          drop-shadow(-18px 16px 0 #1768c4);
-        clip-path: polygon(4% 0, 96% 3%, 100% 94%, 94% 100%, 3% 97%, 0 7%);
+        padding: 0;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        clip-path: none;
+        background: transparent;
+        box-shadow: 0 34px 90px #000c;
+      }
+      .frame-comic_hero .marquee-frame::after {
+        content: "";
+        position: absolute;
+        z-index: 4;
+        inset: 0;
+        pointer-events: none;
+        background: url("/movie_poster_static/assets/comic-hero-frame-landscape.png")
+          center / 100% 100% no-repeat;
+        filter: drop-shadow(0 20px 32px #000c);
       }
       .frame-comic_hero .marquee-frame::before {
-        inset: 14px; border: 7px solid #fff; border-radius: 0; filter: none;
-        clip-path: polygon(3% 0, 100% 4%, 97% 100%, 0 95%);
+        content: "";
+        position: absolute;
+        z-index: 5;
+        inset: 20.5% 14.4%;
+        pointer-events: none;
+        border: 2px solid var(--mp-border, #171717);
+        box-shadow:
+          inset 0 0 6px color-mix(in srgb,
+            var(--mp-light-primary, #fff) 34%, transparent),
+          0 0 8px color-mix(in srgb,
+            var(--mp-accent-primary, #ef2f24) 28%, transparent);
+        opacity: .84;
+        animation: comicHeroInkPulse 2.8s steps(2, end) infinite alternate;
+      }
+      .frame-comic_hero .frame-stage {
+        position: absolute;
+        z-index: 1;
+        inset: 21% 15%;
+        display: flex;
+        min-width: 0;
+        min-height: 0;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .frame-comic_hero .frame-stage > .marquee { flex: 0 0 auto; }
+      .frame-comic_hero .frame-stage > .content {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
       }
       .frame-comic_hero .content {
-        padding-inline: clamp(34px, 5vw, 82px);
+        gap: clamp(8px, 1.5cqw, 20px);
+        padding: clamp(4px, .8cqw, 10px) clamp(6px, 1.2cqw, 16px)
+          clamp(6px, 1cqw, 14px);
       }
-      .frame-comic_hero .ornament {
-        top: 21%; bottom: 16%; width: clamp(30px, 3vw, 52px);
-        background: repeating-linear-gradient(135deg, #f7ba20 0 18px,
-          #ef2f24 18px 36px, #1768c4 36px 54px);
-        clip-path: polygon(50% 0, 100% 12%, 65% 26%, 100% 42%, 58% 58%,
-          100% 76%, 48% 100%, 0 88%, 35% 68%, 0 50%, 38% 32%, 0 15%);
+      .frame-comic_hero .frame-ornaments { display: none; }
+      .frame-comic_hero .marquee {
+        margin: 0 clamp(5px, 1cqw, 16px) clamp(7px, 1.1cqw, 16px);
+        border: 2px solid var(--mp-border, #171717);
+        background: color-mix(in srgb,
+          var(--mp-surface, #101423) 94%, transparent);
       }
-      .frame-comic_hero .ornament-left { left: 18px; }
-      .frame-comic_hero .ornament-right { right: 18px; transform: scaleX(-1); }
       .frame-comic_hero h1, .frame-comic_hero .details h2 {
         font-family: var(--heading-font, Impact, sans-serif); font-style: italic;
-        text-shadow: 3px 3px 0 #1265bd, 6px 6px 0 #111;
+        text-shadow:
+          2px 2px 0 var(--mp-accent-secondary, #1265bd),
+          4px 4px 0 var(--mp-border, #111);
       }
-      .frame-comic_hero .frame-plaque { display: block; color: #fff; background: #d9271f; transform: skew(-5deg); }
+      .frame-comic_hero .frame-plaque { display: none; }
+      .frame-comic_hero.orientation-portrait .frame-stage {
+        inset: 14% 19%;
+      }
+      .frame-comic_hero.orientation-portrait .content {
+        grid-template-rows: minmax(0, 1fr);
+      }
+      .frame-comic_hero.orientation-portrait .poster-wrap {
+        min-height: 0;
+        height: 100%;
+      }
+      .frame-comic_hero.orientation-portrait .poster {
+        width: auto;
+        max-width: 100%;
+        height: 100%;
+        max-height: 100%;
+      }
+      .frame-comic_hero.orientation-portrait .details { display: none; }
+      .frame-comic_hero.orientation-portrait .marquee-frame::before {
+        inset: 13.6% 18.7%;
+      }
+      .frame-comic_hero.orientation-portrait .marquee-frame::after {
+        background-image:
+          url("/movie_poster_static/assets/comic-hero-frame-portrait.png");
+      }
+      .motion-off.frame-comic_hero .marquee-frame::before {
+        animation: none;
+        opacity: .72;
+      }
+      @keyframes comicHeroInkPulse {
+        from { opacity: .58; filter: saturate(.9); }
+        to { opacity: .94; filter: saturate(1.2) brightness(1.08); }
+      }
+      @media (max-width: 720px), (orientation: portrait) {
+        .frame-comic_hero.orientation-auto .frame-stage {
+          inset: 14% 19%;
+        }
+        .frame-comic_hero.orientation-auto .content {
+          grid-template-rows: minmax(0, 1fr);
+        }
+        .frame-comic_hero.orientation-auto .poster-wrap {
+          min-height: 0;
+          height: 100%;
+        }
+        .frame-comic_hero.orientation-auto .poster {
+          width: auto;
+          max-width: 100%;
+          height: 100%;
+          max-height: 100%;
+        }
+        .frame-comic_hero.orientation-auto .details { display: none; }
+        .frame-comic_hero.orientation-auto .marquee-frame::before {
+          inset: 13.6% 18.7%;
+        }
+        .frame-comic_hero.orientation-auto .marquee-frame::after {
+          background-image:
+            url("/movie_poster_static/assets/comic-hero-frame-portrait.png");
+        }
+      }
 
       /* Photographic walnut, aged brass, velvet, and practical lamps. */
       .frame-theater_classic .marquee-frame {
