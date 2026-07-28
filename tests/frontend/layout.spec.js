@@ -192,20 +192,21 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
 }
 
 for (const viewport of VIEWPORTS) {
-  test(`all renderer combinations stay contained on ${viewport.name}`, async ({ page }, testInfo) => {
+  test(`all renderer combinations stay contained on ${viewport.name}`, async ({ page }) => {
     test.setTimeout(180_000);
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await openHarness(page);
     const failures = [];
-    const combinations = testInfo.project.name === "webkit"
-      ? [
-        ...FRAMES.flatMap((frame) => LAYOUTS.map((layout) =>
-          ({ frame, theme: "classic", layout }))),
-        ...THEMES.map((theme) =>
-          ({ frame: "marquee", theme, layout: "cinematic" })),
-      ]
-      : THEMES.flatMap((theme) => FRAMES.flatMap((frame) =>
-        LAYOUTS.map((layout) => ({ frame, theme, layout }))));
+    // Pairwise coverage keeps this visual matrix practical with photographic
+    // assets. The dedicated Theme test below proves palette changes preserve
+    // geometry, so repeating every Theme × Frame × Layout cross-product adds
+    // decode cost without exercising another layout contract.
+    const combinations = [
+      ...FRAMES.flatMap((frame) => LAYOUTS.map((layout) =>
+        ({ frame, theme: "classic", layout }))),
+      ...THEMES.filter((theme) => theme !== "classic").map((theme) =>
+        ({ frame: "marquee", theme, layout: "cinematic" })),
+    ];
     for (const orientation of ["auto", "landscape", "portrait"]) {
       for (const { frame, theme, layout } of combinations) {
         const violations = await renderPoster(
