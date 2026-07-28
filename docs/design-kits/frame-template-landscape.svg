@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"
+  viewBox="0 0 1920 1080">
+  <g fill="none" vector-effect="non-scaling-stroke">
+    <rect x="1" y="1" width="1918" height="1078" stroke="#ff4d67"
+      stroke-width="2" stroke-dasharray="18 10"/>
+    <rect x="57.6" y="32.4" width="1804.8" height="1015.2" stroke="#31d8ff"
+      stroke-width="3" stroke-dasharray="16 10"/>
+    <rect x="96" y="54" width="1728" height="972" stroke="#ffd166"
+      stroke-width="4"/>
+    <rect x="192" y="108" width="1536" height="864" stroke="#7dff9b"
+      stroke-width="3" stroke-dasharray="12 8"/>
+  </g>
+  <g font-family="Arial, sans-serif" font-size="28" font-weight="700">
+    <text x="24" y="42" fill="#ff4d67">FULL BLEED 1920 × 1080</text>
+    <text x="76" y="88" fill="#31d8ff">MAXIMUM GLOW BOUNDARY</text>
+    <text x="118" y="136" fill="#ffd166">TRANSPARENT CONTENT OPENING</text>
+    <text x="214" y="158" fill="#7dff9b">TEXT-SAFE REGION</text>
+  </g>
+</svg>

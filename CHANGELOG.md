@@ -29,6 +29,9 @@
 - Add validated image and font uploads to custom presentation Profiles, asset
   removal, persisted-storage validation, package-size limits, signature checks,
   and editor asset inventory.
+- Publish transparent 9:16 portrait and 16:9 landscape Frame design templates,
+  editable SVG guide sources, normalized safe/opening boundaries, layer export
+  guidance, and an example custom Frame manifest.
 - Use a presentation-specific frontend module cache key so Home Assistant
   cannot reuse the pre-editor panel module after upgrading to beta.44.
 - Make metadata grid items explicitly shrink-safe across browser engines so

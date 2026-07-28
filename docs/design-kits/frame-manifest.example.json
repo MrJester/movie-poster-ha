@@ -1,0 +1,46 @@
+{
+  "id": "user.frame.example",
+  "version": 1,
+  "name": "Example Frame",
+  "description": "A custom layered display enclosure.",
+  "orientations": {
+    "portrait": {
+      "canvas": {
+        "width": 1080,
+        "height": 1920
+      },
+      "content_opening": {
+        "x": 5,
+        "y": 5,
+        "width": 90,
+        "height": 90
+      },
+      "layers": {
+        "background": "assets/frame/portrait-background.png",
+        "bezel": "assets/frame/portrait-bezel.png",
+        "lighting": "assets/frame/portrait-lighting.png",
+        "foreground": "assets/frame/portrait-foreground.png",
+        "content_mask": "assets/frame/portrait-content-mask.png"
+      }
+    },
+    "landscape": {
+      "canvas": {
+        "width": 1920,
+        "height": 1080
+      },
+      "content_opening": {
+        "x": 5,
+        "y": 5,
+        "width": 90,
+        "height": 90
+      },
+      "layers": {
+        "background": "assets/frame/landscape-background.png",
+        "bezel": "assets/frame/landscape-bezel.png",
+        "lighting": "assets/frame/landscape-lighting.png",
+        "foreground": "assets/frame/landscape-foreground.png",
+        "content_mask": "assets/frame/landscape-content-mask.png"
+      }
+    }
+  }
+}
