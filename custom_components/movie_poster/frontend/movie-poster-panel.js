@@ -4029,6 +4029,50 @@ class MoviePosterPanel extends HTMLElement {
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 1;
       }
+      .orientation-landscape.layout-poster .content {
+        display: grid;
+        grid-template-rows: minmax(0, 1fr) auto;
+        min-height: 0;
+      }
+      .orientation-landscape.layout-poster .poster-wrap {
+        min-height: 0;
+        height: 100%;
+      }
+      .orientation-landscape.layout-poster .poster {
+        width: auto;
+        max-width: 100%;
+        height: 100%;
+        max-height: 100%;
+      }
+      .orientation-landscape.layout-poster .details {
+        height: auto;
+        max-height: 24vh;
+        margin-top: clamp(4px, 1vh, 10px);
+        overflow: hidden;
+      }
+      @media (min-width: 721px) and (orientation: landscape) {
+        .orientation-auto.layout-poster .content {
+          display: grid;
+          grid-template-rows: minmax(0, 1fr) auto;
+          min-height: 0;
+        }
+        .orientation-auto.layout-poster .poster-wrap {
+          min-height: 0;
+          height: 100%;
+        }
+        .orientation-auto.layout-poster .poster {
+          width: auto;
+          max-width: 100%;
+          height: 100%;
+          max-height: 100%;
+        }
+        .orientation-auto.layout-poster .details {
+          height: auto;
+          max-height: 24vh;
+          margin-top: clamp(4px, 1vh, 10px);
+          overflow: hidden;
+        }
+      }
       @media (orientation: portrait) {
         .orientation-auto.layout-split .marquee-frame .summary,
         .orientation-auto.layout-split .marquee-frame .session,
