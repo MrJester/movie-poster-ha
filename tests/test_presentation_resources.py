@@ -108,6 +108,25 @@ def test_catalogs_are_independent_objects() -> None:
         if layer["slot"] == "bezel"
     )
     assert set(cyber_bezel["asset"]) == {"portrait", "landscape"}
+    theater_bezel = next(
+        layer
+        for layer in BUILTIN_FRAMES["theater_classic"]["layers"]
+        if layer["slot"] == "bezel"
+    )
+    assert theater_bezel["asset"] == {
+        "portrait": (
+            "/movie_poster_static/assets/"
+            "theater-classic-frame-portrait.png"
+        ),
+        "landscape": (
+            "/movie_poster_static/assets/"
+            "theater-classic-frame-landscape.png"
+        ),
+    }
+    assert BUILTIN_FRAMES["theater_classic"]["safe_opening"] == {
+        "portrait": {"x": 20, "y": 16, "width": 60, "height": 68},
+        "landscape": {"x": 15, "y": 20, "width": 70, "height": 61},
+    }
     split_poster = next(
         component
         for component in BUILTIN_LAYOUTS["split"]["components"]

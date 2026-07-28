@@ -2985,16 +2985,136 @@ class MoviePosterPanel extends HTMLElement {
       }
       .frame-comic_hero .frame-plaque { display: block; color: #fff; background: #d9271f; transform: skew(-5deg); }
 
-      /* Restrained lobby signage in walnut and brass. */
+      /* Photographic walnut, aged brass, velvet, and practical lamps. */
       .frame-theater_classic .marquee-frame {
-        border: 14px ridge #6d4527; border-radius: 3px;
-        background: linear-gradient(90deg, #2d160b, #53301c 8%, #120b08 18% 82%, #53301c 92%, #2d160b);
-        box-shadow: inset 0 0 0 3px #d2a85b, 0 26px 70px #000;
+        padding: 0;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: 0 34px 90px #000c;
       }
-      .frame-theater_classic .marquee-frame::before { inset: 10px; border: 2px solid #c89d52; border-radius: 0; filter: none; animation: none; }
-      .frame-theater_classic .marquee { border: 2px solid #a77b3d; background: #24150de8; }
+      .frame-theater_classic .marquee-frame::after {
+        content: "";
+        position: absolute;
+        z-index: 4;
+        inset: 0;
+        pointer-events: none;
+        background: url("/movie_poster_static/assets/theater-classic-frame-landscape.png")
+          center / 100% 100% no-repeat;
+        filter: drop-shadow(0 20px 32px #000c);
+      }
+      .frame-theater_classic .marquee-frame::before {
+        content: "";
+        position: absolute;
+        z-index: 5;
+        inset: 19.4% 14.5%;
+        pointer-events: none;
+        border: 1px solid color-mix(in srgb,
+          var(--mp-accent-primary, #d2a85b) 72%, transparent);
+        border-radius: 2px;
+        box-shadow:
+          inset 0 0 8px color-mix(in srgb,
+            var(--mp-light-primary, #ffd78a) 44%, transparent),
+          0 0 7px color-mix(in srgb,
+            var(--mp-light-primary, #ffd78a) 36%, transparent);
+        opacity: .8;
+        animation: theaterClassicGlow 3.2s ease-in-out infinite alternate;
+      }
+      .frame-theater_classic .frame-stage {
+        position: absolute;
+        z-index: 1;
+        inset: 20% 15%;
+        display: flex;
+        min-width: 0;
+        min-height: 0;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .frame-theater_classic .frame-stage > .marquee { flex: 0 0 auto; }
+      .frame-theater_classic .frame-stage > .content {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .frame-theater_classic .content {
+        gap: clamp(8px, 1.6cqw, 22px);
+        padding: clamp(4px, .8cqw, 10px) clamp(6px, 1.2cqw, 16px)
+          clamp(6px, 1cqw, 14px);
+      }
+      .frame-theater_classic .frame-ornaments { display: none; }
+      .frame-theater_classic .marquee {
+        margin: 0 clamp(5px, 1cqw, 16px) clamp(8px, 1.2cqw, 18px);
+        border: 1px solid var(--mp-border, #a77b3d);
+        background: color-mix(in srgb,
+          var(--mp-surface, #24150d) 92%, transparent);
+      }
       .frame-theater_classic .eyebrow::before { content: "THEATRE 1 · "; }
-      .frame-theater_classic .frame-plaque { display: block; color: #f3d89b; border: 1px solid #a77b3d; background: #21130d; }
+      .frame-theater_classic .frame-plaque { display: none; }
+      .frame-theater_classic.orientation-portrait .frame-stage {
+        inset: 16% 20%;
+      }
+      .frame-theater_classic.orientation-portrait .content {
+        grid-template-rows: minmax(0, 1fr) auto;
+        gap: clamp(5px, 1cqw, 12px);
+      }
+      .frame-theater_classic.orientation-portrait .poster-wrap {
+        min-height: 0;
+        height: 100%;
+      }
+      .frame-theater_classic.orientation-portrait .poster {
+        width: auto;
+        max-width: 100%;
+        height: 100%;
+        max-height: 100%;
+      }
+      .frame-theater_classic.orientation-portrait .details {
+        display: none;
+      }
+      .frame-theater_classic.orientation-portrait .marquee-frame::before {
+        inset: 15.5% 19.5%;
+      }
+      .frame-theater_classic.orientation-portrait .marquee-frame::after {
+        background-image:
+          url("/movie_poster_static/assets/theater-classic-frame-portrait.png");
+      }
+      .motion-off.frame-theater_classic .marquee-frame::before {
+        animation: none;
+        opacity: .72;
+      }
+      @keyframes theaterClassicGlow {
+        from { opacity: .58; filter: brightness(.86); }
+        to { opacity: .94; filter: brightness(1.12); }
+      }
+      @media (max-width: 720px), (orientation: portrait) {
+        .frame-theater_classic.orientation-auto .frame-stage {
+          inset: 16% 20%;
+        }
+        .frame-theater_classic.orientation-auto .content {
+          grid-template-rows: minmax(0, 1fr) auto;
+          gap: clamp(5px, 1cqw, 12px);
+        }
+        .frame-theater_classic.orientation-auto .poster-wrap {
+          min-height: 0;
+          height: 100%;
+        }
+        .frame-theater_classic.orientation-auto .poster {
+          width: auto;
+          max-width: 100%;
+          height: 100%;
+          max-height: 100%;
+        }
+        .frame-theater_classic.orientation-auto .details {
+          display: none;
+        }
+        .frame-theater_classic.orientation-auto .marquee-frame::before {
+          inset: 15.5% 19.5%;
+        }
+        .frame-theater_classic.orientation-auto .marquee-frame::after {
+          background-image:
+            url("/movie_poster_static/assets/theater-classic-frame-portrait.png");
+        }
+      }
 
       /* Bamboo, warm wood, glass, and subtle foliage. */
       .frame-indie_nature .marquee-frame {

@@ -543,8 +543,20 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "theater_classic": _frame_resource(
         "theater_classic",
         "Theater Classic",
-        _bounds(10, 8, 80, 84),
-        _bounds(9, 9, 82, 82),
+        _bounds(20, 16, 60, 68),
+        _bounds(15, 20, 70, 61),
+        assets={
+            "bezel": {
+                "portrait": (
+                    "/movie_poster_static/assets/"
+                    "theater-classic-frame-portrait.png"
+                ),
+                "landscape": (
+                    "/movie_poster_static/assets/"
+                    "theater-classic-frame-landscape.png"
+                ),
+            },
+        },
         bindings={
             "sconce": "light_primary",
             "curtain": "accent_secondary",
