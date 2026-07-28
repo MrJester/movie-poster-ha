@@ -429,6 +429,25 @@ engine.
 - Convert each remaining Frame with explicit Theme mappings.
 - Establish visual acceptance snapshots for every supported combination.
 
+### Phase 3A: Hyper-realistic visual production
+
+- Rebuild every built-in Frame to the Marquee/Cyber Noir realism standard,
+  using high-resolution layered artwork instead of flat decorative CSS where
+  physical materials, depth, reflections, wear, lighting, or texture matter.
+- Produce coordinated portrait and landscape assets with intentional content
+  masks, safe zones, bezel depth, foreground occlusion, and ambient spill.
+- Give every Theme a complete art direction covering typography, semantic
+  colors, illuminated materials, practical light colors, glow behavior,
+  animation character, shadows, reflections, and readable information states.
+- Define Frame-specific Theme mappings so a Theme changes the complete visual
+  treatment without changing the Frame's physical geometry or identity.
+- Upgrade Layouts and component styles to feel deliberately composed inside
+  each realistic enclosure rather than placed on top of it.
+- Create high-resolution reference mockups and reviewed live-HA screenshots for
+  every Frame, Theme, Layout, and Orientation combination.
+- Treat Marquee as the minimum realism and finish benchmark; built-ins that do
+  not meet that bar remain in development rather than shipping as complete.
+
 ### Phase 4: Local Presentation Library
 
 - Move presentation storage to versioned Home Assistant storage.
