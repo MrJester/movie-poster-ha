@@ -513,8 +513,10 @@ class MoviePosterPanel extends HTMLElement {
       ? `url('${escapeHtml(media.backdrop_url)}')` : "none";
     const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)}"`;
 
+    const summaryClass = presentation.show_summary !== false ? " show-summary" : "";
+    const progressClass = presentation.show_progress !== false ? " show-progress" : "";
     this.shadowRoot.innerHTML = `${this._styles()}${this._studioControls()}
-      <main class="theater${studioClass}${rendererClass}${editorClass} theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}${transitionClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
+      <main class="theater${studioClass}${rendererClass}${editorClass} theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}${transitionClass}${summaryClass}${progressClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
         ${presentationStyle} aria-label="Movie Poster display">
         <div class="ambient"></div>
         ${this._displayControls()}
@@ -588,6 +590,11 @@ class MoviePosterPanel extends HTMLElement {
     if (!frame) return;
     const layout = () => this._layoutMarqueeBulbs(frame);
     layout();
+    const poster = frame.querySelector("img.poster");
+    if (poster && !poster.complete) {
+      poster.addEventListener("load", layout, { once: true });
+    }
+    requestAnimationFrame(() => requestAnimationFrame(layout));
     this._bulbObserver = new ResizeObserver(layout);
     this._bulbObserver.observe(frame);
   }
@@ -642,9 +649,18 @@ class MoviePosterPanel extends HTMLElement {
     const theater = frame.closest(".theater");
     const autoStacks = theater?.classList.contains("orientation-auto")
       && (window.matchMedia("(orientation: portrait)").matches
-        || window.matchMedia("(max-width: 720px)").matches);
+        || window.matchMedia("(max-width: 720px)").matches
+        || window.innerHeight > window.innerWidth
+        || frame.clientHeight > frame.clientWidth);
     const stacked = theater?.classList.contains("layout-poster")
       || theater?.classList.contains("orientation-portrait") || autoStacks;
+    if (stacked && details && getComputedStyle(details).display !== "none") {
+      content.style.display = "grid";
+      content.style.gridTemplateColumns = "minmax(0, 1fr)";
+    } else {
+      content.style.removeProperty("display");
+      content.style.removeProperty("grid-template-columns");
+    }
     const minimum = frame.classList.contains("frame-ultra-compact")
       ? 36
       : window.innerWidth >= 720
@@ -663,7 +679,7 @@ class MoviePosterPanel extends HTMLElement {
         - parseFloat(boundaryStyle.paddingBottom);
       const posterTop = poster.getBoundingClientRect().top;
       const available = frameBottom - posterTop
-        - parseFloat(contentStyle.paddingBottom) - plaqueHeight - detailsHeight - 16;
+        - parseFloat(contentStyle.paddingBottom) - plaqueHeight - detailsHeight - 20;
       frame.style.setProperty(
         "--fitted-poster-height",
         `${Math.max(minimum, available)}px`,
@@ -679,6 +695,8 @@ class MoviePosterPanel extends HTMLElement {
     if (stacked) {
       fit();
       fit();
+      const posterWidth = poster.getBoundingClientRect().width;
+      frame.style.setProperty("--fitted-poster-width", `${posterWidth}px`);
     }
   }
 
@@ -2735,7 +2753,7 @@ class MoviePosterPanel extends HTMLElement {
       .layout-poster .marquee-frame { width: min(940px, 99vw); }
       .layout-poster .content { display: block; padding-inline: clamp(20px, 7vw, 90px); }
       .layout-poster .poster { width: min(66vh, 100%); max-height: 82vh; margin: auto; }
-      .layout-poster .details { margin-top: 18px; text-align: center; }
+      .layout-poster .details { margin-top: 22px; text-align: center; }
       .layout-poster .details h2 { font-size: clamp(1.7rem, 3vw, 3rem); }
       .layout-poster .session { display: none; }
       .layout-split .content { grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr); }
@@ -3013,15 +3031,22 @@ class MoviePosterPanel extends HTMLElement {
         content: "";
         position: absolute;
         z-index: 5;
-        inset: 20.5% 14.4%;
+        inset: 0;
         pointer-events: none;
-        border: 2px solid var(--mp-border, #171717);
-        box-shadow:
-          inset 0 0 6px color-mix(in srgb,
-            var(--mp-light-primary, #fff) 34%, transparent),
-          0 0 8px color-mix(in srgb,
-            var(--mp-accent-primary, #ef2f24) 28%, transparent);
-        opacity: .84;
+        background: url("/movie_poster_static/assets/comic-hero-frame-landscape.png")
+          center / 100% 100% no-repeat;
+        mix-blend-mode: screen;
+        -webkit-mask:
+          linear-gradient(to bottom, #000 0 17%, transparent 23%) top / 100% 50% no-repeat,
+          linear-gradient(to top, #000 0 17%, transparent 23%) bottom / 100% 50% no-repeat,
+          linear-gradient(to right, #000 0 12%, transparent 18%) left / 50% 100% no-repeat,
+          linear-gradient(to left, #000 0 12%, transparent 18%) right / 50% 100% no-repeat;
+        mask:
+          linear-gradient(to bottom, #000 0 17%, transparent 23%) top / 100% 50% no-repeat,
+          linear-gradient(to top, #000 0 17%, transparent 23%) bottom / 100% 50% no-repeat,
+          linear-gradient(to right, #000 0 12%, transparent 18%) left / 50% 100% no-repeat,
+          linear-gradient(to left, #000 0 12%, transparent 18%) right / 50% 100% no-repeat;
+        opacity: .22;
         animation: comicHeroInkPulse 2.8s steps(2, end) infinite alternate;
       }
       .frame-comic_hero .frame-stage {
@@ -3077,7 +3102,18 @@ class MoviePosterPanel extends HTMLElement {
       }
       .frame-comic_hero.orientation-portrait .details { display: none; }
       .frame-comic_hero.orientation-portrait .marquee-frame::before {
-        inset: 13.6% 18.7%;
+        background-image:
+          url("/movie_poster_static/assets/comic-hero-frame-portrait.png");
+        -webkit-mask:
+          linear-gradient(to bottom, #000 0 11%, transparent 17%) top / 100% 50% no-repeat,
+          linear-gradient(to top, #000 0 11%, transparent 17%) bottom / 100% 50% no-repeat,
+          linear-gradient(to right, #000 0 16%, transparent 22%) left / 50% 100% no-repeat,
+          linear-gradient(to left, #000 0 16%, transparent 22%) right / 50% 100% no-repeat;
+        mask:
+          linear-gradient(to bottom, #000 0 11%, transparent 17%) top / 100% 50% no-repeat,
+          linear-gradient(to top, #000 0 11%, transparent 17%) bottom / 100% 50% no-repeat,
+          linear-gradient(to right, #000 0 16%, transparent 22%) left / 50% 100% no-repeat,
+          linear-gradient(to left, #000 0 16%, transparent 22%) right / 50% 100% no-repeat;
       }
       .frame-comic_hero.orientation-portrait .marquee-frame::after {
         background-image:
@@ -3088,8 +3124,12 @@ class MoviePosterPanel extends HTMLElement {
         opacity: .72;
       }
       @keyframes comicHeroInkPulse {
-        from { opacity: .58; filter: saturate(.9); }
-        to { opacity: .94; filter: saturate(1.2) brightness(1.08); }
+        from { opacity: .12; filter: saturate(.9) brightness(1.05); }
+        to {
+          opacity: .48;
+          filter: saturate(1.35) brightness(1.65)
+            drop-shadow(0 0 10px var(--mp-accent-primary, #ef2f24));
+        }
       }
       @media (max-width: 720px), (orientation: portrait) {
         .frame-comic_hero.orientation-auto .frame-stage {
@@ -3110,7 +3150,18 @@ class MoviePosterPanel extends HTMLElement {
         }
         .frame-comic_hero.orientation-auto .details { display: none; }
         .frame-comic_hero.orientation-auto .marquee-frame::before {
-          inset: 13.6% 18.7%;
+          background-image:
+            url("/movie_poster_static/assets/comic-hero-frame-portrait.png");
+          -webkit-mask:
+            linear-gradient(to bottom, #000 0 11%, transparent 17%) top / 100% 50% no-repeat,
+            linear-gradient(to top, #000 0 11%, transparent 17%) bottom / 100% 50% no-repeat,
+            linear-gradient(to right, #000 0 16%, transparent 22%) left / 50% 100% no-repeat,
+            linear-gradient(to left, #000 0 16%, transparent 22%) right / 50% 100% no-repeat;
+          mask:
+            linear-gradient(to bottom, #000 0 11%, transparent 17%) top / 100% 50% no-repeat,
+            linear-gradient(to top, #000 0 11%, transparent 17%) bottom / 100% 50% no-repeat,
+            linear-gradient(to right, #000 0 16%, transparent 22%) left / 50% 100% no-repeat,
+            linear-gradient(to left, #000 0 16%, transparent 22%) right / 50% 100% no-repeat;
         }
         .frame-comic_hero.orientation-auto .marquee-frame::after {
           background-image:
@@ -4192,13 +4243,17 @@ class MoviePosterPanel extends HTMLElement {
         12% { opacity: .78; filter: brightness(1); }
       }
       @keyframes marqueeRegisteredPulse {
-        from { opacity: .1; filter: brightness(1.1) saturate(1.02); }
+        from {
+          opacity: .16;
+          filter: brightness(1.25) saturate(1.06)
+            drop-shadow(0 0 4px var(--mp-light-primary, #ffd35f));
+        }
         to {
-          opacity: .42;
-          filter: brightness(2.15) saturate(1.22)
-            drop-shadow(0 0 8px var(--mp-light-primary, #ffd35f))
-            drop-shadow(0 0 18px color-mix(in srgb,
-              var(--mp-light-secondary, #fff1b8) 58%, transparent));
+          opacity: .82;
+          filter: brightness(3.1) saturate(1.38)
+            drop-shadow(0 0 10px var(--mp-light-primary, #ffd35f))
+            drop-shadow(0 0 24px color-mix(in srgb,
+              var(--mp-light-secondary, #fff1b8) 76%, transparent));
         }
       }
       .marquee { text-align: center; padding: 14px 20px 28px; }
@@ -4243,6 +4298,7 @@ class MoviePosterPanel extends HTMLElement {
       .poster-wrap { perspective: 1000px; }
       .poster {
         display: block;
+        box-sizing: border-box;
         width: 100%;
         max-height: 84vh;
         aspect-ratio: 2 / 3;
@@ -4936,6 +4992,93 @@ class MoviePosterPanel extends HTMLElement {
         .studio-preview.renderer-reference.orientation-landscape .marquee-frame {
           width: min(96vw, calc(61.333dvh - 16px));
         }
+      }
+      /* Portrait designs retain enabled dynamic components instead of hiding
+         the complete details region from both Studio and the live display. */
+      .theater.orientation-portrait:is(.show-summary, .show-progress) .content {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        grid-template-rows: minmax(0, 1fr) auto !important;
+      }
+      .theater.orientation-portrait:is(.show-summary, .show-progress) .details {
+        display: flex !important;
+        flex-direction: column;
+        grid-column: 1 !important;
+        width: 100%;
+        max-width: 100%;
+        min-height: clamp(24px, 5cqh, 72px);
+        max-height: 18cqh;
+        margin-inline: auto;
+        padding: 0;
+        gap: clamp(3px, .55cqw, 7px);
+        overflow: hidden;
+      }
+      .theater.orientation-portrait:is(.show-summary, .show-progress)
+        .details > :not(.summary, .progress) {
+        display: none;
+      }
+      .theater.orientation-portrait:is(.show-summary, .show-progress)
+        .poster-wrap {
+        grid-column: 1 !important;
+      }
+      .theater.orientation-portrait .details .summary {
+        width: var(--fitted-poster-width, 100%);
+        max-width: 100%;
+        margin: 0 auto;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+      }
+      .theater.orientation-portrait .details .progress {
+        width: var(--fitted-poster-width, 100%);
+        margin-inline: auto;
+        margin-top: 4px;
+        flex: 0 0 auto;
+      }
+      @media (max-width: 720px), (orientation: portrait) {
+        .theater.orientation-auto:is(.show-summary, .show-progress) .content {
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) !important;
+          grid-template-rows: minmax(0, 1fr) auto !important;
+        }
+        .theater.orientation-auto:is(.show-summary, .show-progress) .details {
+          display: flex !important;
+          flex-direction: column;
+          grid-column: 1 !important;
+          width: 100%;
+          max-width: 100%;
+          min-height: clamp(24px, 5cqh, 72px);
+          max-height: 18cqh;
+          margin-inline: auto;
+          padding: 0;
+          gap: clamp(3px, .55cqw, 7px);
+          overflow: hidden;
+        }
+        .theater.orientation-auto:is(.show-summary, .show-progress)
+          .details > :not(.summary, .progress) {
+          display: none;
+        }
+        .theater.orientation-auto:is(.show-summary, .show-progress)
+          .poster-wrap {
+          grid-column: 1 !important;
+        }
+        .theater.orientation-auto .details .summary {
+          width: var(--fitted-poster-width, 100%);
+          max-width: 100%;
+          margin-inline: auto;
+        }
+        .theater.orientation-auto .details .progress {
+          width: var(--fitted-poster-width, 100%);
+          margin-inline: auto;
+        }
+      }
+      /* Keep the stacked poster clear of the details row. The framed poster
+         has a two-pixel visual edge, so its painted bounds otherwise cross
+         the grid boundary even though the layout boxes only touch. */
+      .theater.orientation-landscape.layout-poster .poster,
+      .theater.orientation-auto.layout-poster .poster {
+        transform: translateY(-4px);
       }
       .visual-editor-active .marquee-frame { display: none; }
       .visual-editor-canvas {
