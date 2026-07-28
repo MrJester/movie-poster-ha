@@ -583,7 +583,7 @@ test("Cyber Noir themes recolor its powered system without changing its frame", 
     }, theme));
   }
   expect(materials.map(({ cyan }) => cyan)).toEqual([
-    "#f6cf70", "#d8c17c", "#29f2ff", "#d6d9dc", "#fff",
+    "#f6cf70", "#d8c17c", "#29f2ff", "#f2f2f2", "#fff",
   ]);
   expect(new Set(materials.map(({ headingColor }) => headingColor)).size).toBe(5);
   expect(new Set(materials.map(({ posterBorder }) => posterBorder)).size).toBe(5);

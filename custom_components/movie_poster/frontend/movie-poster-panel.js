@@ -65,6 +65,26 @@ const semanticColorStyle = (colors) => Object.entries(SEMANTIC_COLOR_PROPERTIES)
   .flatMap(([key, property]) => /^#[0-9a-f]{6}$/i.test(colors?.[key] || "")
     ? [`${property}:${colors[key]}`] : [])
   .join(";");
+const normalizeFontFamily = (value) => {
+  const family = String(value ?? "").trim();
+  return family && /^[A-Za-z0-9 "'.,-]+$/.test(family) ? family : "";
+};
+const semanticTypographyStyle = (typography) => {
+  const heading = normalizeFontFamily(typography?.heading);
+  const body = normalizeFontFamily(typography?.body);
+  const tracking = Number(typography?.heading_tracking);
+  return [
+    heading ? `--heading-font:${heading}` : "",
+    body ? `--body-font:${body}` : "",
+    Number.isFinite(tracking) && tracking >= -.1 && tracking <= 1
+      ? `--mp-heading-tracking:${tracking}em` : "",
+  ].filter(Boolean).join(";");
+};
+const semanticEffectsStyle = (effects) => {
+  const glow = Number(effects?.glow);
+  return Number.isFinite(glow) && glow >= 0 && glow <= 1
+    ? `--mp-glow-strength:${glow};--mp-glow-radius:${2 + glow * 12}px` : "";
+};
 const normalizeText = (value, fallback) => String(value ?? "").trim() || fallback;
 const LOGO_POSITIONS = new Set(["left", "center", "right"]);
 const normalizeLogoPosition = (value) => LOGO_POSITIONS.has(value) ? value : "right";
@@ -491,7 +511,7 @@ class MoviePosterPanel extends HTMLElement {
     const logoPosition = normalizeLogoPosition(presentation.logo_position);
     const backdrop = media.backdrop_url
       ? `url('${escapeHtml(media.backdrop_url)}')` : "none";
-    const presentationStyle = `style="--backdrop:${backdrop};--gold:${accentColor};--ink:${backgroundColor};${semanticColorStyle(state.design_style?.colors)}"`;
+    const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)}"`;
 
     this.shadowRoot.innerHTML = `${this._styles()}${this._studioControls()}
       <main class="theater${studioClass}${rendererClass}${editorClass} theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}${transitionClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
@@ -2204,6 +2224,19 @@ class MoviePosterPanel extends HTMLElement {
         --theme-surface-deep: #160806;
         --theme-backdrop-accent: #7a251d;
         --theme-backdrop-edge: #4a0b0e;
+        --mp-light-primary: #f6cf70;
+        --mp-light-secondary: #b4232f;
+        --mp-accent-primary: #f6cf70;
+        --mp-accent-secondary: #7a251d;
+        --mp-text-heading: #fff7df;
+        --mp-text-body: #e8dcc2;
+        --mp-text-muted: #c9bfa8;
+        --mp-surface: #32110d;
+        --mp-surface-elevated: #4a1711;
+        --mp-backdrop: #090706;
+        --mp-border: #b77a24;
+        --mp-progress-track: #3b2118;
+        --mp-progress-fill: #f6cf70;
         display: block;
         min-height: 100vh;
         min-height: 100dvh;
@@ -2236,7 +2269,20 @@ class MoviePosterPanel extends HTMLElement {
       .font-body-serif { --body-font: Georgia, "Times New Roman", serif; }
       .font-body-modern { --body-font: Avenir, Montserrat, Arial, sans-serif; }
       .font-body-condensed { --body-font: "Arial Narrow", Arial, sans-serif; }
-      .theater { font-family: var(--body-font, "Trebuchet MS", Arial, sans-serif); }
+      .theater {
+        --gold: var(--mp-accent-primary, var(--legacy-accent, #f6cf70));
+        --gold-deep: var(--mp-border, #b77a24);
+        --ink: var(--mp-backdrop, var(--legacy-background, #090706));
+        --velvet: var(--mp-surface, #310909);
+        --theme-text: var(--mp-text-heading, #fff7df);
+        --theme-muted: var(--mp-text-muted, #c9bfa8);
+        --theme-surface: var(--mp-surface-elevated, #32110d);
+        --theme-surface-deep: var(--mp-surface, #160806);
+        --theme-backdrop-accent: var(--mp-accent-secondary, #7a251d);
+        --theme-backdrop-edge: var(--mp-border, #4a0b0e);
+        color: var(--mp-text-body, #e8dcc2);
+        font-family: var(--body-font, "Trebuchet MS", Arial, sans-serif);
+      }
       .theme-art_deco {
         --gold: #e9d59b;
         --gold-deep: #7c6735;
@@ -2248,6 +2294,19 @@ class MoviePosterPanel extends HTMLElement {
         --theme-surface-deep: #071412;
         --theme-backdrop-accent: #245e51;
         --theme-backdrop-edge: #102d28;
+        --mp-light-primary: #d8c17c;
+        --mp-light-secondary: #2d8f78;
+        --mp-accent-primary: #e9d59b;
+        --mp-accent-secondary: #245e51;
+        --mp-text-heading: #f0dfaa;
+        --mp-text-body: #ded2aa;
+        --mp-text-muted: #b9ab82;
+        --mp-surface: #17332e;
+        --mp-surface-elevated: #21473f;
+        --mp-backdrop: #08100f;
+        --mp-border: #7c6735;
+        --mp-progress-track: #15302a;
+        --mp-progress-fill: #d8c17c;
       }
       .theme-neon {
         --gold: #29f2ff;
@@ -2260,6 +2319,19 @@ class MoviePosterPanel extends HTMLElement {
         --theme-surface-deep: #090012;
         --theme-backdrop-accent: #b51fff;
         --theme-backdrop-edge: #003d5c;
+        --mp-light-primary: #29f2ff;
+        --mp-light-secondary: #ff3ea5;
+        --mp-accent-primary: #29f2ff;
+        --mp-accent-secondary: #b51fff;
+        --mp-text-heading: #f8edff;
+        --mp-text-body: #e8ddf2;
+        --mp-text-muted: #bcb0d0;
+        --mp-surface: #260052;
+        --mp-surface-elevated: #3a0870;
+        --mp-backdrop: #05000d;
+        --mp-border: #29f2ff;
+        --mp-progress-track: #25103b;
+        --mp-progress-fill: #ff3ea5;
       }
       .theme-minimal {
         --gold: #f2f2f2;
@@ -2272,6 +2344,19 @@ class MoviePosterPanel extends HTMLElement {
         --theme-surface-deep: #e8e5de;
         --theme-backdrop-accent: #d1cec6;
         --theme-backdrop-edge: #777;
+        --mp-light-primary: #f2f2f2;
+        --mp-light-secondary: #8a8a86;
+        --mp-accent-primary: #171717;
+        --mp-accent-secondary: #777;
+        --mp-text-heading: #171717;
+        --mp-text-body: #383631;
+        --mp-text-muted: #5b5954;
+        --mp-surface: #f5f3ee;
+        --mp-surface-elevated: #fff;
+        --mp-backdrop: #e8e5de;
+        --mp-border: #777;
+        --mp-progress-track: #d1cec6;
+        --mp-progress-fill: #171717;
       }
       .theme-oled {
         --gold: #fff;
@@ -2284,8 +2369,20 @@ class MoviePosterPanel extends HTMLElement {
         --theme-surface-deep: #000;
         --theme-backdrop-accent: #111;
         --theme-backdrop-edge: #050505;
+        --mp-light-primary: #fff;
+        --mp-light-secondary: #777;
+        --mp-accent-primary: #fff;
+        --mp-accent-secondary: #777;
+        --mp-text-heading: #fff;
+        --mp-text-body: #d6d6d6;
+        --mp-text-muted: #999;
+        --mp-surface: #000;
+        --mp-surface-elevated: #080808;
+        --mp-backdrop: #000;
+        --mp-border: #292929;
+        --mp-progress-track: #222;
+        --mp-progress-fill: #fff;
       }
-      .theater { color: var(--theme-text); }
       .marquee { background: linear-gradient(var(--theme-surface), var(--theme-surface-deep)); }
       .meta, .summary, .session { color: var(--theme-muted); }
       .ambient {
@@ -2712,8 +2809,8 @@ class MoviePosterPanel extends HTMLElement {
       .frame-cyber_noir .marquee-frame {
         --cyber-cyan: var(--mp-light-primary, #29f2ff);
         --cyber-magenta: var(--mp-light-secondary, #ff3ea5);
-        --cyber-white: var(--mp-text-primary, #f4fbff);
-        --cyber-muted: var(--mp-text-secondary, #a9c1ca);
+        --cyber-white: var(--mp-text-heading, #f4fbff);
+        --cyber-muted: var(--mp-text-muted, #a9c1ca);
         --cyber-core: color-mix(in srgb,
           var(--mp-light-primary, #29f2ff) 38%, white);
         padding: clamp(30px, 4vw, 62px);
@@ -2807,9 +2904,9 @@ class MoviePosterPanel extends HTMLElement {
       .theater.frame-cyber_noir h1 {
         margin-top: 8px;
         color: var(--cyber-white);
-        font-family: "Arial Narrow", Arial, sans-serif;
+        font-family: var(--heading-font, "Arial Narrow", Arial, sans-serif);
         font-weight: 500;
-        letter-spacing: .22em;
+        letter-spacing: var(--mp-heading-tracking, .22em);
         text-shadow: 0 0 12px color-mix(in srgb, var(--cyber-cyan) 26%, transparent);
       }
       .frame-cyber_noir .content {
@@ -3567,36 +3664,33 @@ class MoviePosterPanel extends HTMLElement {
 
       /* Themes are palettes only. Frames own geometry and ornamentation; layouts
          own element placement. Theme selectors must not change either. */
-      .theme-art_deco h1 { color: #f0dfaa; }
-      .theme-art_deco .eyebrow { color: #cbb36f; }
-      .theme-art_deco .poster { border-color: #d8c17c; }
-
-      .theme-minimal {
-        --gold: #171717;
-        color: #171717;
+      .theater h1, .theater .details h2 {
+        color: var(--mp-text-heading, #fff7df);
+        letter-spacing: var(--mp-heading-tracking, normal);
       }
-      .theme-minimal h1, .theme-minimal .details h2 {
-        color: #111;
+      .theater .eyebrow, .theater .subtitle {
+        color: var(--mp-accent-primary, #f6cf70);
       }
-      .theme-minimal .eyebrow, .theme-minimal .meta,
-      .theme-minimal .session { color: #5b5954; }
-      .theme-minimal .subtitle { color: #24231f; }
-      .theme-minimal .summary { color: #383631; }
-      .theme-minimal .poster { border-color: #222; }
-      .theme-minimal .progress { background: #0002; }
-      .theme-minimal .progress i { background: #171717; }
-
-      .theme-oled {
-        --gold: #fff;
+      .theater :is(.meta, .summary, .session) {
+        color: var(--mp-text-muted, #c9bfa8);
       }
-      .theme-oled h1 { color: #fff; }
-      .theme-oled .poster { border-color: #292929; }
-      .theme-oled .details h2 { color: #fff; }
-      .theme-oled .subtitle { color: #fff; }
-      .theme-oled .meta, .theme-oled .summary { color: #aaa; }
-      .theme-oled .session { color: #666; }
-      .theme-oled .progress { background: #222; }
-      .theme-oled .progress i { background: #fff; }
+      .theater .poster {
+        border-color: var(--mp-border, #b77a24);
+      }
+      .theater .details {
+        color: var(--mp-text-body, #e8dcc2);
+        background-color: color-mix(in srgb,
+          var(--mp-surface-elevated, #32110d) 72%, transparent);
+      }
+      .theater .progress {
+        background: var(--mp-progress-track, #3b2118);
+      }
+      .theater .progress i {
+        background: var(--mp-progress-fill, #f6cf70);
+        box-shadow: 0 0 var(--mp-glow-radius, 9px)
+          color-mix(in srgb,
+            var(--mp-progress-fill, #f6cf70) 72%, transparent);
+      }
 
       /* Production Cyber Noir uses rendered material overlays. Dynamic content
          remains HTML beneath the transparent center and inside edge. */
@@ -3919,6 +4013,14 @@ class MoviePosterPanel extends HTMLElement {
         flex: 1 1 auto;
         min-height: 0;
         overflow: hidden;
+      }
+      .frame-marquee:not(.layout-split)
+        .marquee-frame.frame-short .content {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .frame-marquee:not(.layout-split)
+        .marquee-frame.frame-short .details {
+        display: none;
       }
       .frame-marquee .content {
         gap: clamp(8px, 1.5cqw, 20px);
