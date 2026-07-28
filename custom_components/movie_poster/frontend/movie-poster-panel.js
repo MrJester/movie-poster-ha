@@ -155,6 +155,7 @@ class MoviePosterPanel extends HTMLElement {
     this._editorRedoStack = [];
     this._editorSnapEnabled = true;
     this._editorGridSize = 1;
+    this._editorDevicePreset = "responsive";
     this._editorKeyHandler = (event) => this._handleEditorKeydown(event);
     if (this._studio) this._state = studioState();
   }
@@ -818,8 +819,21 @@ class MoviePosterPanel extends HTMLElement {
         default: return escapeHtml(component.type);
       }
     };
-    return `<section class="visual-editor-canvas${this._editorSnapEnabled ? " snap-enabled" : ""}"
-      aria-label="Presentation canvas">
+    const devicePresets = {
+      responsive: null,
+      phone: 9 / 19.5,
+      tablet: 3 / 4,
+      television: 16 / 9,
+      portrait_signage: 9 / 16,
+      ultrawide: 21 / 9,
+    };
+    const ratio = devicePresets[this._editorDevicePreset];
+    const deviceClass = ratio ? " device-preview" : "";
+    const deviceStyle = ratio
+      ? ` style="--editor-preview-ratio:${ratio};--editor-preview-aspect:${ratio} / 1"`
+      : "";
+    return `<section class="visual-editor-canvas${this._editorSnapEnabled ? " snap-enabled" : ""}${deviceClass}"
+      aria-label="Presentation canvas"${deviceStyle}>
       ${components.filter((component) => component.visible !== false)
         .sort((a, b) => a.z_index - b.z_index)
         .map((component) => {
@@ -848,6 +862,7 @@ class MoviePosterPanel extends HTMLElement {
     const selectedComponents = this._selectedEditorComponents();
     const selectedBounds = selectedComponent
       ? this._editorBounds(selectedComponent) : null;
+    const editorWarnings = this._editorWarnings();
     const editorOrientation = this._editorOrientation();
     const hasOrientationOverride = Boolean(
       selectedComponent?.orientation_overrides?.[editorOrientation]?.bounds,
@@ -855,6 +870,9 @@ class MoviePosterPanel extends HTMLElement {
     const libraryProfiles = Object.entries(
       this._presentationLibrary?.profiles || {},
     );
+    const editorLibraryItem = this._editorProfileId
+      ? this._presentationLibrary?.profiles?.[this._editorProfileId] : null;
+    const editorRevisions = editorLibraryItem?.published || [];
     const componentTypes = [
       "poster", "backdrop", "logo", "mode_heading", "title", "subtitle",
       "year", "content_rating", "runtime", "summary", "progress",
@@ -922,6 +940,19 @@ class MoviePosterPanel extends HTMLElement {
           <label class="studio-check"><input type="checkbox" data-editor-snap
             ${this._editorSnapEnabled ? "checked" : ""}>Snap to 1% grid</label>
         </div>
+        ${editorRevisions.length ? `
+          <label class="studio-wide">Published revision
+            <span class="studio-inline">
+              <select data-editor-revision>
+                ${[...editorRevisions].reverse().map((revision) =>
+                  `<option value="${revision.revision}"
+                    ${revision.revision === editorLibraryItem.active_revision ? "selected" : ""}>
+                    Revision ${revision.revision}
+                  </option>`).join("")}
+              </select>
+              <button type="button" data-editor-action="rollback">Activate</button>
+            </span>
+          </label>` : ""}
         <label class="studio-wide">Preview state<select data-editor-preview>
           ${[
             ["coming_soon", "Coming Soon"],
@@ -934,6 +965,22 @@ class MoviePosterPanel extends HTMLElement {
             `<option value="${value}" ${this._editorPreviewState === value ? "selected" : ""}>${label}</option>`
           ).join("")}
         </select></label>
+        <label class="studio-wide">Preview device<select data-editor-device>
+          ${[
+            ["responsive", "Responsive orientation"],
+            ["phone", "Phone portrait"],
+            ["tablet", "Tablet portrait"],
+            ["television", "16:9 television"],
+            ["portrait_signage", "9:16 portrait signage"],
+            ["ultrawide", "21:9 ultrawide"],
+          ].map(([value, label]) =>
+            `<option value="${value}" ${this._editorDevicePreset === value ? "selected" : ""}>${label}</option>`
+          ).join("")}
+        </select></label>
+        ${editorWarnings.length ? `<div class="editor-warnings studio-wide"
+          role="status"><strong>Design checks</strong><ul>${editorWarnings.map(
+            (warning) => `<li>${escapeHtml(warning)}</li>`,
+          ).join("")}</ul></div>` : ""}
         <label class="studio-wide">Add dynamic component
           <span class="studio-inline">
             <select data-editor-add-type>
@@ -1014,6 +1061,8 @@ class MoviePosterPanel extends HTMLElement {
               data-editor-style="glow"
               value="${Number(selectedComponent.style?.glow ?? 0)}"></label>
             <button type="button" data-editor-action="delete-component">Remove component</button>
+            <button type="button" data-editor-action="duplicate-component">Duplicate</button>
+            <button type="button" data-editor-action="reset-component">Reset component</button>
           </fieldset>` : `<small class="studio-wide">Select a component on the canvas to edit it.</small>`}
         <small class="studio-wide">Drag components to move them. Drag the lower-right handle to resize. Changes autosave to this draft.</small>
       ` : ""}
@@ -1231,6 +1280,11 @@ class MoviePosterPanel extends HTMLElement {
     this.shadowRoot.querySelector("[data-editor-preview]")
       ?.addEventListener("change", (event) =>
         this._applyEditorPreview(event.target.value));
+    this.shadowRoot.querySelector("[data-editor-device]")
+      ?.addEventListener("change", (event) => {
+        this._editorDevicePreset = event.target.value;
+        this._render();
+      });
     this.shadowRoot.querySelector("[data-editor-orientation-override]")
       ?.addEventListener("change", (event) => {
         const component = this._selectedEditorComponent();
@@ -1342,6 +1396,24 @@ class MoviePosterPanel extends HTMLElement {
       }
       return;
     }
+    if (action === "rollback") {
+      const revision = Number(
+        this.shadowRoot.querySelector("[data-editor-revision]")?.value,
+      );
+      if (!revision || !this._editorProfileId) return;
+      try {
+        const result = await this._callLibrary("rollback", {
+          profile_id: this._editorProfileId,
+          revision,
+        });
+        this._presentationLibrary = result.library;
+        if (status) status.textContent = `Revision ${revision} is now active.`;
+        this._render();
+      } catch (error) {
+        if (status) status.textContent = error?.message || "Unable to activate revision.";
+      }
+      return;
+    }
     if (action === "add") {
       const type = this.shadowRoot.querySelector("[data-editor-add-type]")?.value;
       if (!type || !this._editorDocument) return;
@@ -1353,15 +1425,7 @@ class MoviePosterPanel extends HTMLElement {
       while (components.some((component) => component.id === identifier)) {
         identifier = `${base}-${suffix++}`;
       }
-      components.push({
-        id: identifier, type,
-        bounds: { x: 30, y: 30, width: 40, height: 12 },
-        z_index: 10, visible: true,
-        style_ref: type === "progress" ? "progress_fill" : "text_heading",
-        style: {},
-        text: type === "static_text" ? "Custom text" : "",
-        orientation_overrides: {},
-      });
+      components.push(this._defaultEditorComponent(type, identifier));
       this._editorSelectedId = identifier;
       this._editorSelectedIds = [identifier];
       this._render();
@@ -1380,7 +1444,102 @@ class MoviePosterPanel extends HTMLElement {
       this._editorSelectedIds = [];
       this._render();
       this._scheduleEditorSave();
+      return;
     }
+    if (action === "duplicate-component") {
+      const selected = this._selectedEditorComponents();
+      if (!selected.length || !this._editorDocument) return;
+      this._recordEditorHistory();
+      const components = this._editorDocument.design.components;
+      const reservedIds = new Set(components.map((component) => component.id));
+      const copies = selected.map((component) => {
+        const copy = structuredClone(component);
+        const base = `${component.id}-copy`;
+        let identifier = base;
+        let suffix = 2;
+        while (reservedIds.has(identifier)) {
+          identifier = `${base}-${suffix++}`;
+        }
+        reservedIds.add(identifier);
+        copy.id = identifier;
+        copy.bounds.x = Math.min(100 - copy.bounds.width, copy.bounds.x + 2);
+        copy.bounds.y = Math.min(100 - copy.bounds.height, copy.bounds.y + 2);
+        return copy;
+      });
+      components.push(...copies);
+      this._editorSelectedIds = copies.map((component) => component.id);
+      this._editorSelectedId = this._editorSelectedIds.at(-1);
+      this._render();
+      this._scheduleEditorSave();
+      return;
+    }
+    if (action === "reset-component") {
+      const selected = this._selectedEditorComponents();
+      if (!selected.length || !this._editorDocument) return;
+      this._recordEditorHistory();
+      const replacements = new Map(selected.map((component) => [
+        component.id, this._defaultEditorComponent(component.type, component.id),
+      ]));
+      this._editorDocument.design.components =
+        this._editorDocument.design.components.map(
+          (component) => replacements.get(component.id) || component,
+        );
+      this._render();
+      this._scheduleEditorSave();
+    }
+  }
+
+  _defaultEditorComponent(type, identifier) {
+    const boundsByType = {
+      backdrop: { x: 0, y: 0, width: 100, height: 100 },
+      poster: { x: 8, y: 12, width: 40, height: 60 },
+      logo: { x: 35, y: 4, width: 30, height: 10 },
+      summary: { x: 52, y: 45, width: 40, height: 28 },
+      progress: { x: 52, y: 82, width: 40, height: 3 },
+    };
+    return {
+      id: identifier,
+      type,
+      bounds: structuredClone(
+        boundsByType[type] || { x: 30, y: 30, width: 40, height: 12 },
+      ),
+      z_index: type === "backdrop" ? 0 : 10,
+      visible: true,
+      style_ref: type === "progress" ? "progress_fill" : "text_heading",
+      style: {},
+      text: type === "static_text" ? "Custom text" : "",
+      orientation_overrides: {},
+    };
+  }
+
+  _editorWarnings() {
+    const components = this._editorDocument?.design?.components || [];
+    if (!components.length) return ["Blank canvas has no components."];
+    const warnings = [];
+    if (!components.some((component) =>
+      component.type === "poster" && component.visible !== false)) {
+      warnings.push("No visible poster component.");
+    }
+    if (!components.some((component) =>
+      component.type === "title" && component.visible !== false)) {
+      warnings.push("No visible media title component.");
+    }
+    components.forEach((component) => {
+      const bounds = this._editorBounds(component);
+      if (bounds.x < 0 || bounds.y < 0 || bounds.width <= 0 || bounds.height <= 0
+        || bounds.x + bounds.width > 100 || bounds.y + bounds.height > 100) {
+        warnings.push(`${component.id} extends outside the canvas.`);
+      }
+      if (component.visible === false) {
+        warnings.push(`${component.id} is hidden.`);
+      }
+      const fontSize = Number(component.style?.font_size ?? 3);
+      if (!["poster", "backdrop", "logo", "progress"].includes(component.type)
+        && fontSize < 1) {
+        warnings.push(`${component.id} text may be unreadably small.`);
+      }
+    });
+    return warnings.slice(0, 8);
   }
 
   _selectedEditorComponent() {
@@ -2233,6 +2392,17 @@ class MoviePosterPanel extends HTMLElement {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 5px;
+      }
+      .editor-warnings {
+        padding: 9px 11px;
+        border: 1px solid #e7a94d66;
+        border-radius: 7px;
+        background: #4a2c1629;
+        color: #ffe2ac;
+      }
+      .editor-warnings ul {
+        margin: 5px 0 0;
+        padding-left: 18px;
       }
       .studio-preview {
         width: calc(100vw - 430px);
@@ -3870,6 +4040,13 @@ class MoviePosterPanel extends HTMLElement {
           linear-gradient(to right, #f6cf7018 1px, transparent 1px),
           linear-gradient(to bottom, #f6cf7018 1px, transparent 1px);
         background-size: 10% 10%;
+      }
+      .visual-editor-canvas.device-preview {
+        width: min(
+          calc(100vw - 462px),
+          calc((100dvh - 48px) * var(--editor-preview-ratio))
+        ) !important;
+        aspect-ratio: var(--editor-preview-aspect) !important;
       }
       .visual-editor-active.orientation-landscape .visual-editor-canvas {
         width: min(calc(100vw - 462px), calc((100dvh - 48px) * 4 / 3));

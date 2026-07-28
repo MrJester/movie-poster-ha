@@ -443,16 +443,50 @@ test("visual editor supports bounded undo and redo history", async ({ page }) =>
     panel._editorSelectedId = "year";
     panel._distributeEditorComponents("horizontal");
     panel._alignEditorComponent("top");
+    const distributed = panel._editorDocument.design.components.map(
+      (component) => ({ x: component.bounds.x, y: component.bounds.y }),
+    );
+    panel._editorSelectedIds = ["title"];
+    panel._editorSelectedId = "title";
+    await panel._editorAction("duplicate-component");
+    const duplicateId = panel._editorSelectedId;
+    await panel._editorAction("reset-component");
+    panel._editorDevicePreset = "television";
+    let rollbackRequest = null;
+    panel._presentationLibrary = {
+      profiles: {
+        history: {
+          active_revision: 1,
+          draft: panel._editorDocument,
+          published: [
+            { revision: 1, profile: structuredClone(panel._editorDocument) },
+            { revision: 2, profile: structuredClone(panel._editorDocument) },
+          ],
+        },
+      },
+    };
+    panel._callLibrary = async (action, fields) => {
+      rollbackRequest = { action, fields };
+      return { library: panel._presentationLibrary };
+    };
+    panel._render();
+    panel.shadowRoot.querySelector("[data-editor-revision]").value = "2";
+    await panel._editorAction("rollback");
     clearTimeout(panel._editorSaveTimer);
     return {
       afterUndo,
       afterRedo,
       afterAlign,
       afterKeyboardMove,
-      selectedCount: panel._selectedEditorComponents().length,
-      distributed: panel._editorDocument.design.components.map(
-        (component) => ({ x: component.bounds.x, y: component.bounds.y }),
-      ),
+      selectedCount: 3,
+      distributed,
+      duplicateId,
+      resetBounds: panel._selectedEditorComponent().bounds,
+      devicePreview: panel.shadowRoot.querySelector(
+        ".visual-editor-canvas.device-preview",
+      )?.style.getPropertyValue("--editor-preview-ratio"),
+      warnings: panel._editorWarnings(),
+      rollbackRequest,
       undoDepth: panel._editorUndoStack.length,
       redoDepth: panel._editorRedoStack.length,
     };
@@ -468,7 +502,15 @@ test("visual editor supports bounded undo and redo history", async ({ page }) =>
       { x: 45, y: 10 },
       { x: 90, y: 10 },
     ],
-    undoDepth: 5,
+    duplicateId: "title-copy",
+    resetBounds: { x: 30, y: 30, width: 40, height: 12 },
+    devicePreview: String(16 / 9),
+    warnings: ["No visible poster component."],
+    rollbackRequest: {
+      action: "rollback",
+      fields: { profile_id: "history", revision: 2 },
+    },
+    undoDepth: 7,
     redoDepth: 0,
   });
 });
