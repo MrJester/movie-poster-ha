@@ -74,9 +74,16 @@ Development requires Python 3.14.2, matching the supported Home Assistant runtim
 python3.14 -m venv .venv
 . .venv/bin/activate
 pip install -e '.[test]'
-pytest
-ruff check .
+npm install
+npx playwright install chromium webkit
+./scripts/validate
 ```
+
+`./scripts/validate` is the pre-push acceptance gate. It runs dependency
+validation, Python linting, backend tests, and the complete Chromium and WebKit
+renderer suite using the same commands as GitHub Actions. Use
+`./scripts/validate backend` or `./scripts/validate frontend` while iterating,
+but run the complete command before pushing.
 
 Beta releases are published as GitHub pre-releases. In HACS, enable the Movie
 Poster pre-release switch, select **Update information**, and then install the

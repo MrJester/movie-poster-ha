@@ -2,6 +2,7 @@
   "name": "movie-poster-ha-frontend",
   "private": true,
   "scripts": {
+    "test:acceptance": "./scripts/validate",
     "test:frontend": "playwright test"
   },
   "devDependencies": {

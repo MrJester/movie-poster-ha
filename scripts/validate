@@ -1,0 +1,76 @@
+#!/bin/sh
+
+set -eu
+
+usage() {
+  echo "Usage: $0 [all|backend|frontend]" >&2
+  exit 2
+}
+
+target="${1:-all}"
+[ "$#" -le 1 ] || usage
+
+case "$target" in
+  all|backend|frontend) ;;
+  *) usage ;;
+esac
+
+run_backend() {
+  if command -v python3 >/dev/null 2>&1 \
+    && python3 -c "import pytest, ruff" >/dev/null 2>&1; then
+    python_cmd="python3"
+  elif command -v python >/dev/null 2>&1 \
+    && python -c "import pytest, ruff" >/dev/null 2>&1; then
+    python_cmd="python"
+  elif [ -x ".venv/bin/python" ] \
+    && .venv/bin/python -c "import pytest, ruff" >/dev/null 2>&1; then
+    python_cmd=".venv/bin/python"
+  else
+    echo "The Python test environment is missing; install with pip install -e '.[test]'." >&2
+    exit 1
+  fi
+
+  echo "==> Verifying Python dependencies"
+  "$python_cmd" -m pip check
+
+  echo "==> Linting Python"
+  "$python_cmd" -m ruff check .
+
+  echo "==> Running backend tests"
+  "$python_cmd" -m pytest -ra
+}
+
+run_frontend() {
+  chromium_path="$(
+    node -e 'process.stdout.write(require("playwright").chromium.executablePath())'
+  )"
+  webkit_path="$(
+    node -e 'process.stdout.write(require("playwright").webkit.executablePath())'
+  )"
+
+  if [ ! -x "$chromium_path" ] || [ ! -x "$webkit_path" ]; then
+    echo "Playwright browsers are missing; run: npx playwright install chromium webkit" >&2
+    exit 1
+  fi
+
+  export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-$chromium_path}"
+  export PLAYWRIGHT_WEBKIT_EXECUTABLE_PATH="${PLAYWRIGHT_WEBKIT_EXECUTABLE_PATH:-$webkit_path}"
+
+  echo "==> Running the complete Chromium and WebKit renderer suite"
+  npm run test:frontend
+}
+
+case "$target" in
+  all)
+    run_backend
+    run_frontend
+    ;;
+  backend)
+    run_backend
+    ;;
+  frontend)
+    run_frontend
+    ;;
+esac
+
+echo "==> Validation passed: $target"
