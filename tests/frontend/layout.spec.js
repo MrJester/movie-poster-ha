@@ -414,12 +414,19 @@ test("visual editor supports bounded undo and redo history", async ({ page }) =>
     await panel._editorAction("undo");
     const afterUndo = panel._editorDocument.design.components.length;
     await panel._editorAction("redo");
+    panel._alignEditorComponent("right");
+    const afterAlign = panel._editorDocument.design.components[0].bounds.x;
+    panel._handleEditorKeydown(new KeyboardEvent("keydown", {
+      key: "ArrowLeft",
+    }));
     clearTimeout(panel._editorSaveTimer);
     return {
       afterUndo,
       afterRedo: panel._editorDocument.design.components.map(
         (component) => component.id,
       ),
+      afterAlign,
+      afterKeyboardMove: panel._editorDocument.design.components[0].bounds.x,
       undoDepth: panel._editorUndoStack.length,
       redoDepth: panel._editorRedoStack.length,
     };
@@ -427,7 +434,9 @@ test("visual editor supports bounded undo and redo history", async ({ page }) =>
   expect(result).toEqual({
     afterUndo: 0,
     afterRedo: ["title"],
-    undoDepth: 1,
+    afterAlign: 60,
+    afterKeyboardMove: 59,
+    undoDepth: 3,
     redoDepth: 0,
   });
 });

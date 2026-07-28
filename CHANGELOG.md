@@ -18,6 +18,8 @@
   alignment, glow, preview states, autosave, and explicit publishing.
 - Add bounded undo/redo history, keyboard shortcuts, and explicit layer
   selection, visibility, and forward/backward ordering controls.
+- Add optional one-percent grid snapping, canvas-edge and center alignment, and
+  keyboard nudging with accelerated Shift+Arrow movement.
 - Use a presentation-specific frontend module cache key so Home Assistant
   cannot reuse the pre-editor panel module after upgrading to beta.44.
 - Make metadata grid items explicitly shrink-safe across browser engines so

@@ -152,6 +152,8 @@ class MoviePosterPanel extends HTMLElement {
     this._editorSaveTimer = null;
     this._editorUndoStack = [];
     this._editorRedoStack = [];
+    this._editorSnapEnabled = true;
+    this._editorGridSize = 1;
     this._editorKeyHandler = (event) => this._handleEditorKeydown(event);
     if (this._studio) this._state = studioState();
   }
@@ -815,7 +817,8 @@ class MoviePosterPanel extends HTMLElement {
         default: return escapeHtml(component.type);
       }
     };
-    return `<section class="visual-editor-canvas" aria-label="Presentation canvas">
+    return `<section class="visual-editor-canvas${this._editorSnapEnabled ? " snap-enabled" : ""}"
+      aria-label="Presentation canvas">
       ${components.filter((component) => component.visible !== false)
         .sort((a, b) => a.z_index - b.z_index)
         .map((component) => {
@@ -913,6 +916,8 @@ class MoviePosterPanel extends HTMLElement {
             ${this._editorUndoStack.length ? "" : "disabled"}>Undo</button>
           <button type="button" data-editor-action="redo"
             ${this._editorRedoStack.length ? "" : "disabled"}>Redo</button>
+          <label class="studio-check"><input type="checkbox" data-editor-snap
+            ${this._editorSnapEnabled ? "checked" : ""}>Snap to 1% grid</label>
         </div>
         <label class="studio-wide">Preview state<select data-editor-preview>
           ${[
@@ -965,6 +970,13 @@ class MoviePosterPanel extends HTMLElement {
             ).join("")}
             <label>Layer<input type="number" min="-100" max="100"
               data-editor-z value="${Number(selectedComponent.z_index)}"></label>
+            <div class="editor-align-actions studio-wide" aria-label="Align component">
+              ${[
+                ["left", "Left"], ["center", "Center"], ["right", "Right"],
+                ["top", "Top"], ["middle", "Middle"], ["bottom", "Bottom"],
+              ].map(([value, label]) => `<button type="button"
+                data-editor-align="${value}">${label}</button>`).join("")}
+            </div>
             <label class="studio-check"><input type="checkbox" data-editor-visible
               ${selectedComponent.visible !== false ? "checked" : ""}>Visible</label>
             <label class="studio-check studio-wide"><input type="checkbox"
@@ -1137,6 +1149,14 @@ class MoviePosterPanel extends HTMLElement {
         this._render();
         this._scheduleEditorSave();
       });
+    });
+    this.shadowRoot.querySelector("[data-editor-snap]")
+      ?.addEventListener("change", (event) => {
+        this._editorSnapEnabled = event.target.checked;
+      });
+    this.shadowRoot.querySelectorAll("[data-editor-align]").forEach((button) => {
+      button.addEventListener("click", () =>
+        this._alignEditorComponent(button.dataset.editorAlign));
     });
     this.shadowRoot.querySelectorAll("[data-editor-bound]").forEach((input) => {
       input.addEventListener("change", () => {
@@ -1380,13 +1400,57 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   _handleEditorKeydown(event) {
-    if (!this._editorDocument || !(event.metaKey || event.ctrlKey)) return;
+    if (!this._editorDocument) return;
     if (event.target instanceof HTMLInputElement
       || event.target instanceof HTMLTextAreaElement
       || event.target instanceof HTMLSelectElement) return;
-    if (event.key.toLowerCase() !== "z") return;
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+      event.preventDefault();
+      this._restoreEditorHistory(event.shiftKey ? "redo" : "undo");
+      return;
+    }
+    const movement = {
+      ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+      ArrowUp: [0, -1], ArrowDown: [0, 1],
+    }[event.key];
+    const component = this._selectedEditorComponent();
+    if (!movement || !component || event.metaKey || event.ctrlKey) return;
     event.preventDefault();
-    this._restoreEditorHistory(event.shiftKey ? "redo" : "undo");
+    this._recordEditorHistory();
+    const bounds = this._editorBounds(component);
+    const step = event.shiftKey ? 5 : this._editorGridSize;
+    bounds.x = Math.min(
+      100 - bounds.width,
+      Math.max(0, this._snapEditorValue(bounds.x + movement[0] * step)),
+    );
+    bounds.y = Math.min(
+      100 - bounds.height,
+      Math.max(0, this._snapEditorValue(bounds.y + movement[1] * step)),
+    );
+    this._render();
+    this._scheduleEditorSave();
+  }
+
+  _snapEditorValue(value) {
+    if (!this._editorSnapEnabled) return Math.round(value * 10) / 10;
+    return Math.round(value / this._editorGridSize) * this._editorGridSize;
+  }
+
+  _alignEditorComponent(alignment) {
+    const component = this._selectedEditorComponent();
+    if (!component) return;
+    this._recordEditorHistory();
+    const bounds = this._editorBounds(component);
+    if (alignment === "left") bounds.x = 0;
+    if (alignment === "center") bounds.x = (100 - bounds.width) / 2;
+    if (alignment === "right") bounds.x = 100 - bounds.width;
+    if (alignment === "top") bounds.y = 0;
+    if (alignment === "middle") bounds.y = (100 - bounds.height) / 2;
+    if (alignment === "bottom") bounds.y = 100 - bounds.height;
+    bounds.x = this._snapEditorValue(bounds.x);
+    bounds.y = this._snapEditorValue(bounds.y);
+    this._render();
+    this._scheduleEditorSave();
   }
 
   _editorOrientation() {
@@ -1443,17 +1507,21 @@ class MoviePosterPanel extends HTMLElement {
       const dy = ((moveEvent.clientY - start.y) / canvasBox.height) * 100;
       if (start.resize) {
         bounds.width = Math.min(
-          100 - bounds.x, Math.max(0.1, start.bounds.width + dx),
+          100 - bounds.x,
+          Math.max(0.1, this._snapEditorValue(start.bounds.width + dx)),
         );
         bounds.height = Math.min(
-          100 - bounds.y, Math.max(0.1, start.bounds.height + dy),
+          100 - bounds.y,
+          Math.max(0.1, this._snapEditorValue(start.bounds.height + dy)),
         );
       } else {
         bounds.x = Math.min(
-          100 - bounds.width, Math.max(0, start.bounds.x + dx),
+          100 - bounds.width,
+          Math.max(0, this._snapEditorValue(start.bounds.x + dx)),
         );
         bounds.y = Math.min(
-          100 - bounds.height, Math.max(0, start.bounds.y + dy),
+          100 - bounds.height,
+          Math.max(0, this._snapEditorValue(start.bounds.y + dy)),
         );
       }
       Object.assign(element.style, {
@@ -2019,6 +2087,11 @@ class MoviePosterPanel extends HTMLElement {
       .editor-layer-row.selected > button:first-child {
         border-color: var(--gold);
         color: var(--gold);
+      }
+      .editor-align-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 5px;
       }
       .studio-preview {
         width: calc(100vw - 430px);
@@ -3645,6 +3718,17 @@ class MoviePosterPanel extends HTMLElement {
           linear-gradient(45deg, #151515 25%, #090909 25%) 10px -10px/20px 20px;
         box-shadow: 0 24px 70px #000c;
         touch-action: none;
+      }
+      .visual-editor-canvas.snap-enabled::before {
+        content: "";
+        position: absolute;
+        z-index: 1000;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(to right, #f6cf7018 1px, transparent 1px),
+          linear-gradient(to bottom, #f6cf7018 1px, transparent 1px);
+        background-size: 10% 10%;
       }
       .visual-editor-active.orientation-landscape .visual-editor-canvas {
         width: min(calc(100vw - 462px), calc((100dvh - 48px) * 4 / 3));
