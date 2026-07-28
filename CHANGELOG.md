@@ -26,6 +26,9 @@
   ultrawide device canvases, and live design warnings for missing essentials,
   hidden layers, unsafe geometry, and unreadably small text, plus published
   revision activation from the editor.
+- Add validated image and font uploads to custom presentation Profiles, asset
+  removal, persisted-storage validation, package-size limits, signature checks,
+  and editor asset inventory.
 - Use a presentation-specific frontend module cache key so Home Assistant
   cannot reuse the pre-editor panel module after upgrading to beta.44.
 - Make metadata grid items explicitly shrink-safe across browser engines so

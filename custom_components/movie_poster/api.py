@@ -55,7 +55,12 @@ from .const import (
     THEMES,
 )
 from .presentation_library import PresentationLibrary
-from .presentation_package import MAX_PACKAGE_BYTES, build_package, read_package
+from .presentation_package import (
+    MAX_FILE_BYTES,
+    MAX_PACKAGE_BYTES,
+    build_package,
+    read_package,
+)
 from .presentation_resources import (
     blank_design,
     builtin_catalog,
@@ -79,7 +84,7 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-beta.44-presentation.6"
+_FRONTEND_VERSION = "0.1.0-beta.44-presentation.7"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
@@ -578,6 +583,8 @@ async def websocket_manage_profile(
                 "delete",
                 "export",
                 "import",
+                "put_asset",
+                "delete_asset",
             }
         ),
         vol.Optional("profile_id"): str,
@@ -585,6 +592,11 @@ async def websocket_manage_profile(
         vol.Optional("document"): dict,
         vol.Optional("blank", default=False): bool,
         vol.Optional("revision"): vol.All(int, vol.Range(min=1)),
+        vol.Optional("asset_path"): vol.All(str, vol.Length(min=1, max=240)),
+        vol.Optional("asset"): vol.All(
+            str,
+            vol.Length(max=(MAX_FILE_BYTES * 4 // 3) + 4),
+        ),
         vol.Optional("package"): vol.All(
             str,
             vol.Length(max=(MAX_PACKAGE_BYTES * 4 // 3) + 4),
@@ -707,7 +719,7 @@ async def _presentation_library(
     return library
 
 
-async def _async_library_action(
+async def _async_library_action(  # noqa: C901
     library: PresentationLibrary,
     options: dict[str, Any],
     msg: dict[str, Any],
@@ -761,6 +773,17 @@ async def _async_library_action(
             identifier=imported["manifest"]["package_id"],
             assets=imported["assets"],
         )
+    elif action == "put_asset":
+        result["asset_path"] = await library.async_put_asset(
+            _required_profile_id(msg),
+            str(msg.get("asset_path", "")),
+            _decode_base64_field(msg, "asset", "Asset"),
+        )
+    elif action == "delete_asset":
+        await library.async_delete_asset(
+            _required_profile_id(msg),
+            str(msg.get("asset_path", "")),
+        )
     return result
 
 
@@ -801,6 +824,23 @@ def _decode_package(msg: dict[str, Any]) -> bytes:
         return base64.b64decode(value, validate=True)
     except (binascii.Error, ValueError) as err:
         message = "Package payload is not valid base64"
+        raise vol.Invalid(message) from err
+
+
+def _decode_base64_field(
+    msg: dict[str, Any],
+    field: str,
+    label: str,
+) -> bytes:
+    """Decode one required base64 WebSocket field."""
+    value = msg.get(field)
+    if not isinstance(value, str) or not value:
+        message = f"{label} payload is required"
+        raise vol.Invalid(message)
+    try:
+        return base64.b64decode(value, validate=True)
+    except (binascii.Error, ValueError) as err:
+        message = f"{label} payload is not valid base64"
         raise vol.Invalid(message) from err
 
 

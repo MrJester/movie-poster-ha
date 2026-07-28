@@ -104,6 +104,34 @@ async def test_legacy_import_is_idempotent() -> None:
     )
 
 
+@pytest.mark.asyncio
+async def test_assets_are_validated_stored_and_removed() -> None:
+    """Library assets use package validation and remain exportable."""
+    store = FakeStore()
+    library = PresentationLibrary(SimpleNamespace(), "entry", store=store)
+    identifier = await library.async_create_draft(profile())
+    png = b"\x89PNG\r\n\x1a\nasset"
+
+    assert await library.async_put_asset(
+        identifier,
+        "assets/images/frame.png",
+        png,
+    ) == "assets/images/frame.png"
+    assert await library.async_assets(identifier) == {
+        "assets/images/frame.png": png,
+    }
+
+    with pytest.raises(vol.Invalid, match="signature"):
+        await library.async_put_asset(
+            identifier,
+            "assets/images/fake.png",
+            b"<script>",
+        )
+
+    await library.async_delete_asset(identifier, "assets/images/frame.png")
+    assert await library.async_assets(identifier) == {}
+
+
 def test_library_rejects_unknown_active_revision() -> None:
     """Corrupt revision pointers fail closed during validation."""
     document = empty_library()

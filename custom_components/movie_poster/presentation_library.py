@@ -11,6 +11,7 @@ import voluptuous as vol
 from homeassistant.helpers.storage import Store
 
 from .const import CONF_DISPLAY_PROFILES, DOMAIN
+from .presentation_package import MAX_FILES, MAX_PACKAGE_BYTES, validate_asset
 from .profiles import make_profile_id, validate_profile_document
 
 if TYPE_CHECKING:
@@ -92,8 +93,33 @@ def validate_library(document: dict[str, Any]) -> dict[str, Any]:
             "draft": draft,
             "published": revisions,
             "active_revision": active_revision,
-            "assets": dict(item["assets"]),
+            "assets": _validate_stored_assets(identifier, item["assets"]),
         }
+    return result
+
+
+def _validate_stored_assets(
+    identifier: str,
+    encoded_assets: dict[str, str],
+) -> dict[str, str]:
+    """Validate encoded library assets without trusting persisted storage."""
+    if len(encoded_assets) > MAX_FILES - 1:
+        msg = f"Profile {identifier} contains too many assets"
+        raise vol.Invalid(msg)
+    result: dict[str, str] = {}
+    total = 0
+    for path, encoded in encoded_assets.items():
+        try:
+            content = base64.b64decode(encoded, validate=True)
+        except (ValueError, TypeError) as err:
+            msg = f"Profile {identifier} contains invalid asset data"
+            raise vol.Invalid(msg) from err
+        safe_path = validate_asset(path, content)
+        total += len(content)
+        if total > MAX_PACKAGE_BYTES:
+            msg = f"Profile {identifier} assets exceed the package limit"
+            raise vol.Invalid(msg)
+        result[safe_path] = base64.b64encode(content).decode("ascii")
     return result
 
 
@@ -270,6 +296,34 @@ class PresentationLibrary:
                 path: base64.b64decode(content)
                 for path, content in item["assets"].items()
             }
+
+    async def async_put_asset(
+        self,
+        identifier: str,
+        path: str,
+        content: bytes,
+    ) -> str:
+        """Validate and store one packaged asset."""
+        safe_path = validate_asset(path, content)
+        await self.async_load()
+        async with self._lock:
+            item = self._item(identifier)
+            assets = dict(item["assets"])
+            assets[safe_path] = base64.b64encode(content).decode("ascii")
+            item["assets"] = _validate_stored_assets(identifier, assets)
+            await self._async_save()
+        return safe_path
+
+    async def async_delete_asset(self, identifier: str, path: str) -> None:
+        """Remove one packaged asset."""
+        await self.async_load()
+        async with self._lock:
+            item = self._item(identifier)
+            if path not in item["assets"]:
+                msg = f"Profile {identifier} does not contain asset {path}"
+                raise vol.Invalid(msg)
+            del item["assets"][path]
+            await self._async_save()
 
     async def async_rollback(self, identifier: str, revision: int) -> None:
         """Activate a retained published revision without mutating it."""

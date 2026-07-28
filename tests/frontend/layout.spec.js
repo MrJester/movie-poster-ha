@@ -452,12 +452,13 @@ test("visual editor supports bounded undo and redo history", async ({ page }) =>
     const duplicateId = panel._editorSelectedId;
     await panel._editorAction("reset-component");
     panel._editorDevicePreset = "television";
-    let rollbackRequest = null;
+    const libraryRequests = [];
     panel._presentationLibrary = {
       profiles: {
         history: {
           active_revision: 1,
           draft: panel._editorDocument,
+          assets: {},
           published: [
             { revision: 1, profile: structuredClone(panel._editorDocument) },
             { revision: 2, profile: structuredClone(panel._editorDocument) },
@@ -466,12 +467,32 @@ test("visual editor supports bounded undo and redo history", async ({ page }) =>
       },
     };
     panel._callLibrary = async (action, fields) => {
-      rollbackRequest = { action, fields };
+      libraryRequests.push({ action, fields });
+      if (action === "put_asset") {
+        panel._presentationLibrary.profiles.history.assets[
+          fields.asset_path
+        ] = fields.asset;
+        return {
+          asset_path: fields.asset_path,
+          library: panel._presentationLibrary,
+        };
+      }
+      if (action === "delete_asset") {
+        delete panel._presentationLibrary.profiles.history.assets[
+          fields.asset_path
+        ];
+      }
       return { library: panel._presentationLibrary };
     };
     panel._render();
     panel.shadowRoot.querySelector("[data-editor-revision]").value = "2";
     await panel._editorAction("rollback");
+    await panel._uploadEditorAsset(new File(
+      [new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])],
+      "frame.png",
+      { type: "image/png" },
+    ));
+    await panel._deleteEditorAsset("assets/user/frame.png");
     clearTimeout(panel._editorSaveTimer);
     return {
       afterUndo,
@@ -486,7 +507,12 @@ test("visual editor supports bounded undo and redo history", async ({ page }) =>
         ".visual-editor-canvas.device-preview",
       )?.style.getPropertyValue("--editor-preview-ratio"),
       warnings: panel._editorWarnings(),
-      rollbackRequest,
+      libraryRequests: libraryRequests.map(({ action, fields }) => ({
+        action,
+        profile_id: fields.profile_id,
+        revision: fields.revision,
+        asset_path: fields.asset_path,
+      })),
       undoDepth: panel._editorUndoStack.length,
       redoDepth: panel._editorRedoStack.length,
     };
@@ -506,10 +532,20 @@ test("visual editor supports bounded undo and redo history", async ({ page }) =>
     resetBounds: { x: 30, y: 30, width: 40, height: 12 },
     devicePreview: String(16 / 9),
     warnings: ["No visible poster component."],
-    rollbackRequest: {
-      action: "rollback",
-      fields: { profile_id: "history", revision: 2 },
-    },
+    libraryRequests: [
+      {
+        action: "rollback", profile_id: "history", revision: 2,
+        asset_path: undefined,
+      },
+      {
+        action: "put_asset", profile_id: "history", revision: undefined,
+        asset_path: "assets/user/frame.png",
+      },
+      {
+        action: "delete_asset", profile_id: "history", revision: undefined,
+        asset_path: "assets/user/frame.png",
+      },
+    ],
     undoDepth: 7,
     redoDepth: 0,
   });

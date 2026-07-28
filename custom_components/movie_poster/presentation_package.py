@@ -104,6 +104,13 @@ def build_package(
     return payload
 
 
+def validate_asset(path: str, content: bytes) -> str:
+    """Validate one user-supplied asset and return its canonical package path."""
+    safe_path = _safe_asset_path(path)
+    _validate_asset(safe_path, content)
+    return safe_path
+
+
 def read_package(payload: bytes) -> dict[str, Any]:  # noqa: C901
     """Read and fully validate an untrusted .movieposter archive."""
     if len(payload) > MAX_PACKAGE_BYTES:

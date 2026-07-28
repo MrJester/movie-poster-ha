@@ -873,6 +873,7 @@ class MoviePosterPanel extends HTMLElement {
     const editorLibraryItem = this._editorProfileId
       ? this._presentationLibrary?.profiles?.[this._editorProfileId] : null;
     const editorRevisions = editorLibraryItem?.published || [];
+    const editorAssets = Object.keys(editorLibraryItem?.assets || {}).sort();
     const componentTypes = [
       "poster", "backdrop", "logo", "mode_heading", "title", "subtitle",
       "year", "content_rating", "runtime", "summary", "progress",
@@ -981,6 +982,19 @@ class MoviePosterPanel extends HTMLElement {
           role="status"><strong>Design checks</strong><ul>${editorWarnings.map(
             (warning) => `<li>${escapeHtml(warning)}</li>`,
           ).join("")}</ul></div>` : ""}
+        <fieldset class="editor-assets studio-wide">
+          <legend>Assets</legend>
+          <div class="studio-profile-actions">
+            <button type="button" data-editor-action="upload-asset">Upload image or font</button>
+            <input type="file" data-editor-asset-file hidden
+              accept=".png,.jpg,.jpeg,.webp,.woff,.woff2,.ttf,.otf">
+          </div>
+          ${editorAssets.length ? editorAssets.map((path) => `
+            <div class="editor-asset-row">
+              <code title="${escapeHtml(path)}">${escapeHtml(path)}</code>
+              <button type="button" data-editor-delete-asset="${escapeHtml(path)}">Remove</button>
+            </div>`).join("") : "<small>No custom assets in this Profile.</small>"}
+        </fieldset>
         <label class="studio-wide">Add dynamic component
           <span class="studio-inline">
             <select data-editor-add-type>
@@ -1304,6 +1318,13 @@ class MoviePosterPanel extends HTMLElement {
     this.shadowRoot.querySelector("[data-editor-package-file]")
       ?.addEventListener("change", (event) =>
         this._importPresentationPackage(event.target.files?.[0]));
+    this.shadowRoot.querySelector("[data-editor-asset-file]")
+      ?.addEventListener("change", (event) =>
+        this._uploadEditorAsset(event.target.files?.[0]));
+    this.shadowRoot.querySelectorAll("[data-editor-delete-asset]").forEach((button) => {
+      button.addEventListener("click", () =>
+        this._deleteEditorAsset(button.dataset.editorDeleteAsset));
+    });
   }
 
   async _editorAction(action) {
@@ -1381,6 +1402,10 @@ class MoviePosterPanel extends HTMLElement {
     }
     if (action === "import-package") {
       this.shadowRoot.querySelector("[data-editor-package-file]")?.click();
+      return;
+    }
+    if (action === "upload-asset") {
+      this.shadowRoot.querySelector("[data-editor-asset-file]")?.click();
       return;
     }
     if (action === "publish") {
@@ -1932,6 +1957,50 @@ class MoviePosterPanel extends HTMLElement {
     }
   }
 
+  async _uploadEditorAsset(file) {
+    if (!file || !this._editorProfileId) return;
+    const status = this.shadowRoot.querySelector(".studio-status");
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-");
+      const path = `assets/user/${safeName}`;
+      const result = await this._callLibrary("put_asset", {
+        profile_id: this._editorProfileId,
+        asset_path: path,
+        asset: this._bytesToBase64(new Uint8Array(await file.arrayBuffer())),
+      });
+      this._presentationLibrary = result.library;
+      if (status) status.textContent = `Uploaded ${result.asset_path}.`;
+      this._render();
+    } catch (error) {
+      if (status) status.textContent = error?.message || "Unable to upload asset.";
+    }
+  }
+
+  async _deleteEditorAsset(path) {
+    if (!path || !this._editorProfileId) return;
+    const status = this.shadowRoot.querySelector(".studio-status");
+    try {
+      const result = await this._callLibrary("delete_asset", {
+        profile_id: this._editorProfileId,
+        asset_path: path,
+      });
+      this._presentationLibrary = result.library;
+      if (status) status.textContent = `Removed ${path}.`;
+      this._render();
+    } catch (error) {
+      if (status) status.textContent = error?.message || "Unable to remove asset.";
+    }
+  }
+
+  _bytesToBase64(bytes) {
+    let binary = "";
+    const chunkSize = 0x8000;
+    for (let index = 0; index < bytes.length; index += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+    }
+    return window.btoa(binary);
+  }
+
   _studioPlayerChoices() {
     const userId = this._settings?.user_id || this._choices.owner_user_id || "";
     const allowed = new Set(this._choices.player_ids_by_user?.[userId] || []);
@@ -2403,6 +2472,25 @@ class MoviePosterPanel extends HTMLElement {
       .editor-warnings ul {
         margin: 5px 0 0;
         padding-left: 18px;
+      }
+      .editor-assets {
+        display: grid;
+        gap: 7px;
+        margin: 0;
+        padding: 10px;
+        border: 1px solid #ffffff24;
+      }
+      .editor-assets legend { padding-inline: 6px; color: var(--gold); }
+      .editor-asset-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 7px;
+      }
+      .editor-asset-row code {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .studio-preview {
         width: calc(100vw - 430px);
@@ -3443,6 +3531,9 @@ class MoviePosterPanel extends HTMLElement {
         overflow: hidden;
       }
       .orientation-landscape .marquee-frame .details {
+        align-self: stretch;
+        box-sizing: border-box;
+        height: 100%;
         max-height: 100%;
         overflow: hidden;
       }
@@ -3488,6 +3579,9 @@ class MoviePosterPanel extends HTMLElement {
           overflow: hidden;
         }
         .orientation-auto .marquee-frame .details {
+          align-self: stretch;
+          box-sizing: border-box;
+          height: 100%;
           max-height: 100%;
           overflow: hidden;
         }
