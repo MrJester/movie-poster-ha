@@ -613,9 +613,46 @@ class MoviePosterPanel extends HTMLElement {
     this._fitPosterToFrame(frame);
     if (!frame.closest(".frame-marquee")) return;
     const container = frame.querySelector(".marquee-bulbs");
-    container?.replaceChildren();
-    const divider = frame.querySelector(".marquee-divider-bulbs");
-    divider?.replaceChildren();
+    if (!container) return;
+    const theater = frame.closest(".theater");
+    const portrait = theater?.classList.contains("orientation-portrait")
+      || (theater?.classList.contains("orientation-auto")
+        && frame.clientHeight > frame.clientWidth);
+    const rail = portrait
+      ? { left: .14, right: .86, top: .143, bottom: .915 }
+      : { left: .10, right: .90, top: .16, bottom: .84 };
+    const left = frame.clientWidth * rail.left;
+    const top = frame.clientHeight * rail.top;
+    const width = Math.max(0, frame.clientWidth * (rail.right - rail.left));
+    const height = Math.max(0, frame.clientHeight * (rail.bottom - rail.top));
+    const horizontalCount = Math.max(3, Math.round(width / 42) + 1);
+    const verticalCount = Math.max(3, Math.round(height / 42));
+    const points = [
+      ...Array.from({ length: horizontalCount }, (_, index) => ({
+        x: (index + .5) * width / horizontalCount, y: 0,
+      })),
+      ...Array.from({ length: verticalCount }, (_, index) => ({
+        x: width, y: (index + .5) * height / verticalCount,
+      })),
+      ...Array.from({ length: horizontalCount }, (_, index) => ({
+        x: width - (index + .5) * width / horizontalCount, y: height,
+      })),
+      ...Array.from({ length: verticalCount }, (_, index) => ({
+        x: 0, y: height - (index + .5) * height / verticalCount,
+      })),
+    ];
+    const count = points.length;
+    if (Number(container.dataset.count) !== count) {
+      container.replaceChildren(...Array.from({ length: count }, () =>
+        document.createElement("i")));
+      container.dataset.count = String(count);
+    }
+    [...container.children].forEach((bulb, index) => {
+      const { x, y } = points[index];
+      bulb.style.left = `${x + left}px`;
+      bulb.style.top = `${y + top}px`;
+      bulb.style.setProperty("--bulb-delay", `${-index * 4.8 / count}s`);
+    });
   }
 
   _fitHeadingToFrame(frame) {
@@ -4103,6 +4140,11 @@ class MoviePosterPanel extends HTMLElement {
         inset: 0;
         display: block;
         pointer-events: none;
+      }
+      .frame-marquee .marquee-bulbs::before {
+        content: "";
+        position: absolute;
+        inset: 0;
         background: url("/movie_poster_static/assets/marquee-frame-landscape.png")
           center / 100% 100% no-repeat;
         opacity: .18;
@@ -4135,8 +4177,8 @@ class MoviePosterPanel extends HTMLElement {
       }
       .marquee-bulbs i,
       .marquee-divider-bulbs i {
-        display: none;
-        width: clamp(10px, 2.35cqw, 28px);
+        display: block;
+        width: clamp(6px, 1.65cqw, 18px);
         aspect-ratio: 1;
         flex: 0 0 auto;
         border: 1px solid color-mix(in srgb,
@@ -4182,10 +4224,13 @@ class MoviePosterPanel extends HTMLElement {
       .motion-off .marquee-bulbs i,
       .motion-off .marquee-divider-bulbs i { animation: none; opacity: .94; }
       .motion-off.frame-marquee .marquee-bulbs {
+        opacity: 1;
+      }
+      .motion-off.frame-marquee .marquee-bulbs::before {
         animation: none;
         opacity: .32;
       }
-      .frame-marquee.orientation-portrait .marquee-bulbs {
+      .frame-marquee.orientation-portrait .marquee-bulbs::before {
         background-image:
           url("/movie_poster_static/assets/marquee-frame-portrait.png");
         -webkit-mask:
@@ -4208,7 +4253,7 @@ class MoviePosterPanel extends HTMLElement {
             86% center / 10% 78% no-repeat;
       }
       @media (max-width: 720px), (orientation: portrait) {
-        .frame-marquee.orientation-auto .marquee-bulbs {
+        .frame-marquee.orientation-auto .marquee-bulbs::before {
           background-image:
             url("/movie_poster_static/assets/marquee-frame-portrait.png");
           -webkit-mask:

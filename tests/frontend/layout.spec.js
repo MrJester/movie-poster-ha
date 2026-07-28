@@ -306,6 +306,34 @@ test("reference renderer contains the complete Marquee canvas", async ({ page })
     .toBe(false);
 });
 
+test("Marquee keeps registered glow and individual chasing bulbs", async ({ page }) => {
+  await page.setViewportSize({ width: 720, height: 1280 });
+  await openHarness(page);
+  expect(await renderPoster(
+    page, "marquee", "classic", "cinematic", "portrait",
+    { enableMotion: true },
+  )).toEqual([]);
+  const lighting = await page.evaluate(() => {
+    const root = document.querySelector("movie-poster-panel").shadowRoot;
+    const rail = root.querySelector(".marquee-bulbs");
+    const bulbs = [...rail.querySelectorAll("i")];
+    return {
+      count: bulbs.length,
+      railAnimation: getComputedStyle(rail).animationName,
+      glowAnimation: getComputedStyle(rail, "::before").animationName,
+      bulbAnimations: [...new Set(bulbs.map((bulb) =>
+        getComputedStyle(bulb).animationName))],
+      positioned: bulbs.every((bulb) =>
+        parseFloat(bulb.style.left) > 0 && parseFloat(bulb.style.top) > 0),
+    };
+  });
+  expect(lighting.count).toBeGreaterThan(12);
+  expect(lighting.railAnimation).toBe("none");
+  expect(lighting.glowAnimation).toBe("marqueeRegisteredPulse");
+  expect(lighting.bulbAnimations).toEqual(["bulbChase"]);
+  expect(lighting.positioned).toBe(true);
+});
+
 test("visible stacked summaries match the poster width and center their text", async ({ page }) => {
   await page.setViewportSize({ width: 1080, height: 1920 });
   await openHarness(page);
