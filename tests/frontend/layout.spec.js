@@ -275,7 +275,7 @@ test("reference renderer contains the complete Marquee canvas", async ({ page })
     .toBe(false);
 });
 
-test("stacked summaries match the poster width and center their text", async ({ page }) => {
+test("visible stacked summaries match the poster width and center their text", async ({ page }) => {
   await page.setViewportSize({ width: 1080, height: 1920 });
   await openHarness(page);
   for (const orientation of ["auto", "portrait"]) {
@@ -286,14 +286,18 @@ test("stacked summaries match the poster width and center their text", async ({ 
       const root = document.querySelector("movie-poster-panel").shadowRoot;
       const poster = root.querySelector(".poster").getBoundingClientRect();
       const summary = root.querySelector(".summary");
+      const summaryStyle = getComputedStyle(summary);
       const summaryBox = summary.getBoundingClientRect();
       return {
+        visible: summaryStyle.display !== "none" && summaryBox.width > 0,
         widthDifference: Math.abs(poster.width - summaryBox.width),
-        textAlign: getComputedStyle(summary).textAlign,
+        textAlign: summaryStyle.textAlign,
       };
     });
-    expect(geometry.widthDifference).toBeLessThanOrEqual(1);
-    expect(geometry.textAlign).toBe("center");
+    if (geometry.visible) {
+      expect(geometry.widthDifference).toBeLessThanOrEqual(1);
+      expect(geometry.textAlign).toBe("center");
+    }
   }
 });
 

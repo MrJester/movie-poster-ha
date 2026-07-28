@@ -4022,6 +4022,15 @@ class MoviePosterPanel extends HTMLElement {
         .marquee-frame.frame-short .details {
         display: none;
       }
+      .frame-marquee.layout-split
+        .marquee-frame.frame-short .content {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
+      .frame-marquee.layout-split
+        .marquee-frame.frame-short .details {
+        min-width: 0;
+        overflow: hidden;
+      }
       .frame-marquee .content {
         gap: clamp(8px, 1.5cqw, 20px);
         padding: clamp(4px, .8cqw, 10px) clamp(6px, 1.2cqw, 16px)
