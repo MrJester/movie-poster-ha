@@ -38,8 +38,13 @@ from .const import (
     CONF_PLAYER_ID,
     CONF_ROTATION_SECONDS,
     CONF_SHOW_PROGRESS,
+    CONF_SHOW_RATING,
+    CONF_SHOW_RUNTIME,
     CONF_SHOW_SESSION,
+    CONF_SHOW_SUBTITLE,
     CONF_SHOW_SUMMARY,
+    CONF_SHOW_TITLE,
+    CONF_SHOW_YEAR,
     CONF_THEME,
     CONF_USER_ID,
     DEFAULT_GRACE_SECONDS,
@@ -84,7 +89,7 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-beta.44-presentation.7"
+_FRONTEND_VERSION = "0.1.0-beta.44-presentation.8"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
@@ -182,6 +187,11 @@ def websocket_subscribe(
         vol.Required(CONF_ORIENTATION): vol.In(ORIENTATIONS),
         vol.Required(CONF_LAYOUT): vol.In(LAYOUTS),
         vol.Required(CONF_FRAME_THEME): vol.In(FRAME_THEMES),
+        vol.Required(CONF_SHOW_TITLE): bool,
+        vol.Required(CONF_SHOW_SUBTITLE): bool,
+        vol.Required(CONF_SHOW_YEAR): bool,
+        vol.Required(CONF_SHOW_RATING): bool,
+        vol.Required(CONF_SHOW_RUNTIME): bool,
         vol.Required(CONF_SHOW_SUMMARY): bool,
         vol.Required(CONF_SHOW_PROGRESS): bool,
         vol.Required(CONF_SHOW_SESSION): bool,
@@ -382,6 +392,11 @@ _BEHAVIOR_SCHEMA = {
         vol.Required(CONF_ORIENTATION): vol.In(ORIENTATIONS),
         vol.Required(CONF_LAYOUT): vol.In(LAYOUTS),
         vol.Required(CONF_FRAME_THEME): vol.In(FRAME_THEMES),
+        vol.Required(CONF_SHOW_TITLE): bool,
+        vol.Required(CONF_SHOW_SUBTITLE): bool,
+        vol.Required(CONF_SHOW_YEAR): bool,
+        vol.Required(CONF_SHOW_RATING): bool,
+        vol.Required(CONF_SHOW_RUNTIME): bool,
         vol.Required(CONF_SHOW_SUMMARY): bool,
         vol.Required(CONF_SHOW_PROGRESS): bool,
         vol.Required(CONF_SHOW_SESSION): bool,
@@ -481,9 +496,10 @@ def _updated_presentation_options(
     current: dict[str, Any], updates: dict[str, Any]
 ) -> dict[str, Any]:
     """Merge Studio fields without replacing behavioral options."""
+    presentation = presentation_from_options({**current, **updates})
     return {
         **current,
-        **{key: updates[key] for key in _PRESENTATION_KEYS},
+        **presentation,
     }
 
 
@@ -677,6 +693,11 @@ _PRESENTATION_KEYS = {
     CONF_ORIENTATION,
     CONF_LAYOUT,
     CONF_FRAME_THEME,
+    CONF_SHOW_TITLE,
+    CONF_SHOW_SUBTITLE,
+    CONF_SHOW_YEAR,
+    CONF_SHOW_RATING,
+    CONF_SHOW_RUNTIME,
     CONF_SHOW_SUMMARY,
     CONF_SHOW_PROGRESS,
     CONF_SHOW_SESSION,
@@ -880,9 +901,13 @@ def _serialize_state(  # noqa: PLR0913
             else None,
         }
     session = data.selected_session
-    active_presentation = presentation or {
-        key: getattr(coordinator, key) for key in PROFILE_KEYS
-    }
+    active_presentation = presentation or presentation_from_options(
+        {
+            key: getattr(coordinator, key)
+            for key in PROFILE_KEYS
+            if hasattr(coordinator, key)
+        }
+    )
     return {
         "schema_version": 1,
         "entry_id": coordinator.entry_id,

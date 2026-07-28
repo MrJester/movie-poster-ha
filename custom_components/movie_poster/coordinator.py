@@ -56,6 +56,11 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         rotation_seconds: float = 15,
         library_refresh_seconds: float = 900,
         theme: str = "classic",
+        show_title: bool = True,
+        show_subtitle: bool = True,
+        show_year: bool = True,
+        show_rating: bool = True,
+        show_runtime: bool = True,
         show_summary: bool = True,
         show_progress: bool = True,
         show_session: bool = True,
@@ -85,6 +90,11 @@ class MoviePosterCoordinator(DataUpdateCoordinator[CoordinatorData]):
         )
         self.entry_id = entry_id
         self.theme = theme
+        self.show_title = show_title
+        self.show_subtitle = show_subtitle
+        self.show_year = show_year
+        self.show_rating = show_rating
+        self.show_runtime = show_runtime
         self.show_summary = show_summary
         self.show_progress = show_progress
         self.show_session = show_session

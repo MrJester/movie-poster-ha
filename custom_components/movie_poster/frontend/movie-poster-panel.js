@@ -110,7 +110,9 @@ const studioState = () => ({
   schema_version: 1,
   health: { connected: true, message: null },
   presentation: {
-    theme: "classic", orientation: "auto", show_summary: true,
+    theme: "classic", orientation: "auto",
+    show_title: true, show_subtitle: true, show_year: true,
+    show_rating: true, show_runtime: true, show_summary: true,
     show_progress: true, show_session: true, enable_motion: true,
     kiosk_mode: false, layout: "cinematic", frame_theme: "marquee",
     accent_color: "#f6cf70", background_color: "#090706",
@@ -487,11 +489,16 @@ class MoviePosterPanel extends HTMLElement {
     const progress = hasProgress
       ? Math.min(100, Math.max(0, (media.position_ms / media.duration_ms) * 100))
       : 0;
-    const meta = [media.year, media.content_rating, formatRuntime(media.duration_ms)]
-      .filter(Boolean)
-      .join(" · ");
     const theme = normalizeTheme(state.presentation?.theme);
     const presentation = state.presentation ?? {};
+    const meta = [
+      presentation.show_year !== false && media.year
+        ? `<span class="meta-year">${escapeHtml(media.year)}</span>` : "",
+      presentation.show_rating !== false && media.content_rating
+        ? `<span class="meta-rating">${escapeHtml(media.content_rating)}</span>` : "",
+      presentation.show_runtime !== false && formatRuntime(media.duration_ms)
+        ? `<span class="meta-runtime">${escapeHtml(formatRuntime(media.duration_ms))}</span>` : "",
+    ].filter(Boolean).join('<span class="meta-separator" aria-hidden="true"> · </span>');
     const motionClass = presentation.enable_motion === false ? " motion-off" : "";
     const transitionClass = this._softMediaTransition ? " media-arriving" : "";
     const studioClass = this._studio ? " studio-preview" : "";
@@ -513,10 +520,17 @@ class MoviePosterPanel extends HTMLElement {
       ? `url('${escapeHtml(media.backdrop_url)}')` : "none";
     const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)}"`;
 
+    const hasDetails = presentation.show_title !== false
+      || (presentation.show_subtitle !== false && Boolean(media.subtitle))
+      || Boolean(meta)
+      || (presentation.show_summary !== false && Boolean(media.summary))
+      || (presentation.show_session !== false && Boolean(state.session))
+      || (presentation.show_progress !== false && Boolean(hasProgress));
+    const detailsClass = hasDetails ? " has-details" : "";
     const summaryClass = presentation.show_summary !== false ? " show-summary" : "";
     const progressClass = presentation.show_progress !== false ? " show-progress" : "";
     this.shadowRoot.innerHTML = `${this._styles()}${this._studioControls()}
-      <main class="theater${studioClass}${rendererClass}${editorClass} theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}${transitionClass}${summaryClass}${progressClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
+      <main class="theater${studioClass}${rendererClass}${editorClass}${detailsClass} theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}${transitionClass}${summaryClass}${progressClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
         ${presentationStyle} aria-label="Movie Poster display">
         <div class="ambient"></div>
         ${this._displayControls()}
@@ -554,15 +568,22 @@ class MoviePosterPanel extends HTMLElement {
                      alt="Poster for ${escapeHtml(media.title)}">`
                 : `<div class="poster poster-missing" role="img"
                     aria-label="No poster available for ${escapeHtml(media.title)}">No poster available</div>`}
-              <footer class="frame-plaque">
-                <strong>${escapeHtml(media.title)}</strong>
-                <span>${escapeHtml(media.subtitle || state.heading)}</span>
-              </footer>
+              ${presentation.show_title !== false
+                || presentation.show_subtitle !== false
+                ? `<footer class="frame-plaque">
+                  ${presentation.show_title !== false
+                    ? `<strong>${escapeHtml(media.title)}</strong>` : ""}
+                  ${presentation.show_subtitle !== false
+                    ? `<span>${escapeHtml(media.subtitle || state.heading)}</span>` : ""}
+                </footer>` : ""}
             </div>
-            <article class="details" aria-labelledby="movie-poster-title">
-              <h2 id="movie-poster-title">${escapeHtml(media.title)}</h2>
-              ${media.subtitle ? `<p class="subtitle">${escapeHtml(media.subtitle)}</p>` : ""}
-              ${meta ? `<p class="meta">${escapeHtml(meta)}</p>` : ""}
+            <article class="details"${presentation.show_title !== false
+              ? ' aria-labelledby="movie-poster-title"' : ""}>
+              ${presentation.show_title !== false
+                ? `<h2 id="movie-poster-title">${escapeHtml(media.title)}</h2>` : ""}
+              ${media.subtitle && presentation.show_subtitle !== false
+                ? `<p class="subtitle">${escapeHtml(media.subtitle)}</p>` : ""}
+              ${meta ? `<p class="meta">${meta}</p>` : ""}
               ${media.summary && presentation.show_summary !== false
                 ? `<p class="summary">${escapeHtml(media.summary)}</p>` : ""}
               ${state.session && presentation.show_session !== false
@@ -610,7 +631,9 @@ class MoviePosterPanel extends HTMLElement {
       frame.clientHeight < 420 || frame.clientWidth < 360,
     );
     this._fitHeadingToFrame(frame);
+    this._fitMovieTitleToFrame(frame);
     this._fitPosterToFrame(frame);
+    this._fitMovieTitleToFrame(frame);
     if (!frame.closest(".frame-marquee")) return;
     const container = frame.querySelector(".marquee-bulbs");
     if (!container) return;
@@ -679,6 +702,32 @@ class MoviePosterPanel extends HTMLElement {
     heading.style.fontSize = `${fittedSize}px`;
   }
 
+  _fitMovieTitleToFrame(frame) {
+    const title = frame.querySelector(".details h2");
+    if (!title || getComputedStyle(title).display === "none") return;
+    title.classList.remove("title-truncated");
+    title.classList.add("title-measuring");
+    title.style.removeProperty("font-size");
+    const preferred = parseFloat(getComputedStyle(title).fontSize);
+    const minimum = Math.max(12, Math.min(32, frame.clientWidth * .025));
+    const fitsTwoLines = () => {
+      const style = getComputedStyle(title);
+      const lineHeight = parseFloat(style.lineHeight)
+        || parseFloat(style.fontSize) * 1.05;
+      return title.scrollHeight <= lineHeight * 2 + 1;
+    };
+    let size = Math.max(minimum, preferred);
+    title.style.fontSize = `${size}px`;
+    while (size > minimum && !fitsTwoLines()) {
+      size = Math.max(minimum, size - 1);
+      title.style.fontSize = `${size}px`;
+    }
+    const truncate = !fitsTwoLines();
+    title.classList.remove("title-measuring");
+    if (truncate) title.classList.add("title-truncated");
+    title.style.setProperty("--title-min-size", `${minimum}px`);
+  }
+
   _fitPosterToFrame(frame) {
     const poster = frame.querySelector(".poster");
     const marquee = frame.querySelector(".marquee");
@@ -699,7 +748,12 @@ class MoviePosterPanel extends HTMLElement {
         || window.matchMedia("(max-width: 720px)").matches
         || window.innerHeight > window.innerWidth
         || frame.clientHeight > frame.clientWidth);
-    const stacked = theater?.classList.contains("layout-poster")
+    const shortLandscape = frame.classList.contains("frame-short")
+      && !theater?.classList.contains("orientation-portrait")
+      && (theater?.classList.contains("orientation-landscape")
+        || (theater?.classList.contains("orientation-auto")
+          && window.innerWidth >= window.innerHeight));
+    let stacked = (theater?.classList.contains("layout-poster") && !shortLandscape)
       || theater?.classList.contains("orientation-portrait") || autoStacks;
     if (stacked && details && getComputedStyle(details).display !== "none") {
       content.style.display = "grid";
@@ -707,12 +761,27 @@ class MoviePosterPanel extends HTMLElement {
     } else {
       content.style.removeProperty("display");
       content.style.removeProperty("grid-template-columns");
+      /* Several photographic frames switch to a single-column grid when
+         their stage is short. Treat the computed layout as stacked too so
+         poster fitting reserves the real details height. */
+      const computedColumns = getComputedStyle(content).gridTemplateColumns
+        .trim().split(/\s+/).filter(Boolean);
+      stacked = Boolean(
+        details
+        && getComputedStyle(details).display !== "none"
+        && getComputedStyle(content).display === "grid"
+        && computedColumns.length === 1,
+      );
+      if (stacked) {
+        content.style.display = "grid";
+        content.style.gridTemplateColumns = "minmax(0, 1fr)";
+      }
     }
     const minimum = frame.classList.contains("frame-ultra-compact")
       ? 36
       : window.innerWidth >= 720
-        ? 150
-        : Math.min(160, Math.max(56, frame.clientHeight * 0.18));
+        ? 160
+        : Math.min(120, Math.max(48, frame.clientHeight * .15));
     if (!stacked) frame.style.removeProperty("--fitted-poster-width");
     const fit = () => {
       const detailsStyle = details ? getComputedStyle(details) : null;
@@ -725,19 +794,31 @@ class MoviePosterPanel extends HTMLElement {
         - parseFloat(boundaryStyle.borderBottomWidth)
         - parseFloat(boundaryStyle.paddingBottom);
       const posterTop = poster.getBoundingClientRect().top;
-      const available = frameBottom - posterTop
-        - parseFloat(contentStyle.paddingBottom) - plaqueHeight - detailsHeight - 20;
+      const available = stacked
+        ? content.clientHeight
+          - parseFloat(contentStyle.paddingTop)
+          - parseFloat(contentStyle.paddingBottom)
+          - plaqueHeight - detailsHeight
+          - (theater?.classList.contains("frame-cyber_noir") ? 80 : 12)
+        : frameBottom - posterTop
+          - parseFloat(contentStyle.paddingBottom) - plaqueHeight - 20;
       frame.style.setProperty(
         "--fitted-poster-height",
         `${Math.max(minimum, available)}px`,
       );
       if (stacked) {
+        poster.style.setProperty(
+          "height",
+          `${Math.max(minimum, available)}px`,
+          "important",
+        );
         frame.style.setProperty(
           "--fitted-poster-width",
           `${poster.getBoundingClientRect().width}px`,
         );
       }
     };
+    if (!stacked) poster.style.removeProperty("height");
     fit();
     if (stacked) {
       fit();
@@ -1188,7 +1269,11 @@ class MoviePosterPanel extends HTMLElement {
           `<option value="${value}" ${normalizeLogoPosition(presentation.logo_position) === value ? "selected" : ""}>top ${value}</option>`
         ).join("")}
       </select></label>
-      ${[["show_summary", "Summary"], ["show_progress", "Progress"],
+      <h3 class="studio-wide">Movie details</h3>
+      ${[["show_title", "Title"], ["show_subtitle", "Tagline"],
+        ["show_year", "Year"], ["show_rating", "Content rating"],
+        ["show_runtime", "Runtime"],
+        ["show_summary", "Summary"], ["show_progress", "Progress"],
         ["show_session", "Session"], ["enable_motion", "Motion"],
         ["kiosk_mode", "Kiosk mode"]].map(([field, label]) =>
           `<label class="studio-check"><input type="checkbox" data-studio="${field}"
@@ -2081,6 +2166,11 @@ class MoviePosterPanel extends HTMLElement {
         orientation: normalizeOrientation(presentation.orientation),
         layout: normalizeLayout(presentation.layout),
         frame_theme: normalizeFrame(presentation.frame_theme),
+        show_title: presentation.show_title !== false,
+        show_subtitle: presentation.show_subtitle !== false,
+        show_year: presentation.show_year !== false,
+        show_rating: presentation.show_rating !== false,
+        show_runtime: presentation.show_runtime !== false,
         show_summary: presentation.show_summary !== false,
         show_progress: presentation.show_progress !== false,
         show_session: presentation.show_session !== false,
@@ -5079,7 +5169,7 @@ class MoviePosterPanel extends HTMLElement {
       }
       .theater.orientation-portrait .details .summary {
         width: var(--fitted-poster-width, 100%);
-        max-width: 100%;
+        max-width: none;
         margin: 0 auto;
         display: -webkit-box;
         -webkit-box-orient: vertical;
@@ -5121,7 +5211,7 @@ class MoviePosterPanel extends HTMLElement {
         }
         .theater.orientation-auto .details .summary {
           width: var(--fitted-poster-width, 100%);
-          max-width: 100%;
+          max-width: none;
           margin-inline: auto;
         }
         .theater.orientation-auto .details .progress {
@@ -5129,56 +5219,241 @@ class MoviePosterPanel extends HTMLElement {
           margin-inline: auto;
         }
       }
-      /* Keep the stacked poster clear of the details row. The framed poster
-         has a two-pixel visual edge, so its painted bounds otherwise cross
-         the grid boundary even though the layout boxes only touch. */
-      .theater.orientation-landscape.layout-poster .poster,
-      .theater.orientation-auto.layout-poster .poster {
-        transform: translateY(-4px);
+      /* Dynamic details are layout content, never frame decoration. Every
+         photographic frame must preserve the configured components. */
+      .theater.has-details .details {
+        display: flex !important;
+        flex-direction: column;
+        min-width: 0;
+        max-height: 100%;
+        gap: clamp(3px, .55cqw, 9px);
       }
-      /* Theater Classic has no artwork plaque, so its HTML title is the
-         authoritative movie-title slot. Keep it inside the photographed
-         opening and let poster fitting reserve the required row. */
-      .theater.frame-theater_classic .details h2 {
+      .theater.has-details .details
+        :is(.subtitle, .meta, .summary, .session, .progress) {
+        display: block !important;
+      }
+      .theater.has-details .frame-plaque {
+        display: none !important;
+      }
+      .theater.has-details.frame-marquee:not(.layout-poster)
+        .marquee-frame.frame-short .content {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
+      .theater.has-details.orientation-landscape.layout-poster
+        .marquee-frame.frame-short .content,
+      .theater.has-details.orientation-auto.layout-poster
+        .marquee-frame.frame-short .content {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+      }
+      .theater.has-details .details h2 {
         display: -webkit-box !important;
+        min-width: 0;
+        margin: 0;
         overflow: hidden;
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 2;
       }
-      .theater.frame-theater_classic.orientation-portrait .details {
-        display: flex !important;
-        flex-direction: column;
+      .theater.has-details .details h2.title-measuring {
+        display: block !important;
+        max-height: none !important;
+        overflow: visible !important;
+        -webkit-line-clamp: unset !important;
+      }
+      .theater.has-details .details h2.title-truncated {
+        display: -webkit-box !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+      }
+      .theater.has-details.orientation-landscape:not(.layout-poster) .details {
+        height: calc(100% - 24px);
+        max-height: calc(100% - 24px);
+        justify-content: center;
+        overflow: hidden;
+      }
+      @media (min-width: 721px) and (orientation: landscape) {
+        .theater.has-details.orientation-auto:not(.layout-poster) .details {
+          height: calc(100% - 24px);
+          max-height: calc(100% - 24px);
+          justify-content: center;
+          overflow: hidden;
+        }
+      }
+      .theater.has-details.layout-poster .details {
+        max-height: 30cqh;
+        padding-block: 2px;
+        gap: clamp(2px, .35cqw, 5px);
+      }
+      .theater.has-details.layout-poster .details h2 {
+        font-size: clamp(var(--title-min-size, 12px), 2.5cqw, 28px);
+        line-height: 1.02;
+      }
+      .theater.has-details.layout-poster .details
+        :is(.subtitle, .meta, .summary, .session) {
+        margin-block: 0;
+        font-size: clamp(.62rem, 1.15cqw, .86rem);
+        line-height: 1.15;
+      }
+      .theater.has-details.layout-poster .details .summary {
+        display: -webkit-box !important;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 1;
+      }
+      .theater.has-details.layout-poster .details .progress {
+        height: 4px;
+        margin-top: 2px;
+      }
+      .theater.has-details.layout-poster .marquee-frame.frame-short .details {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        align-content: center;
+        column-gap: clamp(6px, 1cqw, 12px);
+        row-gap: 2px;
+      }
+      .theater.has-details.layout-poster
+        .marquee-frame.frame-short .details h2,
+      .theater.has-details.layout-poster
+        .marquee-frame.frame-short .details .progress {
+        grid-column: 1 / -1;
+      }
+      .theater.has-details.layout-poster
+        .marquee-frame.frame-short .details
+        :is(.subtitle, .meta, .summary, .session) {
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .theater.has-details.orientation-portrait .content {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        grid-template-rows: minmax(0, 1fr) auto !important;
+      }
+      .theater.has-details.orientation-portrait .poster-wrap {
+        box-sizing: border-box;
+        display: flex;
         grid-column: 1 !important;
+        align-items: center;
+        justify-content: center;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .theater.has-details.orientation-portrait .poster {
+        width: auto !important;
+        height: calc(100% - 2px) !important;
+        max-height: 100% !important;
+        transform: none;
+      }
+      .theater.has-details.orientation-portrait .details {
+        grid-column: 1 !important;
+        box-sizing: border-box;
         width: var(--fitted-poster-width, 100%);
         max-width: 100%;
-        max-height: 22cqh;
-        margin: 0 auto;
-        padding: clamp(4px, .8cqw, 10px);
-        gap: clamp(3px, .5cqw, 7px);
+        max-height: 24cqh;
+        margin: 2px auto 0;
+        padding-block: clamp(4px, .8cqw, 10px);
+        padding-inline: 0;
         text-align: center;
         overflow: hidden;
       }
-      .theater.frame-theater_classic.orientation-portrait
-        .details :is(.subtitle, .meta, .session) {
-        display: none;
+      .theater.has-details.orientation-portrait .details h2,
+      .theater.has-details.orientation-portrait .details .subtitle,
+      .theater.has-details.orientation-portrait .details .meta,
+      .theater.has-details.orientation-portrait .details .session {
+        width: 100%;
+        max-width: 100%;
+      }
+      .theater.has-details.orientation-portrait .details .subtitle,
+      .theater.has-details.orientation-portrait .details .summary {
+        margin-block: 0;
+      }
+      .theater.has-details.orientation-portrait .details .meta,
+      .theater.has-details.orientation-portrait .details .session {
+        margin-block: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .theater.has-details.orientation-portrait .details {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        column-gap: clamp(6px, 1cqw, 12px);
+        row-gap: 2px;
+      }
+      .theater.has-details.orientation-portrait .details h2,
+      .theater.has-details.orientation-portrait .details .progress {
+        grid-column: 1 / -1;
+      }
+      .theater.has-details.orientation-portrait .details
+        :is(.subtitle, .meta, .summary, .session) {
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
       }
       @media (max-width: 720px), (orientation: portrait) {
-        .theater.frame-theater_classic.orientation-auto .details {
-          display: flex !important;
-          flex-direction: column;
+        .theater.has-details.orientation-auto .content {
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) !important;
+          grid-template-rows: minmax(0, 1fr) auto !important;
+        }
+        .theater.has-details.orientation-auto .poster-wrap {
+          box-sizing: border-box;
+          display: flex;
           grid-column: 1 !important;
-          width: var(--fitted-poster-width, 100%);
+          align-items: center;
+          justify-content: center;
+          min-height: 0;
+          overflow: hidden;
+        }
+        .theater.has-details.orientation-auto .poster {
+          width: auto !important;
+          height: calc(100% - 2px) !important;
+          max-height: 100% !important;
+        }
+        .theater.has-details.orientation-auto .details {
+          grid-column: 1 !important;
+          box-sizing: border-box;
+          width: calc(var(--fitted-poster-width, 100%) + 1px);
           max-width: 100%;
-          max-height: 22cqh;
+          max-height: 24cqh;
           margin: 0 auto;
-          padding: clamp(4px, .8cqw, 10px);
-          gap: clamp(3px, .5cqw, 7px);
+          padding-block: clamp(4px, .8cqw, 10px);
+          padding-inline: 0;
           text-align: center;
           overflow: hidden;
         }
-        .theater.frame-theater_classic.orientation-auto
-          .details :is(.subtitle, .meta, .session) {
-          display: none;
+        .theater.has-details.orientation-auto .details h2,
+        .theater.has-details.orientation-auto .details .subtitle,
+        .theater.has-details.orientation-auto .details .meta,
+        .theater.has-details.orientation-auto .details .session {
+          width: 100%;
+          max-width: 100%;
+        }
+        .theater.has-details.orientation-auto .details .subtitle,
+        .theater.has-details.orientation-auto .details .summary,
+        .theater.has-details.orientation-auto .details .meta,
+        .theater.has-details.orientation-auto .details .session {
+          margin-block: 0;
+        }
+        .theater.has-details.orientation-auto .details {
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          column-gap: clamp(6px, 1cqw, 12px);
+          row-gap: 2px;
+        }
+        .theater.has-details.orientation-auto .details h2,
+        .theater.has-details.orientation-auto .details .progress {
+          grid-column: 1 / -1;
+        }
+        .theater.has-details.orientation-auto .details
+          :is(.subtitle, .meta, .summary, .session) {
+          min-width: 0;
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
         }
       }
       .visual-editor-active .marquee-frame { display: none; }

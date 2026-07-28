@@ -78,6 +78,11 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
     assert state["operations"]["can_control"] is True
     assert state["presentation"] == {
         "theme": "neon",
+        "show_title": True,
+        "show_subtitle": True,
+        "show_year": True,
+        "show_rating": True,
+        "show_runtime": True,
         "show_summary": False,
         "show_progress": True,
         "show_session": False,
@@ -166,6 +171,11 @@ def test_studio_save_preserves_behavior_options() -> None:
         "orientation": "landscape",
         "layout": "split",
         "frame_theme": "cyber_noir",
+        "show_title": False,
+        "show_subtitle": True,
+        "show_year": True,
+        "show_rating": False,
+        "show_runtime": True,
         "show_summary": False,
         "show_progress": True,
         "show_session": False,
@@ -188,3 +198,5 @@ def test_studio_save_preserves_behavior_options() -> None:
     assert result["rotation_seconds"] == rotation_seconds
     assert result["theme"] == "neon"
     assert result["frame_theme"] == "cyber_noir"
+    assert result["show_title"] is False
+    assert result["show_rating"] is False

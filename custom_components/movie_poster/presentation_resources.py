@@ -812,6 +812,8 @@ def design_from_legacy_presentation(
 
     components = deepcopy(BUILTIN_LAYOUTS[layout]["components"])
     visibility = {
+        "title": bool(presentation.get("show_title", True)),
+        "subtitle": bool(presentation.get("show_subtitle", True)),
         "summary": bool(presentation.get("show_summary", True)),
         "progress": bool(presentation.get("show_progress", True)),
     }

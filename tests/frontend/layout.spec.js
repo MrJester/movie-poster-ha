@@ -88,6 +88,11 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
         orientation,
         layout,
         frame_theme: frame,
+        show_title: variant.showTitle ?? true,
+        show_subtitle: variant.showSubtitle ?? true,
+        show_year: variant.showYear ?? true,
+        show_rating: variant.showRating ?? true,
+        show_runtime: variant.showRuntime ?? true,
         show_summary: true,
         show_progress: true,
         show_session: true,
@@ -207,7 +212,8 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
     const missingPoster = element(".poster").classList.contains("poster-missing");
     if (!missingPoster && innerWidth >= 720
       && (posterBox.width < 100 || posterBox.height < 150)) {
-      violations.push("poster becomes unreadably small");
+      violations.push(`poster becomes unreadably small `
+        + `(${Math.round(posterBox.width)}x${Math.round(posterBox.height)})`);
     }
     if (missingPoster && (posterBox.width < 48 || posterBox.height < 36)) {
       violations.push("missing-artwork placeholder becomes unreadably small");
@@ -851,6 +857,11 @@ test("Display Studio saves edited behavior and presentation settings", async ({ 
     const theme = panel.shadowRoot.querySelector('[data-studio="theme"]');
     theme.value = "neon";
     theme.dispatchEvent(new Event("change", { bubbles: true }));
+    for (const name of ["show_title", "show_rating", "show_progress"]) {
+      const control = panel.shadowRoot.querySelector(`[data-studio="${name}"]`);
+      control.checked = false;
+      control.dispatchEvent(new Event("change", { bubbles: true }));
+    }
     panel.shadowRoot.querySelector('[data-studio-action="save"]').click();
   });
 
@@ -863,11 +874,82 @@ test("Display Studio saves edited behavior and presentation settings", async ({ 
     source: "Movies::Coming Soon",
     rotation_seconds: 45,
     theme: "neon",
+    show_title: false,
+    show_rating: false,
+    show_progress: false,
   });
   await expect.poll(() => root.evaluate((panel) =>
     panel.shadowRoot.querySelector(".studio-status").textContent))
     .toContain("Saved.");
   await expect.poll(() => page.evaluate(() => window.__studioReturned)).toBe(true);
+});
+
+test("movie detail controls apply consistently to every frame", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openHarness(page);
+  for (const frame of FRAMES) {
+    expect(await renderPoster(
+      page, frame, "classic", "cinematic", "landscape",
+    )).toEqual([]);
+    const visible = await page.evaluate(() => {
+      const root = document.querySelector("movie-poster-panel").shadowRoot;
+      return {
+        title: root.querySelector(".details h2")?.textContent,
+        subtitle: root.querySelector(".details .subtitle")?.textContent,
+        meta: root.querySelector(".details .meta")?.textContent,
+      };
+    });
+    expect(visible.title).toContain("Pirates of the Caribbean");
+    expect(visible.subtitle).toContain("Every night");
+    expect(visible.meta).toContain("2026");
+    expect(visible.meta).toContain("PG-13");
+    expect(visible.meta).toContain("2h");
+
+    expect(await renderPoster(
+      page, frame, "classic", "cinematic", "landscape", {
+        showTitle: false,
+        showSubtitle: false,
+        showYear: false,
+        showRating: false,
+        showRuntime: false,
+      },
+    )).toEqual([]);
+    const hidden = await page.evaluate(() => {
+      const root = document.querySelector("movie-poster-panel").shadowRoot;
+      return {
+        title: root.querySelector(".details h2"),
+        subtitle: root.querySelector(".details .subtitle"),
+        meta: root.querySelector(".details .meta"),
+      };
+    });
+    expect(hidden).toEqual({ title: null, subtitle: null, meta: null });
+  }
+});
+
+test("long movie titles fit two lines before truncating at a safe minimum", async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await openHarness(page);
+  expect(await renderPoster(
+    page, "theater_classic", "classic", "cinematic", "landscape", {
+      title: "The Impossibly Long Motion Picture Title ".repeat(12),
+    },
+  )).toEqual([]);
+  const fit = await page.evaluate(() => {
+    const root = document.querySelector("movie-poster-panel").shadowRoot;
+    const title = root.querySelector(".details h2");
+    const style = getComputedStyle(title);
+    const lineHeight = parseFloat(style.lineHeight)
+      || parseFloat(style.fontSize) * 1.05;
+    return {
+      lines: title.clientHeight / lineHeight,
+      fontSize: parseFloat(style.fontSize),
+      minimum: parseFloat(title.style.getPropertyValue("--title-min-size")),
+      truncated: title.classList.contains("title-truncated"),
+    };
+  });
+  expect(fit.lines).toBeLessThanOrEqual(2.05);
+  expect(fit.fontSize).toBeGreaterThanOrEqual(fit.minimum);
+  expect(fit.truncated).toBe(true);
 });
 
 test("display remains semantic, keyboard accessible, and reduced-motion safe", async ({ page }) => {
