@@ -20,6 +20,8 @@
   selection, visibility, and forward/backward ordering controls.
 - Add optional one-percent grid snapping, canvas-edge and center alignment, and
   keyboard nudging with accelerated Shift+Arrow movement.
+- Add Shift-click multi-selection, bounded group dragging and keyboard
+  movement, group alignment, and horizontal or vertical space distribution.
 - Use a presentation-specific frontend module cache key so Home Assistant
   cannot reuse the pre-editor panel module after upgrading to beta.44.
 - Make metadata grid items explicitly shrink-safe across browser engines so

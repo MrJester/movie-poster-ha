@@ -414,19 +414,45 @@ test("visual editor supports bounded undo and redo history", async ({ page }) =>
     await panel._editorAction("undo");
     const afterUndo = panel._editorDocument.design.components.length;
     await panel._editorAction("redo");
+    const afterRedo = panel._editorDocument.design.components.map(
+      (component) => component.id,
+    );
     panel._alignEditorComponent("right");
     const afterAlign = panel._editorDocument.design.components[0].bounds.x;
     panel._handleEditorKeydown(new KeyboardEvent("keydown", {
       key: "ArrowLeft",
     }));
+    const afterKeyboardMove = panel._editorDocument.design.components[0].bounds.x;
+    const title = panel._editorDocument.design.components[0];
+    title.bounds = { x: 0, y: 10, width: 10, height: 10 };
+    panel._editorDocument.design.components.push(
+      {
+        ...structuredClone(title),
+        id: "subtitle",
+        type: "subtitle",
+        bounds: { x: 20, y: 30, width: 10, height: 10 },
+      },
+      {
+        ...structuredClone(title),
+        id: "year",
+        type: "year",
+        bounds: { x: 90, y: 50, width: 10, height: 10 },
+      },
+    );
+    panel._editorSelectedIds = ["title", "subtitle", "year"];
+    panel._editorSelectedId = "year";
+    panel._distributeEditorComponents("horizontal");
+    panel._alignEditorComponent("top");
     clearTimeout(panel._editorSaveTimer);
     return {
       afterUndo,
-      afterRedo: panel._editorDocument.design.components.map(
-        (component) => component.id,
-      ),
+      afterRedo,
       afterAlign,
-      afterKeyboardMove: panel._editorDocument.design.components[0].bounds.x,
+      afterKeyboardMove,
+      selectedCount: panel._selectedEditorComponents().length,
+      distributed: panel._editorDocument.design.components.map(
+        (component) => ({ x: component.bounds.x, y: component.bounds.y }),
+      ),
       undoDepth: panel._editorUndoStack.length,
       redoDepth: panel._editorRedoStack.length,
     };
@@ -436,7 +462,13 @@ test("visual editor supports bounded undo and redo history", async ({ page }) =>
     afterRedo: ["title"],
     afterAlign: 60,
     afterKeyboardMove: 59,
-    undoDepth: 3,
+    selectedCount: 3,
+    distributed: [
+      { x: 0, y: 10 },
+      { x: 45, y: 10 },
+      { x: 90, y: 10 },
+    ],
+    undoDepth: 5,
     redoDepth: 0,
   });
 });
