@@ -85,6 +85,26 @@ const semanticEffectsStyle = (effects) => {
   return Number.isFinite(glow) && glow >= 0 && glow <= 1
     ? `--mp-glow-strength:${glow};--mp-glow-radius:${2 + glow * 12}px` : "";
 };
+const safeOpeningStyle = (safeOpening) => {
+  const declarations = [];
+  for (const orientation of ["portrait", "landscape"]) {
+    const bounds = safeOpening?.[orientation];
+    const x = Number(bounds?.x);
+    const y = Number(bounds?.y);
+    const width = Number(bounds?.width);
+    const height = Number(bounds?.height);
+    if (![x, y, width, height].every(Number.isFinite)
+      || x < 0 || y < 0 || width <= 0 || height <= 0
+      || x + width > 100 || y + height > 100) continue;
+    declarations.push(
+      `--mp-safe-${orientation}-top:${y}%`,
+      `--mp-safe-${orientation}-right:${100 - x - width}%`,
+      `--mp-safe-${orientation}-bottom:${100 - y - height}%`,
+      `--mp-safe-${orientation}-left:${x}%`,
+    );
+  }
+  return declarations.join(";");
+};
 const normalizeText = (value, fallback) => String(value ?? "").trim() || fallback;
 const LOGO_POSITIONS = new Set(["left", "center", "right"]);
 const normalizeLogoPosition = (value) => LOGO_POSITIONS.has(value) ? value : "right";
@@ -518,7 +538,7 @@ class MoviePosterPanel extends HTMLElement {
     const logoPosition = normalizeLogoPosition(presentation.logo_position);
     const backdrop = media.backdrop_url
       ? `url('${escapeHtml(media.backdrop_url)}')` : "none";
-    const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)}"`;
+    const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)};${safeOpeningStyle(state.design_frame?.safe_opening)}"`;
 
     const hasDetails = presentation.show_title !== false
       || (presentation.show_subtitle !== false && Boolean(media.subtitle))
@@ -5462,29 +5482,34 @@ class MoviePosterPanel extends HTMLElement {
          across every built-in frame so switching frames never moves or clips
          the presentation. */
       .theater {
-        --safe-top: 19%;
-        --safe-inline: 15%;
-        --safe-bottom: 17%;
+        --safe-top: var(--mp-safe-landscape-top, 19%);
+        --safe-right: var(--mp-safe-landscape-right, 15%);
+        --safe-bottom: var(--mp-safe-landscape-bottom, 17%);
+        --safe-left: var(--mp-safe-landscape-left, 15%);
         --layout-poster-share: 44%;
         --layout-gap: clamp(8px, 1.35cqw, 20px);
         --layout-details-pad: clamp(4px, .7cqw, 12px);
       }
       .theater.orientation-portrait {
-        --safe-top: 16%;
-        --safe-inline: 19%;
-        --safe-bottom: 14%;
+        --safe-top: var(--mp-safe-portrait-top, 16%);
+        --safe-right: var(--mp-safe-portrait-right, 19%);
+        --safe-bottom: var(--mp-safe-portrait-bottom, 14%);
+        --safe-left: var(--mp-safe-portrait-left, 19%);
       }
       @media (max-width: 720px), (orientation: portrait) {
         .theater.orientation-auto {
-          --safe-top: 16%;
-          --safe-inline: 19%;
-          --safe-bottom: 14%;
+          --safe-top: var(--mp-safe-portrait-top, 16%);
+          --safe-right: var(--mp-safe-portrait-right, 19%);
+          --safe-bottom: var(--mp-safe-portrait-bottom, 14%);
+          --safe-left: var(--mp-safe-portrait-left, 19%);
         }
       }
       .theater .frame-stage {
         position: absolute !important;
         z-index: 1;
-        inset: var(--safe-top) var(--safe-inline) var(--safe-bottom) !important;
+        inset:
+          var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left)
+          !important;
         display: flex !important;
         min-width: 0;
         min-height: 0;

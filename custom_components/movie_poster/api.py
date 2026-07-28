@@ -70,6 +70,7 @@ from .presentation_resources import (
     blank_design,
     builtin_catalog,
     design_from_legacy_presentation,
+    frame_geometry_for_presentation,
     semantic_style_for_presentation,
 )
 from .profiles import (
@@ -935,6 +936,7 @@ def _serialize_state(  # noqa: PLR0913
             **active_presentation,
         },
         "design": design or design_from_legacy_presentation(active_presentation),
+        "design_frame": frame_geometry_for_presentation(active_presentation),
         "design_style": semantic_style_for_presentation(active_presentation),
         "mode": data.mode.mode,
         "heading": active_presentation[CONF_NOW_PLAYING_TEXT]

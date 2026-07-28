@@ -102,6 +102,14 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
         "logo_position": "left",
     }
     assert state["presentation_revision"] == presentation_revision
+    assert state["design_frame"] == {
+        "id": "builtin.frame.cyber_noir",
+        "version": 1,
+        "safe_opening": {
+            "portrait": {"x": 19, "y": 16, "width": 62, "height": 70},
+            "landscape": {"x": 15, "y": 19, "width": 70, "height": 64},
+        },
+    }
     assert state["heading"] == "Feature Presentation"
     assert state["media"]["poster_url"].startswith(
         "/api/movie_poster/artwork/entry-1/poster/42?authSig="

@@ -10,6 +10,7 @@ from custom_components.movie_poster.presentation_resources import (
     BUILTIN_LAYOUTS,
     BUILTIN_THEMES,
     DESIGN_SCHEMA,
+    FRAME_SAFE_OPENING,
     THEME_TOKEN_KEYS,
     builtin_catalog,
     design_from_legacy_presentation,
@@ -99,9 +100,17 @@ def test_catalogs_are_independent_objects() -> None:
     assert BUILTIN_LAYOUTS["cinematic"]["components"] != (
         BUILTIN_LAYOUTS["split"]["components"]
     )
-    assert BUILTIN_FRAMES["marquee"]["safe_opening"] != (
+    assert BUILTIN_FRAMES["marquee"]["safe_opening"] == (
         BUILTIN_FRAMES["cyber_noir"]["safe_opening"]
     )
+    for key, frame in BUILTIN_FRAMES.items():
+        if key == "blank":
+            continue
+        assert frame["safe_opening"] == FRAME_SAFE_OPENING
+        assert frame["safe_opening"] is not FRAME_SAFE_OPENING
+        assert frame["safe_opening"] is not (
+            BUILTIN_FRAMES["marquee"]["safe_opening"]
+        ) or key == "marquee"
     marquee_bezel = next(
         layer
         for layer in BUILTIN_FRAMES["marquee"]["layers"]
@@ -111,20 +120,12 @@ def test_catalogs_are_independent_objects() -> None:
         "portrait": "/movie_poster_static/assets/marquee-frame-portrait.png",
         "landscape": "/movie_poster_static/assets/marquee-frame-landscape.png",
     }
-    assert BUILTIN_FRAMES["marquee"]["safe_opening"] == {
-        "portrait": {"x": 19, "y": 18, "width": 62, "height": 68},
-        "landscape": {"x": 15, "y": 23, "width": 70, "height": 55},
-    }
     cyber_bezel = next(
         layer
         for layer in BUILTIN_FRAMES["cyber_noir"]["layers"]
         if layer["slot"] == "bezel"
     )
     assert set(cyber_bezel["asset"]) == {"portrait", "landscape"}
-    assert BUILTIN_FRAMES["cyber_noir"]["safe_opening"] == {
-        "portrait": {"x": 14, "y": 10, "width": 72, "height": 80},
-        "landscape": {"x": 9, "y": 11, "width": 82, "height": 78},
-    }
     theater_bezel = next(
         layer
         for layer in BUILTIN_FRAMES["theater_classic"]["layers"]
@@ -140,50 +141,30 @@ def test_catalogs_are_independent_objects() -> None:
             "theater-classic-frame-landscape.png"
         ),
     }
-    assert BUILTIN_FRAMES["theater_classic"]["safe_opening"] == {
-        "portrait": {"x": 20, "y": 16, "width": 60, "height": 68},
-        "landscape": {"x": 15, "y": 20, "width": 70, "height": 61},
-    }
     comic_bezel = next(
         layer
         for layer in BUILTIN_FRAMES["comic_hero"]["layers"]
         if layer["slot"] == "bezel"
     )
     assert set(comic_bezel["asset"]) == {"portrait", "landscape"}
-    assert BUILTIN_FRAMES["comic_hero"]["safe_opening"] == {
-        "portrait": {"x": 19, "y": 14, "width": 62, "height": 71},
-        "landscape": {"x": 15, "y": 21, "width": 70, "height": 58},
-    }
     nature_bezel = next(
         layer
         for layer in BUILTIN_FRAMES["indie_nature"]["layers"]
         if layer["slot"] == "bezel"
     )
     assert set(nature_bezel["asset"]) == {"portrait", "landscape"}
-    assert BUILTIN_FRAMES["indie_nature"]["safe_opening"] == {
-        "portrait": {"x": 15, "y": 12, "width": 71, "height": 76},
-        "landscape": {"x": 19, "y": 18, "width": 62, "height": 64},
-    }
     golden_bezel = next(
         layer
         for layer in BUILTIN_FRAMES["golden_age"]["layers"]
         if layer["slot"] == "bezel"
     )
     assert set(golden_bezel["asset"]) == {"portrait", "landscape"}
-    assert BUILTIN_FRAMES["golden_age"]["safe_opening"] == {
-        "portrait": {"x": 19, "y": 18, "width": 62, "height": 68},
-        "landscape": {"x": 22, "y": 25, "width": 55, "height": 63},
-    }
     steampunk_bezel = next(
         layer
         for layer in BUILTIN_FRAMES["steampunk"]["layers"]
         if layer["slot"] == "bezel"
     )
     assert set(steampunk_bezel["asset"]) == {"portrait", "landscape"}
-    assert BUILTIN_FRAMES["steampunk"]["safe_opening"] == {
-        "portrait": {"x": 20, "y": 16, "width": 59, "height": 68},
-        "landscape": {"x": 11, "y": 19, "width": 77, "height": 63},
-    }
     split_poster = next(
         component
         for component in BUILTIN_LAYOUTS["split"]["components"]

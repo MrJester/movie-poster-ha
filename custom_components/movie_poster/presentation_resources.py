@@ -14,6 +14,10 @@ CANVAS_MAX: Final = 100
 FIT_CONTAIN: Final = "contain"
 FIT_POLICIES: Final = (FIT_CONTAIN,)
 ORIENTATION_KEYS: Final = ("portrait", "landscape")
+FRAME_SAFE_OPENING: Final[dict[str, dict[str, float]]] = {
+    "portrait": {"x": 19, "y": 16, "width": 62, "height": 70},
+    "landscape": {"x": 15, "y": 19, "width": 70, "height": 64},
+}
 
 COMPONENT_TYPES: Final = (
     "poster",
@@ -482,8 +486,8 @@ def _frame_resource(  # noqa: PLR0913 - declarative resource builder
             )
         ],
         "safe_opening": {
-            "portrait": portrait_opening,
-            "landscape": landscape_opening,
+            "portrait": deepcopy(portrait_opening),
+            "landscape": deepcopy(landscape_opening),
         },
         "theme_bindings": bindings or {
             "primary_light": "light_primary",
@@ -503,8 +507,8 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "marquee": _frame_resource(
         "marquee",
         "Marquee",
-        _bounds(19, 18, 62, 68),
-        _bounds(15, 23, 70, 55),
+        FRAME_SAFE_OPENING["portrait"],
+        FRAME_SAFE_OPENING["landscape"],
         assets={
             "bezel": {
                 "portrait": (
@@ -526,8 +530,8 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "cyber_noir": _frame_resource(
         "cyber_noir",
         "Cyber Noir",
-        _bounds(14, 10, 72, 80),
-        _bounds(9, 11, 82, 78),
+        FRAME_SAFE_OPENING["portrait"],
+        FRAME_SAFE_OPENING["landscape"],
         assets={
             "bezel": {
                 "portrait": (
@@ -550,8 +554,8 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "comic_hero": _frame_resource(
         "comic_hero",
         "Comic Hero",
-        _bounds(19, 14, 62, 71),
-        _bounds(15, 21, 70, 58),
+        FRAME_SAFE_OPENING["portrait"],
+        FRAME_SAFE_OPENING["landscape"],
         assets={
             "bezel": {
                 "portrait": (
@@ -573,8 +577,8 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "theater_classic": _frame_resource(
         "theater_classic",
         "Theater Classic",
-        _bounds(20, 16, 60, 68),
-        _bounds(15, 20, 70, 61),
+        FRAME_SAFE_OPENING["portrait"],
+        FRAME_SAFE_OPENING["landscape"],
         assets={
             "bezel": {
                 "portrait": (
@@ -598,8 +602,8 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "indie_nature": _frame_resource(
         "indie_nature",
         "Indie Nature",
-        _bounds(15, 12, 71, 76),
-        _bounds(19, 18, 62, 64),
+        FRAME_SAFE_OPENING["portrait"],
+        FRAME_SAFE_OPENING["landscape"],
         assets={
             "bezel": {
                 "portrait": (
@@ -621,8 +625,8 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "golden_age": _frame_resource(
         "golden_age",
         "Golden Age",
-        _bounds(19, 18, 62, 68),
-        _bounds(22, 25, 55, 63),
+        FRAME_SAFE_OPENING["portrait"],
+        FRAME_SAFE_OPENING["landscape"],
         assets={
             "bezel": {
                 "portrait": (
@@ -644,8 +648,8 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "steampunk": _frame_resource(
         "steampunk",
         "Steampunk",
-        _bounds(20, 16, 59, 68),
-        _bounds(11, 19, 77, 63),
+        FRAME_SAFE_OPENING["portrait"],
+        FRAME_SAFE_OPENING["landscape"],
         assets={
             "bezel": {
                 "portrait": (
@@ -911,6 +915,19 @@ def semantic_style_for_presentation(
         "colors": deepcopy(theme["tokens"]),
         "typography": deepcopy(theme["typography"]),
         "effects": deepcopy(theme["effects"]),
+    }
+
+
+def frame_geometry_for_presentation(
+    presentation: dict[str, Any],
+) -> dict[str, Any]:
+    """Resolve frontend-safe geometry for one built-in Frame."""
+    frame_id = str(presentation.get("frame_theme", "marquee"))
+    frame = BUILTIN_FRAMES.get(frame_id, BUILTIN_FRAMES["marquee"])
+    return {
+        "id": frame["id"],
+        "version": frame["version"],
+        "safe_opening": deepcopy(frame["safe_opening"]),
     }
 
 

@@ -110,6 +110,11 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
           : "",
         logo_position: variant.logoPosition || "right",
       },
+      design_frame: variant.safeOpening ? {
+        id: `builtin.frame.${frame}`,
+        version: 1,
+        safe_opening: variant.safeOpening,
+      } : undefined,
       mode: "coming_soon",
       heading: variant.heading || "Coming Soon",
       media: {
@@ -310,6 +315,32 @@ test("every frame uses the same orientation safe region", async ({ page }) => {
       `${configuration.orientation}: ${JSON.stringify(regions)}`,
     ).toBe(1);
   }
+});
+
+test("renderer consumes validated declarative safe geometry", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openHarness(page);
+  expect(await renderPoster(
+    page, "marquee", "classic", "cinematic", "landscape",
+    {
+      safeOpening: {
+        portrait: { x: 20, y: 15, width: 60, height: 70 },
+        landscape: { x: 12, y: 14, width: 76, height: 72 },
+      },
+    },
+  )).toEqual([]);
+  const geometry = await page.evaluate(() => {
+    const root = document.querySelector("movie-poster-panel").shadowRoot;
+    const frame = root.querySelector(".marquee-frame").getBoundingClientRect();
+    const stage = root.querySelector(".frame-stage").getBoundingClientRect();
+    return {
+      x: Math.round((stage.left - frame.left) / frame.width * 100),
+      y: Math.round((stage.top - frame.top) / frame.height * 100),
+      width: Math.round(stage.width / frame.width * 100),
+      height: Math.round(stage.height / frame.height * 100),
+    };
+  });
+  expect(geometry).toEqual({ x: 12, y: 14, width: 76, height: 72 });
 });
 
 test("enabled movie details remain readable in every frame and layout", async ({ page }) => {
