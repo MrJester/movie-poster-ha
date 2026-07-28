@@ -578,8 +578,18 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "indie_nature": _frame_resource(
         "indie_nature",
         "Indie Nature",
-        _bounds(6, 6, 88, 88),
-        _bounds(6, 7, 88, 86),
+        _bounds(15, 12, 71, 76),
+        _bounds(19, 18, 62, 64),
+        assets={
+            "bezel": {
+                "portrait": (
+                    "/movie_poster_static/assets/indie-nature-frame-portrait.png"
+                ),
+                "landscape": (
+                    "/movie_poster_static/assets/indie-nature-frame-landscape.png"
+                ),
+            },
+        },
         bindings={
             "daylight": "light_primary",
             "foliage": "accent_secondary",

@@ -3207,15 +3207,128 @@ class MoviePosterPanel extends HTMLElement {
         }
       }
 
-      /* Bamboo, warm wood, glass, and subtle foliage. */
+      /* Photographic reclaimed wood, archival paper, and pressed botanicals. */
       .frame-indie_nature .marquee-frame {
-        border: 16px solid transparent; border-image: repeating-linear-gradient(90deg, #c79c55 0 18px, #6d4d23 18px 22px) 16;
-        border-radius: 0; background: linear-gradient(135deg, #182317f2, #090d08f7);
-        box-shadow: inset 0 0 35px #79a75f33, 0 28px 80px #000;
+        padding: 0;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: 0 34px 90px #000c;
       }
-      .frame-indie_nature .marquee-frame::before { inset: 7px; border: 1px solid #b8d18d88; border-radius: 0; filter: none; animation: none; }
-      .frame-indie_nature .ornament { width: 34px; opacity: .7; background: radial-gradient(ellipse at 20% 20%, #81a85d 0 20%, transparent 22%) 0 0/25px 40px; }
-      .frame-indie_nature .frame-plaque { display: block; color: #dcecc3; border: 1px solid #8aa46b; background: #415236cc; }
+      .frame-indie_nature .marquee-frame::after {
+        content: "";
+        position: absolute;
+        z-index: 4;
+        inset: 0;
+        pointer-events: none;
+        background: url("/movie_poster_static/assets/indie-nature-frame-landscape.png")
+          center / 100% 100% no-repeat;
+        filter: drop-shadow(0 20px 32px #000b);
+      }
+      .frame-indie_nature .marquee-frame::before {
+        content: "";
+        position: absolute;
+        z-index: 5;
+        inset: 17.7% 18.5%;
+        pointer-events: none;
+        border: 1px solid color-mix(in srgb,
+          var(--mp-accent-secondary, #8aa46b) 55%, transparent);
+        box-shadow:
+          inset 0 0 10px color-mix(in srgb,
+            var(--mp-light-primary, #fff2c4) 48%, transparent),
+          0 0 9px color-mix(in srgb,
+            var(--mp-light-primary, #fff2c4) 32%, transparent);
+        opacity: .78;
+        animation: indieNatureDaylight 4.8s ease-in-out infinite alternate;
+      }
+      .frame-indie_nature .frame-stage {
+        position: absolute;
+        z-index: 1;
+        inset: 18% 19%;
+        display: flex;
+        min-width: 0;
+        min-height: 0;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .frame-indie_nature .frame-stage > .marquee { flex: 0 0 auto; }
+      .frame-indie_nature .frame-stage > .content {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .frame-indie_nature .content {
+        gap: clamp(8px, 1.5cqw, 20px);
+        padding: clamp(4px, .8cqw, 10px) clamp(6px, 1.2cqw, 16px)
+          clamp(6px, 1cqw, 14px);
+      }
+      .frame-indie_nature .frame-ornaments,
+      .frame-indie_nature .frame-plaque { display: none; }
+      .frame-indie_nature .marquee {
+        margin: 0 clamp(5px, 1cqw, 16px) clamp(7px, 1.1cqw, 16px);
+        border: 1px solid var(--mp-border, #8aa46b);
+        background: color-mix(in srgb,
+          var(--mp-surface, #182317) 92%, transparent);
+      }
+      .frame-indie_nature.orientation-portrait .frame-stage {
+        inset: 12% 15%;
+      }
+      .frame-indie_nature.orientation-portrait .content {
+        grid-template-rows: minmax(0, 1fr);
+      }
+      .frame-indie_nature.orientation-portrait .poster-wrap {
+        min-height: 0;
+        height: 100%;
+      }
+      .frame-indie_nature.orientation-portrait .poster {
+        width: auto;
+        max-width: 100%;
+        height: 100%;
+        max-height: 100%;
+      }
+      .frame-indie_nature.orientation-portrait .details { display: none; }
+      .frame-indie_nature.orientation-portrait .marquee-frame::before {
+        inset: 11.7% 14.5%;
+      }
+      .frame-indie_nature.orientation-portrait .marquee-frame::after {
+        background-image:
+          url("/movie_poster_static/assets/indie-nature-frame-portrait.png");
+      }
+      .motion-off.frame-indie_nature .marquee-frame::before {
+        animation: none;
+        opacity: .7;
+      }
+      @keyframes indieNatureDaylight {
+        from { opacity: .58; filter: brightness(.94); }
+        to { opacity: .9; filter: brightness(1.08); }
+      }
+      @media (max-width: 720px), (orientation: portrait) {
+        .frame-indie_nature.orientation-auto .frame-stage {
+          inset: 12% 15%;
+        }
+        .frame-indie_nature.orientation-auto .content {
+          grid-template-rows: minmax(0, 1fr);
+        }
+        .frame-indie_nature.orientation-auto .poster-wrap {
+          min-height: 0;
+          height: 100%;
+        }
+        .frame-indie_nature.orientation-auto .poster {
+          width: auto;
+          max-width: 100%;
+          height: 100%;
+          max-height: 100%;
+        }
+        .frame-indie_nature.orientation-auto .details { display: none; }
+        .frame-indie_nature.orientation-auto .marquee-frame::before {
+          inset: 11.7% 14.5%;
+        }
+        .frame-indie_nature.orientation-auto .marquee-frame::after {
+          background-image:
+            url("/movie_poster_static/assets/indie-nature-frame-portrait.png");
+        }
+      }
 
       /* Golden-age proscenium with columns and velvet. */
       .frame-golden_age .marquee-frame {
