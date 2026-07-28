@@ -501,7 +501,27 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
         "blank", "Blank", _bounds(0, 0, 100, 100), _bounds(0, 0, 100, 100),
     ),
     "marquee": _frame_resource(
-        "marquee", "Marquee", _bounds(7, 6, 86, 88), _bounds(6, 7, 88, 86),
+        "marquee",
+        "Marquee",
+        _bounds(19, 18, 62, 68),
+        _bounds(15, 23, 70, 55),
+        assets={
+            "bezel": {
+                "portrait": (
+                    "/movie_poster_static/assets/marquee-frame-portrait.png"
+                ),
+                "landscape": (
+                    "/movie_poster_static/assets/marquee-frame-landscape.png"
+                ),
+            },
+        },
+        bindings={
+            "bulb_glass": "light_primary",
+            "bulb_chase": "light_secondary",
+            "metal_trim": "accent_primary",
+            "cabinet": "surface",
+            "inner_border": "border",
+        },
     ),
     "cyber_noir": _frame_resource(
         "cyber_noir",

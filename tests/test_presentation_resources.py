@@ -102,6 +102,19 @@ def test_catalogs_are_independent_objects() -> None:
     assert BUILTIN_FRAMES["marquee"]["safe_opening"] != (
         BUILTIN_FRAMES["cyber_noir"]["safe_opening"]
     )
+    marquee_bezel = next(
+        layer
+        for layer in BUILTIN_FRAMES["marquee"]["layers"]
+        if layer["slot"] == "bezel"
+    )
+    assert marquee_bezel["asset"] == {
+        "portrait": "/movie_poster_static/assets/marquee-frame-portrait.png",
+        "landscape": "/movie_poster_static/assets/marquee-frame-landscape.png",
+    }
+    assert BUILTIN_FRAMES["marquee"]["safe_opening"] == {
+        "portrait": {"x": 19, "y": 18, "width": 62, "height": 68},
+        "landscape": {"x": 15, "y": 23, "width": 70, "height": 55},
+    }
     cyber_bezel = next(
         layer
         for layer in BUILTIN_FRAMES["cyber_noir"]["layers"]

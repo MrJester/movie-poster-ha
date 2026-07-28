@@ -508,9 +508,9 @@ class MoviePosterPanel extends HTMLElement {
             <i class="cyber-light-group cyber-light-group-b"></i>
             <i class="cyber-light-group cyber-light-group-c"></i>
           </div>
-          <div class="frame-stage">
           <div class="marquee-bulbs" aria-hidden="true">
           </div>
+          <div class="frame-stage">
           ${logoUrl ? `<div class="brand-row logo-${logoPosition}">
             <div class="brand-logo logo-${logoPosition}">
               <img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(presentation.eyebrow_text || "Theater")} logo">
@@ -587,9 +587,17 @@ class MoviePosterPanel extends HTMLElement {
     if (!frame.closest(".frame-marquee")) return;
     const container = frame.querySelector(".marquee-bulbs");
     if (!container) return;
-    const inset = 4;
-    const width = Math.max(0, frame.clientWidth - inset * 2);
-    const height = Math.max(0, frame.clientHeight - inset * 2);
+    const theater = frame.closest(".theater");
+    const portrait = theater?.classList.contains("orientation-portrait")
+      || (theater?.classList.contains("orientation-auto")
+        && frame.clientHeight > frame.clientWidth);
+    const rail = portrait
+      ? { left: .14, right: .86, top: .143, bottom: .915 }
+      : { left: .10, right: .90, top: .16, bottom: .84 };
+    const left = frame.clientWidth * rail.left;
+    const top = frame.clientHeight * rail.top;
+    const width = Math.max(0, frame.clientWidth * (rail.right - rail.left));
+    const height = Math.max(0, frame.clientHeight * (rail.bottom - rail.top));
     const horizontalCount = Math.max(3, Math.round(width / 42) + 1);
     const verticalCount = Math.max(3, Math.round(height / 42));
     const points = [
@@ -614,8 +622,8 @@ class MoviePosterPanel extends HTMLElement {
     }
     [...container.children].forEach((bulb, index) => {
       const { x, y } = points[index];
-      bulb.style.left = `${x + inset}px`;
-      bulb.style.top = `${y + inset}px`;
+      bulb.style.left = `${x + left}px`;
+      bulb.style.top = `${y + top}px`;
       bulb.style.setProperty("--bulb-delay", `${-index * 4.8 / count}s`);
     });
     const divider = frame.querySelector(".marquee-divider-bulbs");
@@ -3894,40 +3902,138 @@ class MoviePosterPanel extends HTMLElement {
       .frame-marquee .marquee-frame::before {
         display: none;
       }
+      /* Photographic black-lacquer marquee with Theme-powered chasing bulbs. */
+      .frame-marquee .marquee-frame {
+        padding: 0;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: 0 34px 90px #000c;
+      }
+      .frame-marquee .marquee-frame::after {
+        content: "";
+        position: absolute;
+        z-index: 4;
+        inset: 0;
+        pointer-events: none;
+        background: url("/movie_poster_static/assets/marquee-frame-landscape.png")
+          center / 100% 100% no-repeat;
+        filter: drop-shadow(0 20px 34px #000c);
+      }
+      .frame-marquee .frame-stage {
+        position: absolute;
+        z-index: 1;
+        inset: 23% 15% 22%;
+        display: flex;
+        min-width: 0;
+        min-height: 0;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .frame-marquee .frame-stage > .marquee { flex: 0 0 auto; }
+      .frame-marquee .frame-stage > .content {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .frame-marquee .content {
+        gap: clamp(8px, 1.5cqw, 20px);
+        padding: clamp(4px, .8cqw, 10px) clamp(6px, 1.2cqw, 16px)
+          clamp(6px, 1cqw, 14px);
+      }
+      .frame-marquee .frame-ornaments,
+      .frame-marquee .frame-plaque { display: none; }
+      .frame-marquee .marquee {
+        margin: 0 clamp(5px, 1cqw, 16px) clamp(7px, 1.1cqw, 16px);
+        border: 1px solid var(--mp-border, #b8863b);
+        background: color-mix(in srgb,
+          var(--mp-surface, #120d09) 94%, transparent);
+        box-shadow: inset 0 0 16px color-mix(in srgb,
+          var(--mp-light-primary, #ffd36a) 12%, transparent);
+      }
+      .frame-marquee.orientation-portrait .frame-stage {
+        inset: 18% 19% 14%;
+      }
+      .frame-marquee.orientation-portrait .content {
+        grid-template-rows: minmax(0, 1fr);
+      }
+      .frame-marquee.orientation-portrait .poster-wrap {
+        min-height: 0;
+        height: 100%;
+      }
+      .frame-marquee.orientation-portrait .poster {
+        width: auto;
+        max-width: 100%;
+        height: 100%;
+        max-height: 100%;
+      }
+      .frame-marquee.orientation-portrait .details { display: none; }
+      .frame-marquee.orientation-portrait .marquee-frame::after {
+        background-image:
+          url("/movie_poster_static/assets/marquee-frame-portrait.png");
+      }
+      @media (max-width: 720px), (orientation: portrait) {
+        .frame-marquee.orientation-auto .frame-stage {
+          inset: 18% 19% 14%;
+        }
+        .frame-marquee.orientation-auto .content {
+          grid-template-rows: minmax(0, 1fr);
+        }
+        .frame-marquee.orientation-auto .poster-wrap {
+          min-height: 0;
+          height: 100%;
+        }
+        .frame-marquee.orientation-auto .poster {
+          width: auto;
+          max-width: 100%;
+          height: 100%;
+          max-height: 100%;
+        }
+        .frame-marquee.orientation-auto .details { display: none; }
+        .frame-marquee.orientation-auto .marquee-frame::after {
+          background-image:
+            url("/movie_poster_static/assets/marquee-frame-portrait.png");
+        }
+      }
       .marquee-bulbs { display: none; }
       .frame-marquee .marquee-bulbs {
         position: absolute;
-        z-index: 4;
+        z-index: 5;
         inset: 0;
         display: block;
         pointer-events: none;
       }
       .marquee-divider-bulbs { display: none; }
       .frame-marquee .marquee-divider-bulbs {
-        position: relative;
-        z-index: 3;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        width: calc(100% - clamp(52px, 7vw, 112px));
-        min-height: clamp(24px, 2.1vw, 38px);
-        margin: clamp(-10px, -.45vw, -4px) auto clamp(10px, 1vw, 20px);
-        pointer-events: none;
+        display: none;
       }
       .marquee-bulbs i,
       .marquee-divider-bulbs i {
         display: block;
-        width: clamp(12px, 1.25vw, 20px);
+        width: clamp(10px, 2.35cqw, 28px);
         aspect-ratio: 1;
         flex: 0 0 auto;
-        border: 2px solid #4b290d;
+        border: 1px solid color-mix(in srgb,
+          var(--mp-border, #704718) 76%, #120900);
         border-radius: 50%;
         background: radial-gradient(circle at 38% 32%,
-          #fff 0 9%, #fff7c9 12% 25%, #ffd35f 30% 48%,
-          #bc6f16 54% 68%, #60320d 74% 100%);
-        box-shadow: inset -2px -2px 3px #3b1b08aa,
-          inset 2px 2px 2px #fff8c9aa, 0 0 4px #ffd35f,
-          0 0 10px #e88a1d99;
+          #fff 0 7%,
+          color-mix(in srgb, var(--mp-light-secondary, #fff1b8) 78%, white)
+            11% 23%,
+          var(--mp-light-primary, #ffd35f) 30% 48%,
+          color-mix(in srgb, var(--mp-light-primary, #ffd35f) 56%, #402008)
+            56% 70%,
+          transparent 76% 100%);
+        box-shadow:
+          inset -2px -2px 3px color-mix(in srgb,
+            var(--mp-surface, #170e08) 72%, transparent),
+          inset 2px 2px 2px #ffffffa8,
+          0 0 5px var(--mp-light-secondary, #fff1b8),
+          0 0 14px color-mix(in srgb,
+            var(--mp-light-primary, #ffd35f) 88%, transparent),
+          0 0 28px color-mix(in srgb,
+            var(--mp-light-primary, #ffd35f) 42%, transparent);
         position: absolute;
         transform: translate(-50%, -50%);
         animation: bulbChase 4.8s linear infinite;
