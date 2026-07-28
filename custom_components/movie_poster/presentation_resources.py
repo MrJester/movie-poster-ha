@@ -243,7 +243,14 @@ FRAME_RESOURCE_SCHEMA = vol.Schema(
                             "content_mask",
                         )
                     ),
-                    vol.Required("asset"): vol.Any(None, str),
+                    vol.Required("asset"): vol.Any(
+                        None,
+                        str,
+                        {
+                            vol.Required("portrait"): str,
+                            vol.Required("landscape"): str,
+                        },
+                    ),
                     vol.Required("token"): vol.Any(None, str),
                 },
                 extra=vol.PREVENT_EXTRA,
@@ -283,6 +290,8 @@ def _component(  # noqa: PLR0913 - concise built-in resource declarations
     style_ref: str,
     *,
     visible: bool = True,
+    portrait: dict[str, float] | None = None,
+    landscape: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     """Create a built-in component declaration."""
     return {
@@ -294,7 +303,14 @@ def _component(  # noqa: PLR0913 - concise built-in resource declarations
         "style_ref": style_ref,
         "style": {},
         "text": "",
-        "orientation_overrides": {},
+        "orientation_overrides": {
+            key: {"bounds": value}
+            for key, value in {
+                "portrait": portrait,
+                "landscape": landscape,
+            }.items()
+            if value is not None
+        },
     }
 
 
@@ -436,39 +452,146 @@ BUILTIN_THEMES: Final[dict[str, dict[str, Any]]] = {
     },
 }
 
-BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
-    key: {
+def _frame_resource(  # noqa: PLR0913 - declarative resource builder
+    key: str,
+    name: str,
+    portrait_opening: dict[str, float],
+    landscape_opening: dict[str, float],
+    *,
+    assets: dict[str, Any] | None = None,
+    bindings: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Create one explicit built-in Frame resource."""
+    assets = assets or {}
+    return {
         "id": f"builtin.frame.{key}",
         "version": RESOURCE_VERSION,
         "name": name,
         "layers": [
-            {"slot": "background", "asset": None, "token": "backdrop"},
-            {"slot": "bezel", "asset": None, "token": "border"},
-            {"slot": "lighting", "asset": None, "token": "light_primary"},
-            {"slot": "foreground", "asset": None, "token": "accent_secondary"},
-            {"slot": "content_mask", "asset": None, "token": None},
+            {
+                "slot": slot,
+                "asset": assets.get(slot),
+                "token": token,
+            }
+            for slot, token in (
+                ("background", "backdrop"),
+                ("bezel", "border"),
+                ("lighting", "light_primary"),
+                ("foreground", "accent_secondary"),
+                ("content_mask", None),
+            )
         ],
         "safe_opening": {
-            "portrait": _bounds(12, 8, 76, 84),
-            "landscape": _bounds(8, 10, 84, 80),
+            "portrait": portrait_opening,
+            "landscape": landscape_opening,
         },
-        "theme_bindings": {
+        "theme_bindings": bindings or {
             "primary_light": "light_primary",
             "secondary_light": "light_secondary",
             "surface": "surface",
             "border": "border",
+            "raised_surface": "surface_elevated",
+            "trim": "accent_primary",
         },
     }
-    for key, name in {
-        "blank": "Blank",
-        "marquee": "Marquee",
-        "cyber_noir": "Cyber Noir",
-        "comic_hero": "Comic Hero",
-        "theater_classic": "Theater Classic",
-        "indie_nature": "Indie Nature",
-        "golden_age": "Golden Age",
-        "steampunk": "Steampunk",
-    }.items()
+
+
+BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
+    "blank": _frame_resource(
+        "blank", "Blank", _bounds(0, 0, 100, 100), _bounds(0, 0, 100, 100),
+    ),
+    "marquee": _frame_resource(
+        "marquee", "Marquee", _bounds(7, 6, 86, 88), _bounds(6, 7, 88, 86),
+    ),
+    "cyber_noir": _frame_resource(
+        "cyber_noir",
+        "Cyber Noir",
+        _bounds(10, 9, 80, 82),
+        _bounds(9, 10, 82, 80),
+        assets={
+            "bezel": {
+                "portrait": (
+                    "/movie_poster_static/assets/cyber-noir-frame-portrait.png"
+                ),
+                "landscape": (
+                    "/movie_poster_static/assets/cyber-noir-frame-landscape.png"
+                ),
+            },
+        },
+        bindings={
+            "powered_rail": "light_primary",
+            "fixture_core": "light_secondary",
+            "glass_edge": "accent_primary",
+            "metal_shadow": "surface",
+            "metal_highlight": "surface_elevated",
+            "screen_border": "border",
+        },
+    ),
+    "comic_hero": _frame_resource(
+        "comic_hero",
+        "Comic Hero",
+        _bounds(8, 7, 84, 86),
+        _bounds(7, 8, 86, 84),
+        bindings={
+            "ink": "border",
+            "hero_fill": "accent_primary",
+            "burst": "accent_secondary",
+            "highlight": "light_primary",
+            "caption": "surface_elevated",
+        },
+    ),
+    "theater_classic": _frame_resource(
+        "theater_classic",
+        "Theater Classic",
+        _bounds(10, 8, 80, 84),
+        _bounds(9, 9, 82, 82),
+        bindings={
+            "sconce": "light_primary",
+            "curtain": "accent_secondary",
+            "velvet_shadow": "surface",
+            "gilding": "accent_primary",
+            "proscenium": "border",
+        },
+    ),
+    "indie_nature": _frame_resource(
+        "indie_nature",
+        "Indie Nature",
+        _bounds(6, 6, 88, 88),
+        _bounds(6, 7, 88, 86),
+        bindings={
+            "daylight": "light_primary",
+            "foliage": "accent_secondary",
+            "paper": "surface_elevated",
+            "wood": "surface",
+            "edge": "border",
+        },
+    ),
+    "golden_age": _frame_resource(
+        "golden_age",
+        "Golden Age",
+        _bounds(9, 7, 82, 86),
+        _bounds(8, 8, 84, 84),
+        bindings={
+            "footlight": "light_primary",
+            "jewel": "light_secondary",
+            "gold_leaf": "accent_primary",
+            "lacquer": "surface",
+            "ornament": "border",
+        },
+    ),
+    "steampunk": _frame_resource(
+        "steampunk",
+        "Steampunk",
+        _bounds(9, 8, 82, 84),
+        _bounds(8, 9, 84, 82),
+        bindings={
+            "gauge_light": "light_primary",
+            "indicator": "light_secondary",
+            "brass": "accent_primary",
+            "iron": "surface",
+            "rivets": "border",
+        },
+    ),
 }
 
 _CINEMATIC_COMPONENTS: Final = [
@@ -481,11 +604,26 @@ _CINEMATIC_COMPONENTS: Final = [
         10,
         "text_heading",
     ),
-    _component("poster", "poster", _bounds(12, 20, 44, 68), 5, "border"),
-    _component("title", "title", _bounds(60, 27, 30, 12), 10, "text_heading"),
-    _component("subtitle", "subtitle", _bounds(60, 40, 30, 8), 10, "text_body"),
-    _component("summary", "summary", _bounds(60, 50, 30, 22), 10, "text_body"),
-    _component("progress", "progress", _bounds(60, 77, 30, 3), 10, "progress_fill"),
+    _component(
+        "poster", "poster", _bounds(12, 20, 44, 68), 5, "border",
+        portrait=_bounds(15, 18, 70, 52),
+    ),
+    _component(
+        "title", "title", _bounds(60, 27, 30, 12), 10, "text_heading",
+        portrait=_bounds(12, 72, 76, 8),
+    ),
+    _component(
+        "subtitle", "subtitle", _bounds(60, 40, 30, 8), 10, "text_body",
+        portrait=_bounds(12, 81, 76, 5),
+    ),
+    _component(
+        "summary", "summary", _bounds(60, 50, 30, 22), 10, "text_body",
+        portrait=_bounds(12, 87, 76, 8),
+    ),
+    _component(
+        "progress", "progress", _bounds(60, 77, 30, 3), 10, "progress_fill",
+        portrait=_bounds(12, 96, 76, 2),
+    ),
 ]
 
 BUILTIN_LAYOUTS: Final[dict[str, dict[str, Any]]] = {
@@ -514,14 +652,61 @@ BUILTIN_LAYOUTS: Final[dict[str, dict[str, Any]]] = {
                 "backdrop",
             ),
             _component("poster", "poster", _bounds(22, 10, 56, 78), 5, "border"),
-            _component("title", "title", _bounds(18, 90, 64, 7), 10, "text_heading"),
+            _component(
+                "title", "title", _bounds(18, 90, 64, 7), 10, "text_heading",
+                landscape=_bounds(24, 88, 52, 8),
+            ),
+            _component(
+                "subtitle",
+                "subtitle",
+                _bounds(22, 97, 56, 3),
+                10,
+                "text_muted",
+                landscape=_bounds(24, 96, 52, 3),
+            ),
         ],
     },
     "split": {
         "id": "builtin.layout.split",
         "version": RESOURCE_VERSION,
         "name": "Split",
-        "components": deepcopy(_CINEMATIC_COMPONENTS),
+        "components": [
+            _component(
+                "backdrop", "backdrop", _bounds(0, 0, 100, 100), -10, "backdrop",
+            ),
+            _component(
+                "poster", "poster", _bounds(4, 10, 44, 80), 5, "border",
+                portrait=_bounds(8, 8, 84, 47),
+            ),
+            _component(
+                "mode_heading",
+                "mode_heading",
+                _bounds(53, 9, 42, 8),
+                10,
+                "text_heading",
+                portrait=_bounds(10, 57, 80, 6),
+            ),
+            _component(
+                "title", "title", _bounds(53, 20, 42, 13), 10, "text_heading",
+                portrait=_bounds(10, 65, 80, 8),
+            ),
+            _component(
+                "subtitle", "subtitle", _bounds(53, 35, 42, 7), 10, "text_body",
+                portrait=_bounds(10, 74, 80, 5),
+            ),
+            _component(
+                "summary", "summary", _bounds(53, 45, 42, 25), 10, "text_body",
+                portrait=_bounds(10, 80, 80, 13),
+            ),
+            _component(
+                "progress",
+                "progress",
+                _bounds(53, 76, 42, 3),
+                10,
+                "progress_fill",
+                portrait=_bounds(10, 95, 80, 2),
+            ),
+        ],
     },
 }
 

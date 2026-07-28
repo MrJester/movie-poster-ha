@@ -32,6 +32,9 @@
 - Publish transparent 9:16 portrait and 16:9 landscape Frame design templates,
   editable SVG guide sources, normalized safe/opening boundaries, layer export
   guidance, and an example custom Frame manifest.
+- Replace placeholder built-in Frame resources with explicit safe openings,
+  orientation-aware Cyber Noir assets, and Frame-specific semantic attachment
+  maps; give Cinematic, Poster, and Split distinct responsive component trees.
 - Use a presentation-specific frontend module cache key so Home Assistant
   cannot reuse the pre-editor panel module after upgrading to beta.44.
 - Make metadata grid items explicitly shrink-safe across browser engines so

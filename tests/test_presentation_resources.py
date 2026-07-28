@@ -96,6 +96,29 @@ def test_catalogs_are_independent_objects() -> None:
         BUILTIN_LAYOUTS["split"]["components"]
     )
     assert BUILTIN_FRAMES["marquee"] is not BUILTIN_FRAMES["cyber_noir"]
+    assert BUILTIN_LAYOUTS["cinematic"]["components"] != (
+        BUILTIN_LAYOUTS["split"]["components"]
+    )
+    assert BUILTIN_FRAMES["marquee"]["safe_opening"] != (
+        BUILTIN_FRAMES["cyber_noir"]["safe_opening"]
+    )
+    cyber_bezel = next(
+        layer
+        for layer in BUILTIN_FRAMES["cyber_noir"]["layers"]
+        if layer["slot"] == "bezel"
+    )
+    assert set(cyber_bezel["asset"]) == {"portrait", "landscape"}
+    split_poster = next(
+        component
+        for component in BUILTIN_LAYOUTS["split"]["components"]
+        if component["id"] == "poster"
+    )
+    assert split_poster["orientation_overrides"]["portrait"]["bounds"] == {
+        "x": 8,
+        "y": 8,
+        "width": 84,
+        "height": 47,
+    }
 
 
 def test_semantic_style_resolves_without_exposing_mutable_catalog_data() -> None:
