@@ -29,7 +29,7 @@ module.exports = defineConfig({
     } },
   ],
   webServer: process.env.PLAYWRIGHT_FILE_MODE === "1" ? undefined : {
-    command: "python3 -m http.server 4173 --bind 127.0.0.1",
+    command: "python3 tests/frontend/server.py",
     port: 4173,
     reuseExistingServer: true,
   },
