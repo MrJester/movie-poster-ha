@@ -18,6 +18,8 @@
   alignment, glow, preview states, autosave, and explicit publishing.
 - Use a presentation-specific frontend module cache key so Home Assistant
   cannot reuse the pre-editor panel module after upgrading to beta.44.
+- Make metadata grid items explicitly shrink-safe across browser engines so
+  long titles remain contained on theater and ultrawide displays.
 
 ## 0.1.0-beta.43
 

@@ -6,6 +6,7 @@ try {
 }
 const { defineConfig } = playwrightTest;
 const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+const webkitExecutable = process.env.PLAYWRIGHT_WEBKIT_EXECUTABLE_PATH;
 
 module.exports = defineConfig({
   testDir: "tests/frontend",
@@ -21,7 +22,11 @@ module.exports = defineConfig({
       ...(chromiumExecutable
         ? { launchOptions: { executablePath: chromiumExecutable } } : {}),
     } },
-    { name: "webkit", use: { browserName: "webkit" } },
+    { name: "webkit", use: {
+      browserName: "webkit",
+      ...(webkitExecutable
+        ? { launchOptions: { executablePath: webkitExecutable } } : {}),
+    } },
   ],
   webServer: process.env.PLAYWRIGHT_FILE_MODE === "1" ? undefined : {
     command: "python3 -m http.server 4173 --bind 127.0.0.1",

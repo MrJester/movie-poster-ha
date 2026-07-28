@@ -2847,6 +2847,7 @@ class MoviePosterPanel extends HTMLElement {
         position: relative;
         z-index: 1;
         display: grid;
+        min-width: 0;
         grid-template-columns: minmax(320px, 1fr) minmax(300px, 1fr);
         gap: clamp(22px, 3.5vw, 60px);
         align-items: center;
@@ -2865,12 +2866,17 @@ class MoviePosterPanel extends HTMLElement {
         box-shadow: 0 24px 55px #000, 0 0 28px #d18a2544;
       }
       .poster-missing { display: grid; place-items: center; color: #9d8e78; }
+      .details {
+        min-width: 0;
+        max-width: 100%;
+      }
       .details h2 {
         margin: 10px 0 3px;
         color: #fff8e8;
         font-family: var(--heading-font, Georgia, serif);
         font-size: clamp(2rem, 4.6vw, 4.7rem);
         line-height: 1.02;
+        overflow-wrap: anywhere;
       }
       .subtitle { color: var(--gold); font-size: 1.2rem; margin: 8px 0; }
       .meta { color: #d6c6a5; font-weight: 700; letter-spacing: .08em; }
