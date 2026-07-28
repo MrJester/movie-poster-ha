@@ -280,6 +280,83 @@ test("themes preserve frame and layout structure while restyling", async ({ page
     .toBe(THEMES.length);
 });
 
+test("every frame uses the same orientation safe region", async ({ page }) => {
+  await openHarness(page);
+  for (const configuration of [
+    { width: 1280, height: 720, orientation: "landscape" },
+    { width: 720, height: 1280, orientation: "portrait" },
+  ]) {
+    await page.setViewportSize(configuration);
+    const regions = [];
+    for (const frame of FRAMES) {
+      expect(await renderPoster(
+        page, frame, "classic", "cinematic", configuration.orientation,
+      )).toEqual([]);
+      regions.push(await page.evaluate(() => {
+        const root = document.querySelector("movie-poster-panel").shadowRoot;
+        const frameBox = root.querySelector(".marquee-frame").getBoundingClientRect();
+        const stageBox = root.querySelector(".frame-stage").getBoundingClientRect();
+        const normalized = (value, total) => Math.round(value / total * 10_000);
+        return {
+          top: normalized(stageBox.top - frameBox.top, frameBox.height),
+          right: normalized(frameBox.right - stageBox.right, frameBox.width),
+          bottom: normalized(frameBox.bottom - stageBox.bottom, frameBox.height),
+          left: normalized(stageBox.left - frameBox.left, frameBox.width),
+        };
+      }));
+    }
+    expect(
+      new Set(regions.map((region) => JSON.stringify(region))).size,
+      `${configuration.orientation}: ${JSON.stringify(regions)}`,
+    ).toBe(1);
+  }
+});
+
+test("enabled movie details remain readable in every frame and layout", async ({ page }) => {
+  await openHarness(page);
+  for (const configuration of [
+    { width: 1280, height: 720, orientation: "landscape" },
+    { width: 720, height: 1280, orientation: "portrait" },
+  ]) {
+    await page.setViewportSize(configuration);
+    for (const frame of FRAMES) {
+      for (const layout of LAYOUTS) {
+        expect(await renderPoster(
+          page, frame, "classic", layout, configuration.orientation,
+        )).toEqual([]);
+        const readability = await page.evaluate(() => {
+          const root = document.querySelector("movie-poster-panel").shadowRoot;
+          const details = root.querySelector(".details");
+          const title = details.querySelector("h2");
+          const meta = details.querySelector(".meta");
+          const detailsBox = details.getBoundingClientRect();
+          const titleBox = title.getBoundingClientRect();
+          const metaBox = meta.getBoundingClientRect();
+          return {
+            detailsWidth: Math.round(detailsBox.width),
+            detailsHeight: Math.round(detailsBox.height),
+            titleVisible: getComputedStyle(title).display !== "none"
+              && titleBox.width >= 60 && titleBox.height >= 12,
+            titleSize: Math.round(parseFloat(getComputedStyle(title).fontSize)),
+            metaVisible: getComputedStyle(meta).display !== "none"
+              && metaBox.width >= 60 && metaBox.height >= 8,
+          };
+        });
+        expect(
+          readability,
+          `${configuration.orientation}/${frame}/${layout}`,
+        ).toMatchObject({
+          titleVisible: true,
+          metaVisible: true,
+        });
+        expect(readability.detailsWidth).toBeGreaterThanOrEqual(80);
+        expect(readability.detailsHeight).toBeGreaterThanOrEqual(28);
+        expect(readability.titleSize).toBeGreaterThanOrEqual(12);
+      }
+    }
+  }
+});
+
 test("reference renderer contains the complete Marquee canvas", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await openHarness(page);

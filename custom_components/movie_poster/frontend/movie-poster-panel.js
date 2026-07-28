@@ -5456,6 +5456,191 @@ class MoviePosterPanel extends HTMLElement {
           text-overflow: ellipsis;
         }
       }
+      /* Universal safe-region contract.
+         Frame artwork owns the area outside this aperture. Layouts alone own
+         the placement of dynamic content inside it. Keep these values shared
+         across every built-in frame so switching frames never moves or clips
+         the presentation. */
+      .theater {
+        --safe-top: 19%;
+        --safe-inline: 15%;
+        --safe-bottom: 17%;
+        --layout-poster-share: 44%;
+        --layout-gap: clamp(8px, 1.35cqw, 20px);
+        --layout-details-pad: clamp(4px, .7cqw, 12px);
+      }
+      .theater.orientation-portrait {
+        --safe-top: 16%;
+        --safe-inline: 19%;
+        --safe-bottom: 14%;
+      }
+      @media (max-width: 720px), (orientation: portrait) {
+        .theater.orientation-auto {
+          --safe-top: 16%;
+          --safe-inline: 19%;
+          --safe-bottom: 14%;
+        }
+      }
+      .theater .frame-stage {
+        position: absolute !important;
+        z-index: 1;
+        inset: var(--safe-top) var(--safe-inline) var(--safe-bottom) !important;
+        display: flex !important;
+        min-width: 0;
+        min-height: 0;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .theater .frame-stage > .marquee { flex: 0 0 auto; }
+      .theater .frame-stage > .content {
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .theater .frame-stage .content {
+        display: grid !important;
+        gap: var(--layout-gap) !important;
+        padding: clamp(2px, .45cqw, 7px) !important;
+        align-items: stretch;
+      }
+      .theater .frame-stage .poster-wrap {
+        box-sizing: border-box;
+        display: flex;
+        min-width: 0;
+        min-height: 0;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      .theater .frame-stage .poster-wrap .poster {
+        width: auto !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        max-height: 100% !important;
+        margin: auto;
+        object-fit: contain;
+        transform: none;
+      }
+      .theater.has-details .frame-stage .details {
+        box-sizing: border-box;
+        display: flex !important;
+        width: 100%;
+        min-width: 0;
+        min-height: 0;
+        height: auto;
+        max-height: 100%;
+        margin: 0;
+        padding: var(--layout-details-pad);
+        justify-content: center;
+        overflow: hidden;
+      }
+      .theater.has-details .frame-stage .details h2 {
+        flex: 0 0 auto;
+        font-size: clamp(var(--title-min-size, 12px), 3.1cqw, 42px);
+        line-height: 1.02;
+      }
+      .theater.has-details .frame-stage .details
+        :is(.subtitle, .meta, .summary, .session) {
+        max-width: 100%;
+        margin-block: clamp(1px, .25cqw, 5px);
+        font-size: clamp(.62rem, 1.2cqw, 1rem);
+        line-height: 1.22;
+      }
+      .theater.has-details .frame-stage .details .summary {
+        display: -webkit-box !important;
+        overflow: hidden;
+        white-space: normal;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 4;
+      }
+      .theater.has-details .frame-stage .details .progress {
+        flex: 0 0 auto;
+        width: 100%;
+        height: clamp(3px, .45cqw, 6px);
+        margin-top: clamp(2px, .4cqw, 7px);
+      }
+      .theater.layout-cinematic .frame-stage .content,
+      .theater.layout-split .frame-stage .content {
+        grid-template-columns:
+          minmax(0, var(--layout-poster-share)) minmax(0, 1fr) !important;
+        grid-template-rows: minmax(0, 1fr) !important;
+      }
+      .theater.layout-poster .frame-stage .content {
+        grid-template-columns: minmax(0, 1fr) !important;
+        grid-template-rows: minmax(0, 1fr) auto !important;
+      }
+      .theater.layout-poster.has-details .frame-stage .details {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        max-height: 27%;
+        column-gap: var(--layout-gap);
+        row-gap: 1px;
+      }
+      .theater.layout-poster.has-details .frame-stage .details h2,
+      .theater.layout-poster.has-details .frame-stage .details .progress {
+        grid-column: 1 / -1;
+      }
+      .theater.layout-poster.has-details .frame-stage .details
+        :is(.subtitle, .meta, .summary, .session) {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .theater:is(.orientation-portrait) .frame-stage .content {
+        grid-template-columns: minmax(0, 1fr) !important;
+        grid-template-rows: minmax(0, 62%) minmax(0, 1fr) !important;
+      }
+      .theater:is(.orientation-portrait).has-details .frame-stage .details {
+        display: flex !important;
+        width: var(--fitted-poster-width, 100%);
+        max-width: 100%;
+        max-height: 100%;
+        padding: clamp(2px, .55cqw, 8px) 0;
+        text-align: center;
+      }
+      .theater:is(.orientation-portrait).has-details .frame-stage .details
+        :is(.subtitle, .meta, .summary, .session) {
+        width: 100%;
+        white-space: normal;
+      }
+      .theater:is(.orientation-portrait).has-details .frame-stage
+        .details .summary {
+        -webkit-line-clamp: 2;
+      }
+      @media (max-width: 720px), (orientation: portrait) {
+        .theater.orientation-auto .frame-stage .content {
+          grid-template-columns: minmax(0, 1fr) !important;
+          grid-template-rows: minmax(0, 62%) minmax(0, 1fr) !important;
+        }
+        .theater.orientation-auto.has-details .frame-stage .details {
+          display: flex !important;
+          width: var(--fitted-poster-width, 100%);
+          max-width: 100%;
+          max-height: 100%;
+          padding: clamp(2px, .55cqw, 8px) 0;
+          text-align: center;
+        }
+        .theater.orientation-auto.has-details .frame-stage .details
+          :is(.subtitle, .meta, .summary, .session) {
+          width: 100%;
+          white-space: normal;
+        }
+        .theater.orientation-auto.has-details .frame-stage .details
+          .summary {
+          -webkit-line-clamp: 2;
+        }
+      }
+      /* Frame-specific layout implementations tune proportions, never the
+         aperture. These values compensate for each frame's visual weight. */
+      .frame-marquee { --layout-poster-share: 45%; }
+      .frame-cyber_noir { --layout-poster-share: 43%; --layout-gap: clamp(9px, 1.6cqw, 22px); }
+      .frame-comic_hero { --layout-poster-share: 42%; --layout-details-pad: clamp(5px, .9cqw, 14px); }
+      .frame-theater_classic { --layout-poster-share: 44%; }
+      .frame-indie_nature { --layout-poster-share: 46%; --layout-gap: clamp(10px, 1.8cqw, 24px); }
+      .frame-golden_age { --layout-poster-share: 42%; --layout-details-pad: clamp(6px, 1cqw, 16px); }
+      .frame-steampunk { --layout-poster-share: 43%; --layout-gap: clamp(9px, 1.5cqw, 21px); }
       .visual-editor-active .marquee-frame { display: none; }
       .visual-editor-canvas {
         position: relative;
