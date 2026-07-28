@@ -5571,6 +5571,22 @@ class MoviePosterPanel extends HTMLElement {
         max-height: 100%;
         margin: 0;
         padding: var(--layout-details-pad);
+        border: clamp(1px, .22cqw, 3px) solid
+          var(--mp-border, var(--gold-deep));
+        border-radius: clamp(4px, .8cqw, 12px);
+        background:
+          linear-gradient(145deg,
+            color-mix(in srgb,
+              var(--mp-surface-elevated, #4a1711) 94%, transparent),
+            color-mix(in srgb,
+              var(--mp-surface, #32110d) 96%, transparent));
+        box-shadow:
+          inset 0 0 clamp(8px, 1.8cqw, 24px)
+            color-mix(in srgb,
+              var(--mp-light-primary, #f6cf70) 10%, transparent),
+          0 0 clamp(5px, var(--mp-glow-radius, 9px), 18px)
+            color-mix(in srgb,
+              var(--mp-light-primary, #f6cf70) 18%, transparent);
         justify-content: center;
         overflow: hidden;
       }
@@ -5578,6 +5594,7 @@ class MoviePosterPanel extends HTMLElement {
         flex: 0 0 auto;
         font-size: clamp(var(--title-min-size, 12px), 3.1cqw, 42px);
         line-height: 1.02;
+        text-wrap: balance;
       }
       .theater.has-details .frame-stage .details
         :is(.subtitle, .meta, .summary, .session) {
@@ -5592,6 +5609,12 @@ class MoviePosterPanel extends HTMLElement {
         white-space: normal;
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 4;
+      }
+      .theater.has-details .frame-stage .details
+        :is(.subtitle, .meta, .session) {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .theater.has-details .frame-stage .details .progress {
         flex: 0 0 auto;
@@ -5633,10 +5656,10 @@ class MoviePosterPanel extends HTMLElement {
       }
       .theater:is(.orientation-portrait).has-details .frame-stage .details {
         display: flex !important;
-        width: var(--fitted-poster-width, 100%);
+        width: 100%;
         max-width: 100%;
         max-height: 100%;
-        padding: clamp(2px, .55cqw, 8px) 0;
+        padding: clamp(5px, 1.15cqw, 14px);
         text-align: center;
       }
       .theater:is(.orientation-portrait).has-details .frame-stage .details
@@ -5655,10 +5678,10 @@ class MoviePosterPanel extends HTMLElement {
         }
         .theater.orientation-auto.has-details .frame-stage .details {
           display: flex !important;
-          width: var(--fitted-poster-width, 100%);
+          width: 100%;
           max-width: 100%;
           max-height: 100%;
-          padding: clamp(2px, .55cqw, 8px) 0;
+          padding: clamp(5px, 1.15cqw, 14px);
           text-align: center;
         }
         .theater.orientation-auto.has-details .frame-stage .details

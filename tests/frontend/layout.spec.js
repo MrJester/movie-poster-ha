@@ -419,6 +419,43 @@ test("enabled movie details remain readable in every frame and layout", async ({
   }
 });
 
+test("movie metadata is a styled panel with a two-line title contract", async ({ page }) => {
+  await page.setViewportSize({ width: 720, height: 1280 });
+  await openHarness(page);
+  for (const frame of FRAMES) {
+    expect(await renderPoster(
+      page, frame, "classic", "cinematic", "portrait",
+      {
+        title: "Pirates of the Caribbean: The Extremely Long Final Adventure",
+      },
+    )).toEqual([]);
+    const panel = await page.evaluate(() => {
+      const root = document.querySelector("movie-poster-panel").shadowRoot;
+      const content = root.querySelector(".content").getBoundingClientRect();
+      const details = root.querySelector(".details");
+      const detailsBox = details.getBoundingClientRect();
+      const detailsStyle = getComputedStyle(details);
+      const title = details.querySelector("h2");
+      const titleStyle = getComputedStyle(title);
+      const lineHeight = parseFloat(titleStyle.lineHeight)
+        || parseFloat(titleStyle.fontSize) * 1.02;
+      return {
+        fillsPanel: detailsBox.width >= content.width * .95,
+        borderWidth: parseFloat(detailsStyle.borderTopWidth),
+        background: detailsStyle.backgroundImage,
+        titleLines: Math.round(title.getBoundingClientRect().height / lineHeight),
+        titleConstrained: title.scrollHeight <= lineHeight * 2 + 1
+          || title.classList.contains("title-truncated"),
+      };
+    });
+    expect(panel.fillsPanel, frame).toBe(true);
+    expect(panel.borderWidth, frame).toBeGreaterThanOrEqual(1);
+    expect(panel.background, frame).not.toBe("none");
+    expect(panel.titleLines, frame).toBeLessThanOrEqual(2);
+    expect(panel.titleConstrained, frame).toBe(true);
+  }
+});
+
 test("reference renderer contains the complete Marquee canvas", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await openHarness(page);
@@ -484,7 +521,7 @@ test("Marquee keeps registered glow and individual chasing bulbs", async ({ page
   expect(lighting.firstCenter).toEqual([140, 142]);
 });
 
-test("visible stacked summaries match the poster width and center their text", async ({ page }) => {
+test("visible stacked summaries fill the metadata panel and center their text", async ({ page }) => {
   await page.setViewportSize({ width: 1080, height: 1920 });
   await openHarness(page);
   for (const orientation of ["auto", "portrait"]) {
@@ -493,13 +530,22 @@ test("visible stacked summaries match the poster width and center their text", a
     )).toEqual([]);
     const geometry = await page.evaluate(() => {
       const root = document.querySelector("movie-poster-panel").shadowRoot;
-      const poster = root.querySelector(".poster").getBoundingClientRect();
+      const details = root.querySelector(".details");
+      const detailsBox = details.getBoundingClientRect();
+      const detailsStyle = getComputedStyle(details);
       const summary = root.querySelector(".summary");
       const summaryStyle = getComputedStyle(summary);
       const summaryBox = summary.getBoundingClientRect();
       return {
         visible: summaryStyle.display !== "none" && summaryBox.width > 0,
-        widthDifference: Math.abs(poster.width - summaryBox.width),
+        widthDifference: Math.abs(
+          detailsBox.width
+            - parseFloat(detailsStyle.paddingLeft)
+            - parseFloat(detailsStyle.paddingRight)
+            - parseFloat(detailsStyle.borderLeftWidth)
+            - parseFloat(detailsStyle.borderRightWidth)
+            - summaryBox.width,
+        ),
         textAlign: summaryStyle.textAlign,
       };
     });
