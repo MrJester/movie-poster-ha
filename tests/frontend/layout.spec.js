@@ -134,6 +134,8 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
     const visible = (value) => value && getComputedStyle(value).display !== "none";
     const frameElement = element(".marquee-frame");
     const frameBox = frameElement.getBoundingClientRect();
+    const stageElement = element(".frame-stage");
+    const stageBox = stageElement.getBoundingClientRect();
     const violations = [];
     const boxes = new Map();
     const contained = (selector, name) => {
@@ -159,6 +161,23 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
     contained("h1", "heading");
     contained(".brand-logo", "logo");
     contained(".brand-eyebrow", "brand label");
+    const containedInStage = (selector, name) => {
+      const value = element(selector);
+      if (!visible(value) || stageBox.width < 1 || stageBox.height < 1) return;
+      const box = value.getBoundingClientRect();
+      if (box.left < stageBox.left - 1 || box.right > stageBox.right + 1
+        || box.top < stageBox.top - 1 || box.bottom > stageBox.bottom + 1) {
+        violations.push(`${name} falls outside frame safe area `
+          + `(l:${Math.round(box.left - stageBox.left)},`
+          + `t:${Math.round(box.top - stageBox.top)},`
+          + `r:${Math.round(stageBox.right - box.right)},`
+          + `b:${Math.round(stageBox.bottom - box.bottom)})`);
+      }
+    };
+    containedInStage(".marquee", "marquee");
+    containedInStage(".poster", "poster");
+    containedInStage(".frame-plaque", "plaque");
+    containedInStage(".details", "details");
     const overlaps = (first, second) => {
       const a = boxes.get(first);
       const b = boxes.get(second);
@@ -614,20 +633,20 @@ test("Cyber Noir themes recolor its powered system without changing its frame", 
         rail: getComputedStyle(
           root.querySelector(".marquee-frame"), "::before",
         ).animationName,
-      fixtures: getComputedStyle(
-        root.querySelector(".cyber-light-group-a"),
-      ).animationName,
+        fixtures: getComputedStyle(
+          root.querySelector(".cyber-frame-lights"),
+        ).animationName,
       };
     });
     expect(poweredAnimation.rail).toBe("cyberChase, cyberPulse");
-    expect(poweredAnimation.fixtures).toBe("cyberFixturePulse");
+    expect(poweredAnimation.fixtures).toBe("cyberRegisteredPulse");
   } else {
     const styleText = await page.evaluate(() =>
       document.querySelector("movie-poster-panel").shadowRoot
         .querySelector("style").textContent);
     expect(styleText).toContain("@keyframes cyberChase");
     expect(styleText).toContain("@keyframes cyberPulse");
-    expect(styleText).toContain("@keyframes cyberFixturePulse");
+    expect(styleText).toContain("@keyframes cyberRegisteredPulse");
   }
 });
 

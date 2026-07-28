@@ -606,60 +606,9 @@ class MoviePosterPanel extends HTMLElement {
     this._fitPosterToFrame(frame);
     if (!frame.closest(".frame-marquee")) return;
     const container = frame.querySelector(".marquee-bulbs");
-    if (!container) return;
-    const theater = frame.closest(".theater");
-    const portrait = theater?.classList.contains("orientation-portrait")
-      || (theater?.classList.contains("orientation-auto")
-        && frame.clientHeight > frame.clientWidth);
-    const rail = portrait
-      ? { left: .14, right: .86, top: .143, bottom: .915 }
-      : { left: .10, right: .90, top: .16, bottom: .84 };
-    const left = frame.clientWidth * rail.left;
-    const top = frame.clientHeight * rail.top;
-    const width = Math.max(0, frame.clientWidth * (rail.right - rail.left));
-    const height = Math.max(0, frame.clientHeight * (rail.bottom - rail.top));
-    const horizontalCount = Math.max(3, Math.round(width / 42) + 1);
-    const verticalCount = Math.max(3, Math.round(height / 42));
-    const points = [
-      ...Array.from({ length: horizontalCount }, (_, index) => ({
-        x: (index + .5) * width / horizontalCount, y: 0,
-      })),
-      ...Array.from({ length: verticalCount }, (_, index) => ({
-        x: width, y: (index + .5) * height / verticalCount,
-      })),
-      ...Array.from({ length: horizontalCount }, (_, index) => ({
-        x: width - (index + .5) * width / horizontalCount, y: height,
-      })),
-      ...Array.from({ length: verticalCount }, (_, index) => ({
-        x: 0, y: height - (index + .5) * height / verticalCount,
-      })),
-    ];
-    const count = points.length;
-    if (Number(container.dataset.count) !== count) {
-      container.replaceChildren(...Array.from({ length: count }, () =>
-        document.createElement("i")));
-      container.dataset.count = String(count);
-    }
-    [...container.children].forEach((bulb, index) => {
-      const { x, y } = points[index];
-      bulb.style.left = `${x + left}px`;
-      bulb.style.top = `${y + top}px`;
-      bulb.style.setProperty("--bulb-delay", `${-index * 4.8 / count}s`);
-    });
+    container?.replaceChildren();
     const divider = frame.querySelector(".marquee-divider-bulbs");
-    if (!divider) return;
-    const dividerCount = Math.max(5, Math.round(divider.clientWidth / 46));
-    if (Number(divider.dataset.count) !== dividerCount) {
-      divider.replaceChildren(...Array.from({ length: dividerCount }, () =>
-        document.createElement("i")));
-      divider.dataset.count = String(dividerCount);
-    }
-    [...divider.children].forEach((bulb, index) => {
-      bulb.style.setProperty(
-        "--bulb-delay",
-        `${-index * 4.8 / dividerCount}s`,
-      );
-    });
+    divider?.replaceChildren();
   }
 
   _fitHeadingToFrame(frame) {
@@ -682,7 +631,8 @@ class MoviePosterPanel extends HTMLElement {
     const content = frame.querySelector(".content");
     if (!poster || !marquee || !content) return;
     const stage = frame.querySelector(".frame-stage");
-    const fitBoundary = frame.closest(".frame-cyber_noir") && stage ? stage : frame;
+    const fitBoundary = stage && getComputedStyle(stage).display !== "contents"
+      ? stage : frame;
     const boundaryStyle = getComputedStyle(fitBoundary);
     const contentStyle = getComputedStyle(content);
     const plaque = frame.querySelector(".frame-plaque");
@@ -697,7 +647,9 @@ class MoviePosterPanel extends HTMLElement {
       || theater?.classList.contains("orientation-portrait") || autoStacks;
     const minimum = frame.classList.contains("frame-ultra-compact")
       ? 36
-      : Math.min(160, Math.max(56, frame.clientHeight * 0.18));
+      : window.innerWidth >= 720
+        ? 150
+        : Math.min(160, Math.max(56, frame.clientHeight * 0.18));
     if (!stacked) frame.style.removeProperty("--fitted-poster-width");
     const fit = () => {
       const detailsStyle = details ? getComputedStyle(details) : null;
@@ -711,7 +663,7 @@ class MoviePosterPanel extends HTMLElement {
         - parseFloat(boundaryStyle.paddingBottom);
       const posterTop = poster.getBoundingClientRect().top;
       const available = frameBottom - posterTop
-        - parseFloat(contentStyle.paddingBottom) - plaqueHeight - detailsHeight - 12;
+        - parseFloat(contentStyle.paddingBottom) - plaqueHeight - detailsHeight - 16;
       frame.style.setProperty(
         "--fitted-poster-height",
         `${Math.max(minimum, available)}px`,
@@ -2798,6 +2750,9 @@ class MoviePosterPanel extends HTMLElement {
         max-height: var(--fitted-poster-height, 70vh);
         overflow: hidden;
       }
+      .frame-stage > .content {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
       .frame-marquee.layout-split .details h2 {
         overflow: hidden;
         display: -webkit-box;
@@ -3749,43 +3704,36 @@ class MoviePosterPanel extends HTMLElement {
         inset: 0;
         display: block;
         pointer-events: none;
+        background: url("/movie_poster_static/assets/cyber-noir-frame-landscape.png")
+          center / 100% 100% no-repeat;
+        opacity: .22;
+        filter: brightness(1.65) saturate(1.2)
+          drop-shadow(0 0 5px var(--cyber-cyan))
+          drop-shadow(0 0 15px color-mix(in srgb,
+            var(--cyber-cyan) 55%, transparent));
+        mix-blend-mode: screen;
+        -webkit-mask:
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            72% 8% / 24% 8% no-repeat,
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            2% 29% / 8% 24% no-repeat,
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            98% 65% / 8% 24% no-repeat,
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            29% 95% / 25% 8% no-repeat;
+        mask:
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            72% 8% / 24% 8% no-repeat,
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            2% 29% / 8% 24% no-repeat,
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            98% 65% / 8% 24% no-repeat,
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            29% 95% / 25% 8% no-repeat;
+        animation: cyberRegisteredPulse 2.4s ease-in-out infinite alternate;
       }
       .frame-cyber_noir .cyber-light-group {
-        position: absolute;
-        inset: 0;
-        display: block;
-        filter: drop-shadow(0 0 3px var(--cyber-cyan))
-          drop-shadow(0 0 9px color-mix(in srgb, var(--cyber-cyan) 60%, transparent));
-        opacity: .35;
-        animation: cyberFixturePulse 2.4s ease-in-out infinite alternate;
-      }
-      .frame-cyber_noir .cyber-light-group-a {
-        background:
-          radial-gradient(ellipse, color-mix(in srgb, var(--cyber-cyan) 53%, transparent) 0 12%, transparent 68%)
-            72% 8.3% / 22% 6% no-repeat,
-          linear-gradient(90deg, transparent, var(--cyber-core) 42% 58%,
-            transparent) 72% 8.3% / 12% 1.15% no-repeat;
-        animation-delay: 0s;
-      }
-      .frame-cyber_noir .cyber-light-group-b {
-        background:
-          radial-gradient(ellipse, color-mix(in srgb, var(--cyber-cyan) 47%, transparent) 0 10%, transparent 68%)
-            3.8% 29% / 6% 20% no-repeat,
-          linear-gradient(180deg, transparent, var(--cyber-core) 42% 58%,
-            transparent) 3.8% 29% / .75% 10% no-repeat,
-          radial-gradient(ellipse, color-mix(in srgb, var(--cyber-cyan) 47%, transparent) 0 10%, transparent 68%)
-            97.1% 65% / 6% 20% no-repeat,
-          linear-gradient(180deg, transparent, var(--cyber-core) 42% 58%,
-            transparent) 97.1% 65% / .75% 10% no-repeat;
-        animation-delay: -.8s;
-      }
-      .frame-cyber_noir .cyber-light-group-c {
-        background:
-          radial-gradient(ellipse, color-mix(in srgb, var(--cyber-cyan) 40%, transparent) 0 10%, transparent 68%)
-            29% 95.2% / 22% 6% no-repeat,
-          linear-gradient(90deg, transparent, var(--cyber-core) 42% 58%,
-            transparent) 29% 95.2% / 12% 1.15% no-repeat;
-        animation-delay: -1.6s;
+        display: none;
       }
       .frame-cyber_noir .frame-stage {
         position: absolute;
@@ -3836,37 +3784,43 @@ class MoviePosterPanel extends HTMLElement {
         inset: 10% 15%;
       }
       .frame-cyber_noir.orientation-portrait .cyber-light-group-a {
-        background:
-          radial-gradient(ellipse, color-mix(in srgb, var(--cyber-cyan) 53%, transparent) 0 12%, transparent 68%)
-            26% 6.6% / 24% 4% no-repeat,
-          linear-gradient(90deg, transparent, var(--cyber-core) 42% 58%,
-            transparent) 26% 6.6% / 13% .75% no-repeat,
-          radial-gradient(ellipse, color-mix(in srgb, var(--cyber-cyan) 53%, transparent) 0 12%, transparent 68%)
-            74% 6.6% / 24% 4% no-repeat,
-          linear-gradient(90deg, transparent, var(--cyber-core) 42% 58%,
-            transparent) 74% 6.6% / 13% .75% no-repeat;
+        display: none;
       }
       .frame-cyber_noir.orientation-portrait .cyber-light-group-b {
-        background:
-          radial-gradient(ellipse, color-mix(in srgb, var(--cyber-cyan) 47%, transparent) 0 10%, transparent 68%)
-            88.7% 27% / 7% 22% no-repeat,
-          linear-gradient(180deg, transparent, var(--cyber-core) 42% 58%,
-            transparent) 88.7% 27% / 1.1% 11% no-repeat,
-          radial-gradient(ellipse, color-mix(in srgb, var(--cyber-cyan) 47%, transparent) 0 10%, transparent 68%)
-            89% 76% / 7% 24% no-repeat,
-          linear-gradient(180deg, transparent, var(--cyber-core) 42% 58%,
-            transparent) 89% 76% / 1.1% 13% no-repeat;
+        display: none;
       }
       .frame-cyber_noir.orientation-portrait .cyber-light-group-c {
-        background:
-          radial-gradient(ellipse, color-mix(in srgb, var(--cyber-cyan) 40%, transparent) 0 10%, transparent 68%)
-            26% 94.8% / 24% 4% no-repeat,
-          linear-gradient(90deg, transparent, var(--cyber-core) 42% 58%,
-            transparent) 26% 94.8% / 13% .75% no-repeat,
-          radial-gradient(ellipse, color-mix(in srgb, var(--cyber-cyan) 40%, transparent) 0 10%, transparent 68%)
-            74% 94.8% / 24% 4% no-repeat,
-          linear-gradient(90deg, transparent, var(--cyber-core) 42% 58%,
-            transparent) 74% 94.8% / 13% .75% no-repeat;
+        display: none;
+      }
+      .frame-cyber_noir.orientation-portrait .cyber-frame-lights {
+        background-image:
+          url("/movie_poster_static/assets/cyber-noir-frame-portrait.png");
+        -webkit-mask:
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            26% 6.5% / 27% 6% no-repeat,
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            74% 6.5% / 27% 6% no-repeat,
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            89% 27% / 10% 25% no-repeat,
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            89% 76% / 10% 27% no-repeat,
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            26% 95% / 27% 6% no-repeat,
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            74% 95% / 27% 6% no-repeat;
+        mask:
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            26% 6.5% / 27% 6% no-repeat,
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            74% 6.5% / 27% 6% no-repeat,
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            89% 27% / 10% 25% no-repeat,
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            89% 76% / 10% 27% no-repeat,
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            26% 95% / 27% 6% no-repeat,
+          radial-gradient(ellipse, #000 0 38%, transparent 72%)
+            74% 95% / 27% 6% no-repeat;
       }
       .frame-cyber_noir.orientation-portrait .marquee-frame::after {
         background-image:
@@ -3880,37 +3834,43 @@ class MoviePosterPanel extends HTMLElement {
           inset: 10% 15%;
         }
         .frame-cyber_noir.orientation-auto .cyber-light-group-a {
-          background:
-            radial-gradient(ellipse, color-mix(in srgb, var(--cyber-cyan) 53%, transparent) 0 12%, transparent 68%)
-              26% 6.6% / 24% 4% no-repeat,
-            linear-gradient(90deg, transparent, var(--cyber-core) 42% 58%,
-              transparent) 26% 6.6% / 13% .75% no-repeat,
-            radial-gradient(ellipse, color-mix(in srgb, var(--cyber-cyan) 53%, transparent) 0 12%, transparent 68%)
-              74% 6.6% / 24% 4% no-repeat,
-            linear-gradient(90deg, transparent, var(--cyber-core) 42% 58%,
-              transparent) 74% 6.6% / 13% .75% no-repeat;
+          display: none;
         }
         .frame-cyber_noir.orientation-auto .cyber-light-group-b {
-          background:
-            radial-gradient(ellipse, color-mix(in srgb, var(--cyber-cyan) 47%, transparent) 0 10%, transparent 68%)
-              88.7% 27% / 7% 22% no-repeat,
-            linear-gradient(180deg, transparent, var(--cyber-core) 42% 58%,
-              transparent) 88.7% 27% / 1.1% 11% no-repeat,
-            radial-gradient(ellipse, color-mix(in srgb, var(--cyber-cyan) 47%, transparent) 0 10%, transparent 68%)
-              89% 76% / 7% 24% no-repeat,
-            linear-gradient(180deg, transparent, var(--cyber-core) 42% 58%,
-              transparent) 89% 76% / 1.1% 13% no-repeat;
+          display: none;
         }
         .frame-cyber_noir.orientation-auto .cyber-light-group-c {
-          background:
-            radial-gradient(ellipse, color-mix(in srgb, var(--cyber-cyan) 40%, transparent) 0 10%, transparent 68%)
-              26% 94.8% / 24% 4% no-repeat,
-            linear-gradient(90deg, transparent, var(--cyber-core) 42% 58%,
-              transparent) 26% 94.8% / 13% .75% no-repeat,
-            radial-gradient(ellipse, color-mix(in srgb, var(--cyber-cyan) 40%, transparent) 0 10%, transparent 68%)
-              74% 94.8% / 24% 4% no-repeat,
-            linear-gradient(90deg, transparent, var(--cyber-core) 42% 58%,
-              transparent) 74% 94.8% / 13% .75% no-repeat;
+          display: none;
+        }
+        .frame-cyber_noir.orientation-auto .cyber-frame-lights {
+          background-image:
+            url("/movie_poster_static/assets/cyber-noir-frame-portrait.png");
+          -webkit-mask:
+            radial-gradient(ellipse, #000 0 38%, transparent 72%)
+              26% 6.5% / 27% 6% no-repeat,
+            radial-gradient(ellipse, #000 0 38%, transparent 72%)
+              74% 6.5% / 27% 6% no-repeat,
+            radial-gradient(ellipse, #000 0 38%, transparent 72%)
+              89% 27% / 10% 25% no-repeat,
+            radial-gradient(ellipse, #000 0 38%, transparent 72%)
+              89% 76% / 10% 27% no-repeat,
+            radial-gradient(ellipse, #000 0 38%, transparent 72%)
+              26% 95% / 27% 6% no-repeat,
+            radial-gradient(ellipse, #000 0 38%, transparent 72%)
+              74% 95% / 27% 6% no-repeat;
+          mask:
+            radial-gradient(ellipse, #000 0 38%, transparent 72%)
+              26% 6.5% / 27% 6% no-repeat,
+            radial-gradient(ellipse, #000 0 38%, transparent 72%)
+              74% 6.5% / 27% 6% no-repeat,
+            radial-gradient(ellipse, #000 0 38%, transparent 72%)
+              89% 27% / 10% 25% no-repeat,
+            radial-gradient(ellipse, #000 0 38%, transparent 72%)
+              89% 76% / 10% 27% no-repeat,
+            radial-gradient(ellipse, #000 0 38%, transparent 72%)
+              26% 95% / 27% 6% no-repeat,
+            radial-gradient(ellipse, #000 0 38%, transparent 72%)
+              74% 95% / 27% 6% no-repeat;
         }
         .frame-cyber_noir.orientation-auto .marquee-frame::after {
           background-image:
@@ -3921,9 +3881,9 @@ class MoviePosterPanel extends HTMLElement {
         animation: none;
         opacity: .5;
       }
-      .motion-off.frame-cyber_noir .cyber-light-group {
+      .motion-off.frame-cyber_noir .cyber-frame-lights {
         animation: none;
-        opacity: .48;
+        opacity: .38;
       }
       @keyframes cyberChase {
         0% {
@@ -3947,19 +3907,14 @@ class MoviePosterPanel extends HTMLElement {
             drop-shadow(0 0 8px color-mix(in srgb, var(--cyber-cyan) 33%, transparent));
         }
       }
-      @keyframes cyberFixturePulse {
-        from {
-          opacity: .22;
-          filter: brightness(.78)
-            drop-shadow(0 0 2px color-mix(in srgb, var(--cyber-cyan) 47%, transparent))
-            drop-shadow(0 0 5px color-mix(in srgb, var(--cyber-cyan) 20%, transparent));
-        }
+      @keyframes cyberRegisteredPulse {
+        from { opacity: .12; filter: brightness(1.05) saturate(1.05); }
         to {
-          opacity: 1;
-          filter: brightness(1.75)
-            drop-shadow(0 0 4px var(--cyber-core))
-            drop-shadow(0 0 12px color-mix(in srgb, var(--cyber-cyan) 87%, transparent))
-            drop-shadow(0 0 26px color-mix(in srgb, var(--cyber-cyan) 53%, transparent));
+          opacity: .48;
+          filter: brightness(2.05) saturate(1.35)
+            drop-shadow(0 0 6px var(--cyber-cyan))
+            drop-shadow(0 0 18px color-mix(in srgb,
+              var(--cyber-cyan) 62%, transparent));
         }
       }
       @keyframes reveal {
@@ -4001,7 +3956,7 @@ class MoviePosterPanel extends HTMLElement {
       .frame-marquee .frame-stage {
         position: absolute;
         z-index: 1;
-        inset: 23% 15% 22%;
+        inset: 23% 15% 21%;
         display: flex;
         min-width: 0;
         min-height: 0;
@@ -4097,6 +4052,31 @@ class MoviePosterPanel extends HTMLElement {
         inset: 0;
         display: block;
         pointer-events: none;
+        background: url("/movie_poster_static/assets/marquee-frame-landscape.png")
+          center / 100% 100% no-repeat;
+        opacity: .18;
+        filter: brightness(1.7) saturate(1.1)
+          drop-shadow(0 0 7px var(--mp-light-primary, #ffd35f));
+        mix-blend-mode: screen;
+        -webkit-mask:
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            center 15% / 82% 9% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            center 85% / 82% 9% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            8% center / 9% 72% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            92% center / 9% 72% no-repeat;
+        mask:
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            center 15% / 82% 9% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            center 85% / 82% 9% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            8% center / 9% 72% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            92% center / 9% 72% no-repeat;
+        animation: marqueeRegisteredPulse 2.2s ease-in-out infinite alternate;
       }
       .marquee-divider-bulbs { display: none; }
       .frame-marquee .marquee-divider-bulbs {
@@ -4104,7 +4084,7 @@ class MoviePosterPanel extends HTMLElement {
       }
       .marquee-bulbs i,
       .marquee-divider-bulbs i {
-        display: block;
+        display: none;
         width: clamp(10px, 2.35cqw, 28px);
         aspect-ratio: 1;
         flex: 0 0 auto;
@@ -4150,6 +4130,56 @@ class MoviePosterPanel extends HTMLElement {
       }
       .motion-off .marquee-bulbs i,
       .motion-off .marquee-divider-bulbs i { animation: none; opacity: .94; }
+      .motion-off.frame-marquee .marquee-bulbs {
+        animation: none;
+        opacity: .32;
+      }
+      .frame-marquee.orientation-portrait .marquee-bulbs {
+        background-image:
+          url("/movie_poster_static/assets/marquee-frame-portrait.png");
+        -webkit-mask:
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            center 14% / 74% 9% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            center 91% / 74% 9% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            14% center / 10% 78% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            86% center / 10% 78% no-repeat;
+        mask:
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            center 14% / 74% 9% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            center 91% / 74% 9% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            14% center / 10% 78% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            86% center / 10% 78% no-repeat;
+      }
+      @media (max-width: 720px), (orientation: portrait) {
+        .frame-marquee.orientation-auto .marquee-bulbs {
+          background-image:
+            url("/movie_poster_static/assets/marquee-frame-portrait.png");
+          -webkit-mask:
+            radial-gradient(ellipse, #000 0 58%, transparent 78%)
+              center 14% / 74% 9% no-repeat,
+            radial-gradient(ellipse, #000 0 58%, transparent 78%)
+              center 91% / 74% 9% no-repeat,
+            radial-gradient(ellipse, #000 0 58%, transparent 78%)
+              14% center / 10% 78% no-repeat,
+            radial-gradient(ellipse, #000 0 58%, transparent 78%)
+              86% center / 10% 78% no-repeat;
+          mask:
+            radial-gradient(ellipse, #000 0 58%, transparent 78%)
+              center 14% / 74% 9% no-repeat,
+            radial-gradient(ellipse, #000 0 58%, transparent 78%)
+              center 91% / 74% 9% no-repeat,
+            radial-gradient(ellipse, #000 0 58%, transparent 78%)
+              14% center / 10% 78% no-repeat,
+            radial-gradient(ellipse, #000 0 58%, transparent 78%)
+              86% center / 10% 78% no-repeat;
+        }
+      }
       .motion-off .marquee-frame,
       .motion-off .marquee-frame::before { animation: none; }
       .motion-off .marquee-frame::before { opacity: .8; }
@@ -4160,6 +4190,16 @@ class MoviePosterPanel extends HTMLElement {
         4% { opacity: .72; filter: brightness(.9); }
         8% { opacity: 1; filter: brightness(1.35); }
         12% { opacity: .78; filter: brightness(1); }
+      }
+      @keyframes marqueeRegisteredPulse {
+        from { opacity: .1; filter: brightness(1.1) saturate(1.02); }
+        to {
+          opacity: .42;
+          filter: brightness(2.15) saturate(1.22)
+            drop-shadow(0 0 8px var(--mp-light-primary, #ffd35f))
+            drop-shadow(0 0 18px color-mix(in srgb,
+              var(--mp-light-secondary, #fff1b8) 58%, transparent));
+        }
       }
       .marquee { text-align: center; padding: 14px 20px 28px; }
       .eyebrow {
@@ -4191,8 +4231,10 @@ class MoviePosterPanel extends HTMLElement {
       .content {
         position: relative;
         z-index: 1;
+        box-sizing: border-box;
         display: grid;
         min-width: 0;
+        min-height: 0;
         grid-template-columns: minmax(320px, 1fr) minmax(300px, 1fr);
         gap: clamp(22px, 3.5vw, 60px);
         align-items: center;
@@ -4204,7 +4246,7 @@ class MoviePosterPanel extends HTMLElement {
         width: 100%;
         max-height: 84vh;
         aspect-ratio: 2 / 3;
-        object-fit: cover;
+        object-fit: contain;
         border: 3px solid #dba84e;
         border-radius: 8px;
         background: #16100d;
@@ -4212,8 +4254,12 @@ class MoviePosterPanel extends HTMLElement {
       }
       .poster-missing { display: grid; place-items: center; color: #9d8e78; }
       .details {
+        box-sizing: border-box;
         min-width: 0;
+        min-height: 0;
         max-width: 100%;
+        max-height: 100%;
+        overflow: hidden;
       }
       .details h2 {
         margin: 10px 0 3px;
