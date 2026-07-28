@@ -147,6 +147,16 @@ def test_catalogs_are_independent_objects() -> None:
         "portrait": {"x": 15, "y": 12, "width": 71, "height": 76},
         "landscape": {"x": 19, "y": 18, "width": 62, "height": 64},
     }
+    golden_bezel = next(
+        layer
+        for layer in BUILTIN_FRAMES["golden_age"]["layers"]
+        if layer["slot"] == "bezel"
+    )
+    assert set(golden_bezel["asset"]) == {"portrait", "landscape"}
+    assert BUILTIN_FRAMES["golden_age"]["safe_opening"] == {
+        "portrait": {"x": 19, "y": 18, "width": 62, "height": 68},
+        "landscape": {"x": 22, "y": 25, "width": 55, "height": 63},
+    }
     split_poster = next(
         component
         for component in BUILTIN_LAYOUTS["split"]["components"]

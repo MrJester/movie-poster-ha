@@ -3330,15 +3330,128 @@ class MoviePosterPanel extends HTMLElement {
         }
       }
 
-      /* Golden-age proscenium with columns and velvet. */
+      /* Photographic gilded movie-palace proscenium and velvet. */
       .frame-golden_age .marquee-frame {
-        border: 13px ridge #8c4b24; border-radius: 24px 24px 3px 3px;
-        background: linear-gradient(90deg, #350a0d, #6f1720 10%, #1a0809 22% 78%, #6f1720 90%, #350a0d);
-        box-shadow: inset 0 0 0 4px #d9a64f, inset 0 0 40px #7f1018, 0 30px 90px #000;
+        padding: 0;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: 0 34px 90px #000c;
       }
-      .frame-golden_age .marquee-frame::before { inset: 10px; border: 3px double #f2c66b; border-radius: 14px 14px 0 0; filter: drop-shadow(0 0 4px #d49b3a); }
-      .frame-golden_age .ornament { width: 26px; border: 3px ridge #d5a64e; background: repeating-linear-gradient(90deg, #8c551d 0 3px, #e0b85d 4px 7px); }
-      .frame-golden_age .frame-plaque { display: block; color: #3b170c; border: 4px ridge #d4a24b; border-radius: 50%; background: #e4c77d; }
+      .frame-golden_age .marquee-frame::after {
+        content: "";
+        position: absolute;
+        z-index: 4;
+        inset: 0;
+        pointer-events: none;
+        background: url("/movie_poster_static/assets/golden-age-frame-landscape.png")
+          center / 100% 100% no-repeat;
+        filter: drop-shadow(0 20px 34px #000c);
+      }
+      .frame-golden_age .marquee-frame::before {
+        content: "";
+        position: absolute;
+        z-index: 5;
+        inset: 24.3% 21.5% 11.5%;
+        pointer-events: none;
+        border: 1px solid color-mix(in srgb,
+          var(--mp-accent-primary, #f2c66b) 68%, transparent);
+        box-shadow:
+          inset 0 -4px 12px color-mix(in srgb,
+            var(--mp-light-primary, #ffd88a) 48%, transparent),
+          0 0 10px color-mix(in srgb,
+            var(--mp-light-primary, #ffd88a) 34%, transparent);
+        opacity: .8;
+        animation: goldenAgeFootlights 2.2s ease-in-out infinite alternate;
+      }
+      .frame-golden_age .frame-stage {
+        position: absolute;
+        z-index: 1;
+        inset: 25% 22% 12%;
+        display: flex;
+        min-width: 0;
+        min-height: 0;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .frame-golden_age .frame-stage > .marquee { flex: 0 0 auto; }
+      .frame-golden_age .frame-stage > .content {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .frame-golden_age .content {
+        gap: clamp(8px, 1.5cqw, 20px);
+        padding: clamp(4px, .8cqw, 10px) clamp(6px, 1.2cqw, 16px)
+          clamp(6px, 1cqw, 14px);
+      }
+      .frame-golden_age .frame-ornaments,
+      .frame-golden_age .frame-plaque { display: none; }
+      .frame-golden_age .marquee {
+        margin: 0 clamp(5px, 1cqw, 16px) clamp(7px, 1.1cqw, 16px);
+        border: 1px solid var(--mp-border, #d4a24b);
+        background: color-mix(in srgb,
+          var(--mp-surface, #350a0d) 92%, transparent);
+      }
+      .frame-golden_age.orientation-portrait .frame-stage {
+        inset: 18% 19% 14%;
+      }
+      .frame-golden_age.orientation-portrait .content {
+        grid-template-rows: minmax(0, 1fr);
+      }
+      .frame-golden_age.orientation-portrait .poster-wrap {
+        min-height: 0;
+        height: 100%;
+      }
+      .frame-golden_age.orientation-portrait .poster {
+        width: auto;
+        max-width: 100%;
+        height: 100%;
+        max-height: 100%;
+      }
+      .frame-golden_age.orientation-portrait .details { display: none; }
+      .frame-golden_age.orientation-portrait .marquee-frame::before {
+        inset: 17.7% 18.5% 13.5%;
+      }
+      .frame-golden_age.orientation-portrait .marquee-frame::after {
+        background-image:
+          url("/movie_poster_static/assets/golden-age-frame-portrait.png");
+      }
+      .motion-off.frame-golden_age .marquee-frame::before {
+        animation: none;
+        opacity: .72;
+      }
+      @keyframes goldenAgeFootlights {
+        from { opacity: .58; filter: brightness(.9); }
+        to { opacity: .96; filter: brightness(1.14); }
+      }
+      @media (max-width: 720px), (orientation: portrait) {
+        .frame-golden_age.orientation-auto .frame-stage {
+          inset: 18% 19% 14%;
+        }
+        .frame-golden_age.orientation-auto .content {
+          grid-template-rows: minmax(0, 1fr);
+        }
+        .frame-golden_age.orientation-auto .poster-wrap {
+          min-height: 0;
+          height: 100%;
+        }
+        .frame-golden_age.orientation-auto .poster {
+          width: auto;
+          max-width: 100%;
+          height: 100%;
+          max-height: 100%;
+        }
+        .frame-golden_age.orientation-auto .details { display: none; }
+        .frame-golden_age.orientation-auto .marquee-frame::before {
+          inset: 17.7% 18.5% 13.5%;
+        }
+        .frame-golden_age.orientation-auto .marquee-frame::after {
+          background-image:
+            url("/movie_poster_static/assets/golden-age-frame-portrait.png");
+        }
+      }
 
       /* Riveted copper, pipes, gauges, and warm bulbs. */
       .frame-steampunk .marquee-frame {

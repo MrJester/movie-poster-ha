@@ -601,8 +601,18 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "golden_age": _frame_resource(
         "golden_age",
         "Golden Age",
-        _bounds(9, 7, 82, 86),
-        _bounds(8, 8, 84, 84),
+        _bounds(19, 18, 62, 68),
+        _bounds(22, 25, 55, 63),
+        assets={
+            "bezel": {
+                "portrait": (
+                    "/movie_poster_static/assets/golden-age-frame-portrait.png"
+                ),
+                "landscape": (
+                    "/movie_poster_static/assets/golden-age-frame-landscape.png"
+                ),
+            },
+        },
         bindings={
             "footlight": "light_primary",
             "jewel": "light_secondary",
