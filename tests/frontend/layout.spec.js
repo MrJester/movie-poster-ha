@@ -381,6 +381,35 @@ test("Cyber Noir keeps posters readable in short stacked desktop layouts", async
   }
 });
 
+test("Theater Classic keeps the movie title visible with portrait artwork", async ({ page }) => {
+  await page.setViewportSize({ width: 720, height: 1280 });
+  await openHarness(page);
+  expect(await renderPoster(
+    page, "theater_classic", "classic", "cinematic", "portrait",
+    { title: "Pirates of the Caribbean: Dead Man's Chest" },
+  )).toEqual([]);
+  const title = await page.evaluate(() => {
+    const root = document.querySelector("movie-poster-panel").shadowRoot;
+    const stage = root.querySelector(".frame-stage").getBoundingClientRect();
+    const heading = root.querySelector(".details h2");
+    const box = heading.getBoundingClientRect();
+    return {
+      visible: getComputedStyle(heading).display !== "none"
+        && box.width > 0 && box.height > 0,
+      contained: box.left >= stage.left - 1
+        && box.right <= stage.right + 1
+        && box.top >= stage.top - 1
+        && box.bottom <= stage.bottom + 1,
+      text: heading.textContent,
+    };
+  });
+  expect(title).toEqual({
+    visible: true,
+    contained: true,
+    text: "Pirates of the Caribbean: Dead Man's Chest",
+  });
+});
+
 test("Display Studio presents Frame, Theme, then Layout", async ({ page }) => {
   await openHarness(page, "?studio=1");
   const result = await page.evaluate(() => {

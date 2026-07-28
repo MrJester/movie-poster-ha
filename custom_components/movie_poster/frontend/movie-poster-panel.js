@@ -5136,6 +5136,51 @@ class MoviePosterPanel extends HTMLElement {
       .theater.orientation-auto.layout-poster .poster {
         transform: translateY(-4px);
       }
+      /* Theater Classic has no artwork plaque, so its HTML title is the
+         authoritative movie-title slot. Keep it inside the photographed
+         opening and let poster fitting reserve the required row. */
+      .theater.frame-theater_classic .details h2 {
+        display: -webkit-box !important;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+      }
+      .theater.frame-theater_classic.orientation-portrait .details {
+        display: flex !important;
+        flex-direction: column;
+        grid-column: 1 !important;
+        width: var(--fitted-poster-width, 100%);
+        max-width: 100%;
+        max-height: 22cqh;
+        margin: 0 auto;
+        padding: clamp(4px, .8cqw, 10px);
+        gap: clamp(3px, .5cqw, 7px);
+        text-align: center;
+        overflow: hidden;
+      }
+      .theater.frame-theater_classic.orientation-portrait
+        .details :is(.subtitle, .meta, .session) {
+        display: none;
+      }
+      @media (max-width: 720px), (orientation: portrait) {
+        .theater.frame-theater_classic.orientation-auto .details {
+          display: flex !important;
+          flex-direction: column;
+          grid-column: 1 !important;
+          width: var(--fitted-poster-width, 100%);
+          max-width: 100%;
+          max-height: 22cqh;
+          margin: 0 auto;
+          padding: clamp(4px, .8cqw, 10px);
+          gap: clamp(3px, .5cqw, 7px);
+          text-align: center;
+          overflow: hidden;
+        }
+        .theater.frame-theater_classic.orientation-auto
+          .details :is(.subtitle, .meta, .session) {
+          display: none;
+        }
+      }
       .visual-editor-active .marquee-frame { display: none; }
       .visual-editor-canvas {
         position: relative;
