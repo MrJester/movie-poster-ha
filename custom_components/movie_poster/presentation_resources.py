@@ -624,8 +624,18 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "steampunk": _frame_resource(
         "steampunk",
         "Steampunk",
-        _bounds(9, 8, 82, 84),
-        _bounds(8, 9, 84, 82),
+        _bounds(20, 16, 59, 68),
+        _bounds(11, 19, 77, 63),
+        assets={
+            "bezel": {
+                "portrait": (
+                    "/movie_poster_static/assets/steampunk-frame-portrait.png"
+                ),
+                "landscape": (
+                    "/movie_poster_static/assets/steampunk-frame-landscape.png"
+                ),
+            },
+        },
         bindings={
             "gauge_light": "light_primary",
             "indicator": "light_secondary",

@@ -157,6 +157,16 @@ def test_catalogs_are_independent_objects() -> None:
         "portrait": {"x": 19, "y": 18, "width": 62, "height": 68},
         "landscape": {"x": 22, "y": 25, "width": 55, "height": 63},
     }
+    steampunk_bezel = next(
+        layer
+        for layer in BUILTIN_FRAMES["steampunk"]["layers"]
+        if layer["slot"] == "bezel"
+    )
+    assert set(steampunk_bezel["asset"]) == {"portrait", "landscape"}
+    assert BUILTIN_FRAMES["steampunk"]["safe_opening"] == {
+        "portrait": {"x": 20, "y": 16, "width": 59, "height": 68},
+        "landscape": {"x": 11, "y": 19, "width": 77, "height": 63},
+    }
     split_poster = next(
         component
         for component in BUILTIN_LAYOUTS["split"]["components"]

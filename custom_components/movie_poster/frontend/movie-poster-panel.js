@@ -3453,22 +3453,127 @@ class MoviePosterPanel extends HTMLElement {
         }
       }
 
-      /* Riveted copper, pipes, gauges, and warm bulbs. */
+      /* Photographic Victorian-industrial machinery and practical lamps. */
       .frame-steampunk .marquee-frame {
-        border: 13px solid #443126; border-radius: 5px;
-        background: repeating-linear-gradient(90deg, #ffffff08 0 1px, transparent 1px 34px),
-          linear-gradient(135deg, #3b2b22, #120e0b 45%, #302018);
-        box-shadow: inset 0 0 0 4px #a75e35, inset 0 0 35px #000, 0 28px 80px #000;
+        padding: 0;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: 0 34px 90px #000c;
+      }
+      .frame-steampunk .marquee-frame::after {
+        content: "";
+        position: absolute;
+        z-index: 4;
+        inset: 0;
+        pointer-events: none;
+        background: url("/movie_poster_static/assets/steampunk-frame-landscape.png")
+          center / 100% 100% no-repeat;
+        filter: drop-shadow(0 20px 34px #000c);
       }
       .frame-steampunk .marquee-frame::before {
-        inset: 8px; border: 6px dotted #b4774f; border-radius: 0; filter: drop-shadow(0 0 5px #ff9b42);
+        content: "";
+        position: absolute;
+        z-index: 5;
+        inset: 18.5% 10.7%;
+        pointer-events: none;
+        border: 1px solid var(--mp-border, #b4774f);
+        box-shadow:
+          inset 0 0 9px color-mix(in srgb,
+            var(--mp-light-primary, #ff9b42) 42%, transparent),
+          0 0 12px color-mix(in srgb,
+            var(--mp-light-primary, #ff9b42) 36%, transparent);
+        opacity: .78;
+        animation: steampunkPressureGlow 2.6s ease-in-out infinite alternate;
       }
-      .frame-steampunk .ornament { width: 18px; border: 5px solid #895739; border-block-width: 10px; border-radius: 12px; background: #241912; }
-      .frame-steampunk .ornament-left::before, .frame-steampunk .ornament-right::before {
-        content: ""; position: absolute; top: -68px; left: -22px; width: 52px; height: 52px;
-        border: 6px ridge #9a6542; border-radius: 50%; background: radial-gradient(circle, #ddd 0 8%, #8b735f 10% 48%, #2c211a 50%);
+      .frame-steampunk .frame-stage {
+        position: absolute;
+        z-index: 1;
+        inset: 19% 11% 18%;
+        display: flex;
+        min-width: 0;
+        min-height: 0;
+        flex-direction: column;
+        overflow: hidden;
       }
-      .frame-steampunk .frame-plaque { display: block; color: #2a160d; border: 5px ridge #a5613a; background: linear-gradient(#c98255, #8a4d31); }
+      .frame-steampunk .frame-stage > .marquee { flex: 0 0 auto; }
+      .frame-steampunk .frame-stage > .content {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .frame-steampunk .content {
+        gap: clamp(8px, 1.5cqw, 20px);
+        padding: clamp(4px, .8cqw, 10px) clamp(6px, 1.2cqw, 16px)
+          clamp(6px, 1cqw, 14px);
+      }
+      .frame-steampunk .frame-ornaments,
+      .frame-steampunk .frame-plaque { display: none; }
+      .frame-steampunk .marquee {
+        margin: 0 clamp(5px, 1cqw, 16px) clamp(7px, 1.1cqw, 16px);
+        border: 1px solid var(--mp-border, #b4774f);
+        background: color-mix(in srgb,
+          var(--mp-surface, #241912) 94%, transparent);
+      }
+      .frame-steampunk.orientation-portrait .frame-stage {
+        inset: 16% 20%;
+      }
+      .frame-steampunk.orientation-portrait .content {
+        grid-template-rows: minmax(0, 1fr);
+      }
+      .frame-steampunk.orientation-portrait .poster-wrap {
+        min-height: 0;
+        height: 100%;
+      }
+      .frame-steampunk.orientation-portrait .poster {
+        width: auto;
+        max-width: 100%;
+        height: 100%;
+        max-height: 100%;
+      }
+      .frame-steampunk.orientation-portrait .details { display: none; }
+      .frame-steampunk.orientation-portrait .marquee-frame::before {
+        inset: 15.7% 19.5%;
+      }
+      .frame-steampunk.orientation-portrait .marquee-frame::after {
+        background-image:
+          url("/movie_poster_static/assets/steampunk-frame-portrait.png");
+      }
+      .motion-off.frame-steampunk .marquee-frame::before {
+        animation: none;
+        opacity: .72;
+      }
+      @keyframes steampunkPressureGlow {
+        from { opacity: .56; filter: brightness(.9); }
+        to { opacity: .94; filter: brightness(1.12); }
+      }
+      @media (max-width: 720px), (orientation: portrait) {
+        .frame-steampunk.orientation-auto .frame-stage {
+          inset: 16% 20%;
+        }
+        .frame-steampunk.orientation-auto .content {
+          grid-template-rows: minmax(0, 1fr);
+        }
+        .frame-steampunk.orientation-auto .poster-wrap {
+          min-height: 0;
+          height: 100%;
+        }
+        .frame-steampunk.orientation-auto .poster {
+          width: auto;
+          max-width: 100%;
+          height: 100%;
+          max-height: 100%;
+        }
+        .frame-steampunk.orientation-auto .details { display: none; }
+        .frame-steampunk.orientation-auto .marquee-frame::before {
+          inset: 15.7% 19.5%;
+        }
+        .frame-steampunk.orientation-auto .marquee-frame::after {
+          background-image:
+            url("/movie_poster_static/assets/steampunk-frame-portrait.png");
+        }
+      }
 
       /* Themes are palettes only. Frames own geometry and ornamentation; layouts
          own element placement. Theme selectors must not change either. */
