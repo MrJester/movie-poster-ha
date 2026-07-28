@@ -526,8 +526,8 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "cyber_noir": _frame_resource(
         "cyber_noir",
         "Cyber Noir",
-        _bounds(10, 9, 80, 82),
-        _bounds(9, 10, 82, 80),
+        _bounds(14, 10, 72, 80),
+        _bounds(9, 11, 82, 78),
         assets={
             "bezel": {
                 "portrait": (

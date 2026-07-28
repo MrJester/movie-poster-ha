@@ -2710,11 +2710,12 @@ class MoviePosterPanel extends HTMLElement {
 
       /* Smoked-glass near-future display enclosure. */
       .frame-cyber_noir .marquee-frame {
-        --cyber-cyan: #f6cf70;
-        --cyber-magenta: #b4232f;
-        --cyber-white: #fff7df;
-        --cyber-muted: #c9bfa8;
-        --cyber-core: #fff3c4;
+        --cyber-cyan: var(--mp-light-primary, #29f2ff);
+        --cyber-magenta: var(--mp-light-secondary, #ff3ea5);
+        --cyber-white: var(--mp-text-primary, #f4fbff);
+        --cyber-muted: var(--mp-text-secondary, #a9c1ca);
+        --cyber-core: color-mix(in srgb,
+          var(--mp-light-primary, #29f2ff) 38%, white);
         padding: clamp(30px, 4vw, 62px);
         border: 3px solid #233841;
         border-radius: 0;
@@ -2734,34 +2735,6 @@ class MoviePosterPanel extends HTMLElement {
           inset 0 0 0 11px #263b44, inset 0 0 55px #000,
           0 36px 100px #000,
           0 0 26px color-mix(in srgb, var(--cyber-cyan) 14%, transparent);
-      }
-      .theme-art_deco.frame-cyber_noir .marquee-frame {
-        --cyber-cyan: #d8c17c;
-        --cyber-magenta: #2d8f78;
-        --cyber-white: #f0dfaa;
-        --cyber-muted: #b9ab82;
-        --cyber-core: #fff2c7;
-      }
-      .theme-neon.frame-cyber_noir .marquee-frame {
-        --cyber-cyan: #29f2ff;
-        --cyber-magenta: #ff3ea5;
-        --cyber-white: #f8edff;
-        --cyber-muted: #bcb0d0;
-        --cyber-core: #eaffff;
-      }
-      .theme-minimal.frame-cyber_noir .marquee-frame {
-        --cyber-cyan: #d6d9dc;
-        --cyber-magenta: #7d858c;
-        --cyber-white: #f5f5f3;
-        --cyber-muted: #a9adaf;
-        --cyber-core: #fff;
-      }
-      .theme-oled.frame-cyber_noir .marquee-frame {
-        --cyber-cyan: #fff;
-        --cyber-magenta: #777;
-        --cyber-white: #fff;
-        --cyber-muted: #999;
-        --cyber-core: #fff;
       }
       .frame-cyber_noir .marquee-frame::before {
         inset: 14px;
@@ -2801,7 +2774,10 @@ class MoviePosterPanel extends HTMLElement {
         background:
           linear-gradient(112deg, transparent 0 67%, #d9f8ff0a 67.2% 78%,
             transparent 78.2%),
-          linear-gradient(180deg, #0b151bea, #03080bed);
+          linear-gradient(180deg,
+            color-mix(in srgb, var(--mp-surface-elevated, #14232a) 92%,
+              transparent),
+            color-mix(in srgb, var(--mp-surface, #03080b) 95%, transparent));
         box-shadow: inset 0 1px #d9f8ff12, inset 0 -10px 24px #0008,
           0 8px 22px #0009;
         text-align: left;
@@ -2851,13 +2827,13 @@ class MoviePosterPanel extends HTMLElement {
             color-mix(in srgb, var(--cyber-cyan) 13%, transparent),
             transparent 14% 86%,
             color-mix(in srgb, var(--cyber-magenta) 9%, transparent)),
-          #03080be8;
+          color-mix(in srgb, var(--mp-surface, #03080b) 92%, transparent);
         box-shadow: inset 0 0 24px #000, 0 16px 38px #000b;
       }
       .theater.frame-cyber_noir .poster {
         border: 1px solid color-mix(in srgb, var(--cyber-cyan) 67%, transparent);
         border-radius: 0;
-        background: #020609;
+        background: var(--mp-surface, #020609);
         box-shadow: 0 18px 42px #000, 0 0 0 5px #020609,
           0 0 0 6px #263c45,
           0 0 18px color-mix(in srgb, var(--cyber-cyan) 13%, transparent);
@@ -2875,7 +2851,10 @@ class MoviePosterPanel extends HTMLElement {
           linear-gradient(90deg,
             color-mix(in srgb, var(--cyber-cyan) 5%, transparent),
             transparent 45%),
-          linear-gradient(#0b151bd9, #03080bec);
+          linear-gradient(
+            color-mix(in srgb, var(--mp-surface-elevated, #0b151b) 88%,
+              transparent),
+            color-mix(in srgb, var(--mp-surface, #03080b) 92%, transparent));
         box-shadow: inset 0 1px #d9f8ff12, 0 10px 24px #0009;
         text-align: left;
       }
@@ -2897,7 +2876,10 @@ class MoviePosterPanel extends HTMLElement {
           calc(100% - 14px) 100%, 0 100%);
         background:
           repeating-linear-gradient(0deg, #ffffff03 0 1px, transparent 1px 28px),
-          linear-gradient(135deg, #0a1419d9, #020609e8);
+          linear-gradient(135deg,
+            color-mix(in srgb, var(--mp-surface-elevated, #0a1419) 86%,
+              transparent),
+            color-mix(in srgb, var(--mp-surface, #020609) 92%, transparent));
         box-shadow: inset 0 1px #d9f8ff12, 0 18px 38px #0009;
       }
       .theater.frame-cyber_noir .meta {
@@ -2908,7 +2890,7 @@ class MoviePosterPanel extends HTMLElement {
         text-transform: uppercase;
       }
       .theater.frame-cyber_noir .summary {
-        color: #afc8cf;
+        color: var(--cyber-muted);
         font-family: var(--body-font, "Trebuchet MS", Arial, sans-serif);
       }
       .theater.frame-cyber_noir .session {
@@ -3662,7 +3644,8 @@ class MoviePosterPanel extends HTMLElement {
         opacity: 1;
         background: url("/movie_poster_static/assets/cyber-noir-frame-landscape.png")
           center / 100% 100% no-repeat;
-        filter: drop-shadow(0 20px 32px #000c);
+        filter: saturate(.2) brightness(.82) contrast(1.08)
+          drop-shadow(0 20px 32px #000c);
         animation: none;
       }
       .cyber-frame-lights { display: none; }

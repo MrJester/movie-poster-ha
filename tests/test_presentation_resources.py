@@ -121,6 +121,10 @@ def test_catalogs_are_independent_objects() -> None:
         if layer["slot"] == "bezel"
     )
     assert set(cyber_bezel["asset"]) == {"portrait", "landscape"}
+    assert BUILTIN_FRAMES["cyber_noir"]["safe_opening"] == {
+        "portrait": {"x": 14, "y": 10, "width": 72, "height": 80},
+        "landscape": {"x": 9, "y": 11, "width": 82, "height": 78},
+    }
     theater_bezel = next(
         layer
         for layer in BUILTIN_FRAMES["theater_classic"]["layers"]
