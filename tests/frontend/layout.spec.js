@@ -110,10 +110,11 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
           : "",
         logo_position: variant.logoPosition || "right",
       },
-      design_frame: variant.safeOpening ? {
+      design_frame: variant.safeOpening || variant.layoutTuning ? {
         id: `builtin.frame.${frame}`,
         version: 1,
         safe_opening: variant.safeOpening,
+        layout_tuning: variant.layoutTuning,
       } : undefined,
       mode: "coming_soon",
       heading: variant.heading || "Coming Soon",
@@ -341,6 +342,36 @@ test("renderer consumes validated declarative safe geometry", async ({ page }) =
     };
   });
   expect(geometry).toEqual({ x: 12, y: 14, width: 76, height: 72 });
+});
+
+test("renderer consumes declarative frame layout tuning", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openHarness(page);
+  expect(await renderPoster(
+    page, "marquee", "classic", "cinematic", "landscape",
+    {
+      layoutTuning: {
+        poster_share: 52,
+        gap: 2,
+        details_padding: 1.25,
+      },
+    },
+  )).toEqual([]);
+  const tuning = await page.evaluate(() => {
+    const root = document.querySelector("movie-poster-panel").shadowRoot;
+    const theater = root.querySelector(".theater");
+    const style = getComputedStyle(theater);
+    return {
+      posterShare: style.getPropertyValue("--layout-poster-share").trim(),
+      gap: style.getPropertyValue("--layout-gap").trim(),
+      detailsPadding: style.getPropertyValue("--layout-details-pad").trim(),
+    };
+  });
+  expect(tuning).toEqual({
+    posterShare: "52%",
+    gap: "clamp(8px,2cqw,24px)",
+    detailsPadding: "clamp(4px,1.25cqw,16px)",
+  });
 });
 
 test("enabled movie details remain readable in every frame and layout", async ({ page }) => {

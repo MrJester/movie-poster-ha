@@ -266,6 +266,23 @@ FRAME_RESOURCE_SCHEMA = vol.Schema(
         vol.Required("theme_bindings"): {
             vol.All(str, vol.Length(min=1, max=80)): vol.In(THEME_TOKEN_KEYS),
         },
+        vol.Required("layout_tuning"): vol.Schema(
+            {
+                vol.Required("poster_share"): vol.All(
+                    vol.Coerce(float),
+                    vol.Range(min=25, max=70),
+                ),
+                vol.Required("gap"): vol.All(
+                    vol.Coerce(float),
+                    vol.Range(min=0, max=5),
+                ),
+                vol.Required("details_padding"): vol.All(
+                    vol.Coerce(float),
+                    vol.Range(min=0, max=5),
+                ),
+            },
+            extra=vol.PREVENT_EXTRA,
+        ),
     },
     extra=vol.PREVENT_EXTRA,
 )
@@ -464,6 +481,7 @@ def _frame_resource(  # noqa: PLR0913 - declarative resource builder
     *,
     assets: dict[str, Any] | None = None,
     bindings: dict[str, str] | None = None,
+    tuning: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     """Create one explicit built-in Frame resource."""
     assets = assets or {}
@@ -497,6 +515,11 @@ def _frame_resource(  # noqa: PLR0913 - declarative resource builder
             "raised_surface": "surface_elevated",
             "trim": "accent_primary",
         },
+        "layout_tuning": tuning or {
+            "poster_share": 44,
+            "gap": 1.35,
+            "details_padding": 0.7,
+        },
     }
 
 
@@ -526,6 +549,7 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
             "cabinet": "surface",
             "inner_border": "border",
         },
+        tuning={"poster_share": 45, "gap": 1.35, "details_padding": 0.7},
     ),
     "cyber_noir": _frame_resource(
         "cyber_noir",
@@ -550,6 +574,7 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
             "metal_highlight": "surface_elevated",
             "screen_border": "border",
         },
+        tuning={"poster_share": 43, "gap": 1.6, "details_padding": 0.7},
     ),
     "comic_hero": _frame_resource(
         "comic_hero",
@@ -573,6 +598,7 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
             "highlight": "light_primary",
             "caption": "surface_elevated",
         },
+        tuning={"poster_share": 42, "gap": 1.35, "details_padding": 0.9},
     ),
     "theater_classic": _frame_resource(
         "theater_classic",
@@ -598,6 +624,7 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
             "gilding": "accent_primary",
             "proscenium": "border",
         },
+        tuning={"poster_share": 44, "gap": 1.35, "details_padding": 0.7},
     ),
     "indie_nature": _frame_resource(
         "indie_nature",
@@ -621,6 +648,7 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
             "wood": "surface",
             "edge": "border",
         },
+        tuning={"poster_share": 46, "gap": 1.8, "details_padding": 0.7},
     ),
     "golden_age": _frame_resource(
         "golden_age",
@@ -644,6 +672,7 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
             "lacquer": "surface",
             "ornament": "border",
         },
+        tuning={"poster_share": 42, "gap": 1.35, "details_padding": 1},
     ),
     "steampunk": _frame_resource(
         "steampunk",
@@ -667,6 +696,7 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
             "iron": "surface",
             "rivets": "border",
         },
+        tuning={"poster_share": 43, "gap": 1.5, "details_padding": 0.7},
     ),
 }
 
@@ -928,6 +958,7 @@ def frame_geometry_for_presentation(
         "id": frame["id"],
         "version": frame["version"],
         "safe_opening": deepcopy(frame["safe_opening"]),
+        "layout_tuning": deepcopy(frame["layout_tuning"]),
     }
 
 

@@ -109,6 +109,11 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
             "portrait": {"x": 19, "y": 16, "width": 62, "height": 70},
             "landscape": {"x": 15, "y": 19, "width": 70, "height": 64},
         },
+        "layout_tuning": {
+            "poster_share": 43,
+            "gap": 1.6,
+            "details_padding": 0.7,
+        },
     }
     assert state["heading"] == "Feature Presentation"
     assert state["media"]["poster_url"].startswith(

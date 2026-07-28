@@ -105,6 +105,20 @@ const safeOpeningStyle = (safeOpening) => {
   }
   return declarations.join(";");
 };
+const frameLayoutStyle = (tuning) => {
+  const posterShare = Number(tuning?.poster_share);
+  const gap = Number(tuning?.gap);
+  const detailsPadding = Number(tuning?.details_padding);
+  return [
+    Number.isFinite(posterShare) && posterShare >= 25 && posterShare <= 70
+      ? `--layout-poster-share:${posterShare}%` : "",
+    Number.isFinite(gap) && gap >= 0 && gap <= 5
+      ? `--layout-gap:clamp(8px,${gap}cqw,24px)` : "",
+    Number.isFinite(detailsPadding)
+      && detailsPadding >= 0 && detailsPadding <= 5
+      ? `--layout-details-pad:clamp(4px,${detailsPadding}cqw,16px)` : "",
+  ].filter(Boolean).join(";");
+};
 const normalizeText = (value, fallback) => String(value ?? "").trim() || fallback;
 const LOGO_POSITIONS = new Set(["left", "center", "right"]);
 const normalizeLogoPosition = (value) => LOGO_POSITIONS.has(value) ? value : "right";
@@ -538,7 +552,7 @@ class MoviePosterPanel extends HTMLElement {
     const logoPosition = normalizeLogoPosition(presentation.logo_position);
     const backdrop = media.backdrop_url
       ? `url('${escapeHtml(media.backdrop_url)}')` : "none";
-    const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)};${safeOpeningStyle(state.design_frame?.safe_opening)}"`;
+    const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)};${safeOpeningStyle(state.design_frame?.safe_opening)};${frameLayoutStyle(state.design_frame?.layout_tuning)}"`;
 
     const hasDetails = presentation.show_title !== false
       || (presentation.show_subtitle !== false && Boolean(media.subtitle))
