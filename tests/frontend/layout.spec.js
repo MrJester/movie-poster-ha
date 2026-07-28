@@ -383,6 +383,55 @@ test("visual editor starts blank and adds normalized components", async ({ page 
   });
 });
 
+test("visual editor supports bounded undo and redo history", async ({ page }) => {
+  await openHarness(page, "?studio=1");
+  const result = await page.evaluate(async () => {
+    const panel = document.createElement("movie-poster-panel");
+    panel._state.entry_id = "editor-entry";
+    panel._editorProfileId = "history";
+    panel._editorDocument = {
+      version: 2,
+      name: "History",
+      description: "",
+      author: "",
+      presentation: { ...panel._state.presentation },
+      design: {
+        schema_version: 1,
+        resources: {
+          frame: { id: "builtin.frame.blank", version: 1 },
+          theme: { id: "builtin.theme.classic", version: 1 },
+          layout: { id: "builtin.layout.blank", version: 1 },
+        },
+        viewport: { fit: "contain", link_orientations: true },
+        components: [],
+        motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+      },
+    };
+    document.body.append(panel);
+    panel._render();
+    panel.shadowRoot.querySelector("[data-editor-add-type]").value = "title";
+    await panel._editorAction("add");
+    await panel._editorAction("undo");
+    const afterUndo = panel._editorDocument.design.components.length;
+    await panel._editorAction("redo");
+    clearTimeout(panel._editorSaveTimer);
+    return {
+      afterUndo,
+      afterRedo: panel._editorDocument.design.components.map(
+        (component) => component.id,
+      ),
+      undoDepth: panel._editorUndoStack.length,
+      redoDepth: panel._editorRedoStack.length,
+    };
+  });
+  expect(result).toEqual({
+    afterUndo: 0,
+    afterRedo: ["title"],
+    undoDepth: 1,
+    redoDepth: 0,
+  });
+});
+
 test("Cyber Noir themes recolor its powered system without changing its frame", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1080, height: 1920 });
   await openHarness(page);

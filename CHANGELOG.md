@@ -16,10 +16,13 @@
   dynamic components, drag and resize, exact normalized geometry, layers,
   visibility, per-orientation geometry overrides, colors, opacity, type size,
   alignment, glow, preview states, autosave, and explicit publishing.
+- Add bounded undo/redo history, keyboard shortcuts, and explicit layer
+  selection, visibility, and forward/backward ordering controls.
 - Use a presentation-specific frontend module cache key so Home Assistant
   cannot reuse the pre-editor panel module after upgrading to beta.44.
 - Make metadata grid items explicitly shrink-safe across browser engines so
-  long titles remain contained on theater and ultrawide displays.
+  long titles remain contained on theater and ultrawide displays, with a
+  vertically bounded landscape content region for consistent WebKit layout.
 
 ## 0.1.0-beta.43
 

@@ -150,6 +150,9 @@ class MoviePosterPanel extends HTMLElement {
     this._editorSelectedId = null;
     this._editorPreviewState = "coming_soon";
     this._editorSaveTimer = null;
+    this._editorUndoStack = [];
+    this._editorRedoStack = [];
+    this._editorKeyHandler = (event) => this._handleEditorKeydown(event);
     if (this._studio) this._state = studioState();
   }
 
@@ -167,6 +170,7 @@ class MoviePosterPanel extends HTMLElement {
     this._subscribe();
     document.addEventListener("visibilitychange", this._resumeHandler);
     window.addEventListener("online", this._resumeHandler);
+    window.addEventListener("keydown", this._editorKeyHandler);
   }
 
   disconnectedCallback() {
@@ -178,6 +182,7 @@ class MoviePosterPanel extends HTMLElement {
     this._bulbObserver?.disconnect();
     this._bulbObserver = null;
     document.removeEventListener("visibilitychange", this._resumeHandler);
+    window.removeEventListener("keydown", this._editorKeyHandler);
     window.removeEventListener("online", this._resumeHandler);
     this._retryTimer = null;
     if (this._unsubscribePromise) {
@@ -903,6 +908,12 @@ class MoviePosterPanel extends HTMLElement {
         <p class="studio-wide editor-draft-label">
           Editing draft: <strong>${escapeHtml(this._editorDocument.name)}</strong>
         </p>
+        <div class="studio-profile-actions studio-wide" aria-label="Editor history">
+          <button type="button" data-editor-action="undo"
+            ${this._editorUndoStack.length ? "" : "disabled"}>Undo</button>
+          <button type="button" data-editor-action="redo"
+            ${this._editorRedoStack.length ? "" : "disabled"}>Redo</button>
+        </div>
         <label class="studio-wide">Preview state<select data-editor-preview>
           ${[
             ["coming_soon", "Coming Soon"],
@@ -925,6 +936,25 @@ class MoviePosterPanel extends HTMLElement {
             <button type="button" data-editor-action="add">Add</button>
           </span>
         </label>
+        ${editorComponents.length ? `
+          <fieldset class="editor-layers studio-wide">
+            <legend>Layers</legend>
+            ${[...editorComponents].sort((a, b) => b.z_index - a.z_index)
+              .map((component) => `
+                <div class="editor-layer-row${component.id === this._editorSelectedId ? " selected" : ""}">
+                  <button type="button" data-editor-select="${escapeHtml(component.id)}">
+                    ${escapeHtml(component.type.replaceAll("_", " "))}
+                  </button>
+                  <button type="button" title="Move layer forward"
+                    data-editor-layer="forward" data-editor-target="${escapeHtml(component.id)}">↑</button>
+                  <button type="button" title="Move layer backward"
+                    data-editor-layer="backward" data-editor-target="${escapeHtml(component.id)}">↓</button>
+                  <button type="button" title="${component.visible === false ? "Show" : "Hide"} layer"
+                    data-editor-layer="visibility" data-editor-target="${escapeHtml(component.id)}">
+                    ${component.visible === false ? "Show" : "Hide"}
+                  </button>
+                </div>`).join("")}
+          </fieldset>` : ""}
         ${selectedComponent ? `
           <fieldset class="editor-properties studio-wide">
             <legend>${escapeHtml(selectedComponent.type.replaceAll("_", " "))}</legend>
@@ -1084,10 +1114,35 @@ class MoviePosterPanel extends HTMLElement {
       component.addEventListener("pointerdown", (event) =>
         this._startEditorPointer(event, component));
     });
+    this.shadowRoot.querySelectorAll("[data-editor-select]").forEach((button) => {
+      button.addEventListener("click", () => {
+        this._editorSelectedId = button.dataset.editorSelect;
+        this._render();
+      });
+    });
+    this.shadowRoot.querySelectorAll("[data-editor-layer]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const component = this._editorDocument?.design?.components?.find(
+          (item) => item.id === button.dataset.editorTarget,
+        );
+        if (!component) return;
+        this._recordEditorHistory();
+        this._editorSelectedId = component.id;
+        if (button.dataset.editorLayer === "forward") component.z_index += 1;
+        if (button.dataset.editorLayer === "backward") component.z_index -= 1;
+        if (button.dataset.editorLayer === "visibility") {
+          component.visible = component.visible === false;
+        }
+        component.z_index = Math.min(100, Math.max(-100, component.z_index));
+        this._render();
+        this._scheduleEditorSave();
+      });
+    });
     this.shadowRoot.querySelectorAll("[data-editor-bound]").forEach((input) => {
       input.addEventListener("change", () => {
         const component = this._selectedEditorComponent();
         if (!component) return;
+        this._recordEditorHistory();
         const field = input.dataset.editorBound;
         const minimum = field === "width" || field === "height" ? 0.1 : 0;
         const bounds = this._editorBounds(component);
@@ -1105,6 +1160,7 @@ class MoviePosterPanel extends HTMLElement {
       ?.addEventListener("change", (event) => {
         const component = this._selectedEditorComponent();
         if (!component) return;
+        this._recordEditorHistory();
         component.z_index = Math.min(100, Math.max(-100, Number(event.target.value)));
         this._render();
         this._scheduleEditorSave();
@@ -1113,6 +1169,7 @@ class MoviePosterPanel extends HTMLElement {
       ?.addEventListener("change", (event) => {
         const component = this._selectedEditorComponent();
         if (!component) return;
+        this._recordEditorHistory();
         component.visible = event.target.checked;
         this._render();
         this._scheduleEditorSave();
@@ -1121,6 +1178,7 @@ class MoviePosterPanel extends HTMLElement {
       ?.addEventListener("change", (event) => {
         const component = this._selectedEditorComponent();
         if (!component) return;
+        this._recordEditorHistory();
         component.text = event.target.value;
         this._render();
         this._scheduleEditorSave();
@@ -1129,6 +1187,7 @@ class MoviePosterPanel extends HTMLElement {
       input.addEventListener("change", () => {
         const component = this._selectedEditorComponent();
         if (!component) return;
+        this._recordEditorHistory();
         component.style ||= {};
         component.style[input.dataset.editorStyle] = input.type === "number"
           ? Number(input.value) : input.value;
@@ -1143,6 +1202,7 @@ class MoviePosterPanel extends HTMLElement {
       ?.addEventListener("change", (event) => {
         const component = this._selectedEditorComponent();
         if (!component) return;
+        this._recordEditorHistory();
         const orientation = this._editorOrientation();
         if (event.target.checked) {
           component.orientation_overrides[orientation] = {
@@ -1179,7 +1239,13 @@ class MoviePosterPanel extends HTMLElement {
       this._editorProfileId = null;
       this._editorDocument = null;
       this._editorSelectedId = null;
+      this._editorUndoStack = [];
+      this._editorRedoStack = [];
       this._render();
+      return;
+    }
+    if (action === "undo" || action === "redo") {
+      this._restoreEditorHistory(action);
       return;
     }
     if (action === "open-library") {
@@ -1245,6 +1311,7 @@ class MoviePosterPanel extends HTMLElement {
     if (action === "add") {
       const type = this.shadowRoot.querySelector("[data-editor-add-type]")?.value;
       if (!type || !this._editorDocument) return;
+      this._recordEditorHistory();
       const components = this._editorDocument.design.components;
       const base = type.replaceAll("_", "-");
       let identifier = base;
@@ -1269,6 +1336,7 @@ class MoviePosterPanel extends HTMLElement {
     if (action === "delete-component") {
       const components = this._editorDocument?.design?.components;
       if (!components) return;
+      this._recordEditorHistory();
       this._editorDocument.design.components = components.filter(
         (component) => component.id !== this._editorSelectedId,
       );
@@ -1282,6 +1350,43 @@ class MoviePosterPanel extends HTMLElement {
     return this._editorDocument?.design?.components?.find(
       (component) => component.id === this._editorSelectedId,
     );
+  }
+
+  _recordEditorHistory() {
+    if (!this._editorDocument) return;
+    this._editorUndoStack.push({
+      document: structuredClone(this._editorDocument),
+      selectedId: this._editorSelectedId,
+    });
+    if (this._editorUndoStack.length > 50) this._editorUndoStack.shift();
+    this._editorRedoStack = [];
+  }
+
+  _restoreEditorHistory(direction) {
+    const source = direction === "undo"
+      ? this._editorUndoStack : this._editorRedoStack;
+    const target = direction === "undo"
+      ? this._editorRedoStack : this._editorUndoStack;
+    if (!source.length || !this._editorDocument) return;
+    target.push({
+      document: structuredClone(this._editorDocument),
+      selectedId: this._editorSelectedId,
+    });
+    const snapshot = source.pop();
+    this._editorDocument = structuredClone(snapshot.document);
+    this._editorSelectedId = snapshot.selectedId;
+    this._render();
+    this._scheduleEditorSave();
+  }
+
+  _handleEditorKeydown(event) {
+    if (!this._editorDocument || !(event.metaKey || event.ctrlKey)) return;
+    if (event.target instanceof HTMLInputElement
+      || event.target instanceof HTMLTextAreaElement
+      || event.target instanceof HTMLSelectElement) return;
+    if (event.key.toLowerCase() !== "z") return;
+    event.preventDefault();
+    this._restoreEditorHistory(event.shiftKey ? "redo" : "undo");
   }
 
   _editorOrientation() {
@@ -1323,6 +1428,7 @@ class MoviePosterPanel extends HTMLElement {
     const component = this._selectedEditorComponent();
     const canvas = this.shadowRoot.querySelector(".visual-editor-canvas");
     if (!component || !canvas) return;
+    this._recordEditorHistory();
     element.classList.add("selected");
     const canvasBox = canvas.getBoundingClientRect();
     const bounds = this._editorBounds(component);
@@ -1407,6 +1513,8 @@ class MoviePosterPanel extends HTMLElement {
     this._editorProfileId = profileId;
     this._editorDocument = structuredClone(draft);
     this._editorSelectedId = this._editorDocument.design.components[0]?.id || null;
+    this._editorUndoStack = [];
+    this._editorRedoStack = [];
     this._render();
   }
 
@@ -1888,7 +1996,30 @@ class MoviePosterPanel extends HTMLElement {
         padding: 10px;
         border: 1px solid #ffffff24;
       }
-      .editor-properties legend { padding-inline: 6px; color: var(--gold); }
+      .editor-layers {
+        display: grid;
+        gap: 6px;
+        margin: 0;
+        padding: 10px;
+        border: 1px solid #ffffff24;
+      }
+      .editor-properties legend,
+      .editor-layers legend { padding-inline: 6px; color: var(--gold); }
+      .editor-layer-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto auto;
+        gap: 5px;
+      }
+      .editor-layer-row > button:first-child {
+        overflow: hidden;
+        text-align: left;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .editor-layer-row.selected > button:first-child {
+        border-color: var(--gold);
+        color: var(--gold);
+      }
       .studio-preview {
         width: calc(100vw - 430px);
         min-height: 100vh;
@@ -2916,9 +3047,20 @@ class MoviePosterPanel extends HTMLElement {
         -webkit-line-clamp: 6;
       }
       .orientation-landscape .marquee-frame {
+        display: flex;
+        flex-direction: column;
         width: min(95vw, 126.667vh);
         min-height: 0;
         aspect-ratio: 4 / 3;
+      }
+      .orientation-landscape .marquee-frame .content {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .orientation-landscape .marquee-frame .details {
+        max-height: 100%;
+        overflow: hidden;
       }
       .orientation-portrait .marquee-frame {
         width: min(95vw, 53.438vh);
@@ -2950,9 +3092,20 @@ class MoviePosterPanel extends HTMLElement {
       }
       @media (min-width: 721px) and (orientation: landscape) {
         .orientation-auto .marquee-frame {
+          display: flex;
+          flex-direction: column;
           width: min(95vw, 126.667vh);
           min-height: 0;
           aspect-ratio: 4 / 3;
+        }
+        .orientation-auto .marquee-frame .content {
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow: hidden;
+        }
+        .orientation-auto .marquee-frame .details {
+          max-height: 100%;
+          overflow: hidden;
         }
         .orientation-portrait .marquee {
           margin-bottom: clamp(8px, 1.5vh, 16px);
