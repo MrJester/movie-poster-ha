@@ -618,28 +618,38 @@ class MoviePosterPanel extends HTMLElement {
     const portrait = theater?.classList.contains("orientation-portrait")
       || (theater?.classList.contains("orientation-auto")
         && frame.clientHeight > frame.clientWidth);
+    // These normalized centers are registered to the bulbs rendered into the
+    // photographic frame assets. Do not derive them from generic spacing:
+    // the landscape rails are intentionally asymmetric due to perspective.
     const rail = portrait
-      ? { left: .14, right: .86, top: .143, bottom: .915 }
-      : { left: .10, right: .90, top: .16, bottom: .84 };
-    const left = frame.clientWidth * rail.left;
-    const top = frame.clientHeight * rail.top;
-    const width = Math.max(0, frame.clientWidth * (rail.right - rail.left));
-    const height = Math.max(0, frame.clientHeight * (rail.bottom - rail.top));
-    const horizontalCount = Math.max(3, Math.round(width / 42) + 1);
-    const verticalCount = Math.max(3, Math.round(height / 42));
+      ? {
+        left: .14, right: .86, top: .142, bottom: .909,
+        sideTop: .184, sideBottom: .872,
+        horizontalCount: 12, verticalCount: 17,
+      }
+      : {
+        left: .095, right: .847, top: .156, bottom: .783,
+        horizontalLeft: .13, horizontalRight: .812,
+        sideTop: .199, sideBottom: .721,
+        horizontalCount: 18, verticalCount: 10,
+      };
+    const horizontalLeft = rail.horizontalLeft ?? rail.left;
+    const horizontalRight = rail.horizontalRight ?? rail.right;
+    const distribute = (start, end, count) => Array.from(
+      { length: count },
+      (_, index) => count === 1 ? start : start + (end - start) * index / (count - 1),
+    );
+    const horizontal = distribute(
+      horizontalLeft, horizontalRight, rail.horizontalCount,
+    );
+    const vertical = distribute(
+      rail.sideTop, rail.sideBottom, rail.verticalCount,
+    );
     const points = [
-      ...Array.from({ length: horizontalCount }, (_, index) => ({
-        x: (index + .5) * width / horizontalCount, y: 0,
-      })),
-      ...Array.from({ length: verticalCount }, (_, index) => ({
-        x: width, y: (index + .5) * height / verticalCount,
-      })),
-      ...Array.from({ length: horizontalCount }, (_, index) => ({
-        x: width - (index + .5) * width / horizontalCount, y: height,
-      })),
-      ...Array.from({ length: verticalCount }, (_, index) => ({
-        x: 0, y: height - (index + .5) * height / verticalCount,
-      })),
+      ...horizontal.map((x) => ({ x, y: rail.top })),
+      ...vertical.map((y) => ({ x: rail.right, y })),
+      ...[...horizontal].reverse().map((x) => ({ x, y: rail.bottom })),
+      ...[...vertical].reverse().map((y) => ({ x: rail.left, y })),
     ];
     const count = points.length;
     if (Number(container.dataset.count) !== count) {
@@ -649,8 +659,8 @@ class MoviePosterPanel extends HTMLElement {
     }
     [...container.children].forEach((bulb, index) => {
       const { x, y } = points[index];
-      bulb.style.left = `${x + left}px`;
-      bulb.style.top = `${y + top}px`;
+      bulb.style.left = `${x * frame.clientWidth}px`;
+      bulb.style.top = `${y * frame.clientHeight}px`;
       bulb.style.setProperty("--bulb-delay", `${-index * 4.8 / count}s`);
     });
   }
@@ -4178,33 +4188,29 @@ class MoviePosterPanel extends HTMLElement {
       .marquee-bulbs i,
       .marquee-divider-bulbs i {
         display: block;
-        width: clamp(6px, 1.65cqw, 18px);
+        width: clamp(7px, 2.5cqw, 30px);
         aspect-ratio: 1;
         flex: 0 0 auto;
-        border: 1px solid color-mix(in srgb,
-          var(--mp-border, #704718) 76%, #120900);
         border-radius: 50%;
-        background: radial-gradient(circle at 38% 32%,
-          #fff 0 7%,
-          color-mix(in srgb, var(--mp-light-secondary, #fff1b8) 78%, white)
-            11% 23%,
-          var(--mp-light-primary, #ffd35f) 30% 48%,
-          color-mix(in srgb, var(--mp-light-primary, #ffd35f) 56%, #402008)
-            56% 70%,
-          transparent 76% 100%);
-        box-shadow:
-          inset -2px -2px 3px color-mix(in srgb,
-            var(--mp-surface, #170e08) 72%, transparent),
-          inset 2px 2px 2px #ffffffa8,
-          0 0 5px var(--mp-light-secondary, #fff1b8),
-          0 0 14px color-mix(in srgb,
-            var(--mp-light-primary, #ffd35f) 88%, transparent),
-          0 0 28px color-mix(in srgb,
-            var(--mp-light-primary, #ffd35f) 42%, transparent);
+        background: radial-gradient(circle,
+          #fff 0 8%,
+          color-mix(in srgb,
+            var(--mp-light-secondary, #fff1b8) 72%, transparent) 18%,
+          color-mix(in srgb,
+            var(--mp-light-primary, #ffd35f) 46%, transparent) 38%,
+          transparent 72%);
         position: absolute;
         transform: translate(-50%, -50%);
         animation: bulbChase 4.8s linear infinite;
         animation-delay: var(--bulb-delay);
+      }
+      .frame-marquee.orientation-portrait .marquee-bulbs i {
+        width: clamp(7px, 3.35cqw, 30px);
+      }
+      @media (max-width: 720px), (orientation: portrait) {
+        .frame-marquee.orientation-auto .marquee-bulbs i {
+          width: clamp(7px, 3.35cqw, 30px);
+        }
       }
       .marquee-divider-bulbs i {
         position: relative;
@@ -4212,7 +4218,7 @@ class MoviePosterPanel extends HTMLElement {
       }
       .marquee-bulbs i::after,
       .marquee-divider-bulbs i::after {
-        content: "";
+        content: none;
         position: absolute;
         top: 15%; left: 19%;
         width: 28%; height: 20%;
@@ -4282,10 +4288,15 @@ class MoviePosterPanel extends HTMLElement {
       .motion-off .ambient { filter: brightness(.18) saturate(.8); }
       @keyframes bulbs { from { opacity: .48; } to { opacity: 1; } }
       @keyframes bulbChase {
-        0%, 18%, 100% { opacity: .48; filter: brightness(.68); }
-        4% { opacity: .72; filter: brightness(.9); }
-        8% { opacity: 1; filter: brightness(1.35); }
-        12% { opacity: .78; filter: brightness(1); }
+        0%, 18%, 100% { opacity: .04; filter: brightness(.7); }
+        4% { opacity: .35; filter: brightness(1.15); }
+        8% {
+          opacity: 1;
+          filter: brightness(2.5)
+            drop-shadow(0 0 5px var(--mp-light-secondary, #fff1b8))
+            drop-shadow(0 0 13px var(--mp-light-primary, #ffd35f));
+        }
+        12% { opacity: .42; filter: brightness(1.25); }
       }
       @keyframes marqueeRegisteredPulse {
         from {

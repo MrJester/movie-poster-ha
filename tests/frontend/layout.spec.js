@@ -325,13 +325,18 @@ test("Marquee keeps registered glow and individual chasing bulbs", async ({ page
         getComputedStyle(bulb).animationName))],
       positioned: bulbs.every((bulb) =>
         parseFloat(bulb.style.left) > 0 && parseFloat(bulb.style.top) > 0),
+      firstCenter: [
+        Math.round(parseFloat(bulbs[0].style.left) / rail.clientWidth * 1000),
+        Math.round(parseFloat(bulbs[0].style.top) / rail.clientHeight * 1000),
+      ],
     };
   });
-  expect(lighting.count).toBeGreaterThan(12);
+  expect(lighting.count).toBe(58);
   expect(lighting.railAnimation).toBe("none");
   expect(lighting.glowAnimation).toBe("marqueeRegisteredPulse");
   expect(lighting.bulbAnimations).toEqual(["bulbChase"]);
   expect(lighting.positioned).toBe(true);
+  expect(lighting.firstCenter).toEqual([140, 142]);
 });
 
 test("visible stacked summaries match the poster width and center their text", async ({ page }) => {
