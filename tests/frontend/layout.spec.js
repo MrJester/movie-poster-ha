@@ -110,11 +110,14 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
           : "",
         logo_position: variant.logoPosition || "right",
       },
-      design_frame: variant.safeOpening || variant.layoutTuning ? {
+      design: variant.design,
+      design_frame: variant.safeOpening || variant.layoutTuning
+        || variant.frameLayers ? {
         id: `builtin.frame.${frame}`,
         version: 1,
         safe_opening: variant.safeOpening,
         layout_tuning: variant.layoutTuning,
+        layers: variant.frameLayers,
       } : undefined,
       mode: "coming_soon",
       heading: variant.heading || "Coming Soon",
@@ -751,6 +754,157 @@ test("visual editor starts blank and adds normalized components", async ({ page 
     type: "title",
     bounds: { x: 30, y: 30, width: 40, height: 12 },
     selected: "title",
+  });
+});
+
+test("frame assets are locked structural layers above live and editor content", async ({
+  page,
+}) => {
+  await openHarness(page, "?studio=1");
+  const result = await page.evaluate(async () => {
+    const frameLayers = [
+      {
+        id: "frame_bezel",
+        name: "Curtains and bezel",
+        slot: "bezel",
+        asset: {
+          portrait: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E",
+          landscape: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E",
+        },
+        z_index: 80,
+        locked: true,
+        opacity: 0.9,
+        blend_mode: "normal",
+      },
+    ];
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    panel._state.design_frame = {
+      id: "builtin.frame.theater_classic",
+      version: 1,
+      layers: frameLayers,
+    };
+    panel._state.presentation.frame_theme = "theater_classic";
+    panel._presentationCatalog = {
+      frames: {
+        theater_classic: {
+          id: "builtin.frame.theater_classic",
+          layers: frameLayers,
+        },
+      },
+    };
+    panel._render();
+    const liveLayer = panel.shadowRoot.querySelector(
+      ".marquee-frame > .design-frame-layer.frame-slot-bezel",
+    );
+    const liveStage = panel.shadowRoot.querySelector(".frame-stage");
+    const live = {
+      followsStage: liveStage.compareDocumentPosition(liveLayer)
+        & Node.DOCUMENT_POSITION_FOLLOWING,
+      zIndex: liveLayer.style.zIndex,
+      opacity: liveLayer.style.opacity,
+      pointerEvents: getComputedStyle(liveLayer).pointerEvents,
+    };
+
+    panel._editorProfileId = "layered";
+    panel._editorDocument = {
+      version: 2,
+      name: "Layered",
+      description: "",
+      author: "",
+      presentation: { ...panel._state.presentation },
+      design: {
+        schema_version: 2,
+        resources: {
+          frame: { id: "builtin.frame.theater_classic", version: 1 },
+          theme: { id: "builtin.theme.classic", version: 1 },
+          layout: { id: "builtin.layout.blank", version: 1 },
+        },
+        viewport: { fit: "contain", link_orientations: true },
+        components: [],
+        motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+      },
+    };
+    panel._render();
+    const editorLayer = panel.shadowRoot.querySelector(
+      ".visual-editor-canvas > .design-frame-layer.frame-slot-bezel",
+    );
+    return {
+      live,
+      editorLayer: Boolean(editorLayer),
+      editorZIndex: editorLayer?.style.zIndex,
+      structuralLabel: panel.shadowRoot.querySelector(
+        ".editor-layer-row.structural-layer",
+      )?.textContent.replace(/\s+/g, " ").trim(),
+    };
+  });
+  expect(result).toEqual({
+    live: {
+      followsStage: 4,
+      zIndex: "80",
+      opacity: "0.9",
+      pointerEvents: "none",
+    },
+    editorLayer: true,
+    editorZIndex: "80",
+    structuralLabel: "Curtains and bezel 80 Locked",
+  });
+});
+
+test("locked editor components resist changes and can be unlocked", async ({ page }) => {
+  await openHarness(page, "?studio=1");
+  const result = await page.evaluate(async () => {
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    panel._editorProfileId = "locked";
+    const component = panel._defaultEditorComponent("title", "title");
+    component.locked = true;
+    panel._editorDocument = {
+      version: 2,
+      name: "Locked",
+      description: "",
+      author: "",
+      presentation: { ...panel._state.presentation },
+      design: {
+        schema_version: 2,
+        resources: {
+          frame: { id: "builtin.frame.blank", version: 1 },
+          theme: { id: "builtin.theme.classic", version: 1 },
+          layout: { id: "builtin.layout.blank", version: 1 },
+        },
+        viewport: { fit: "contain", link_orientations: true },
+        components: [component],
+        motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+      },
+    };
+    panel._editorSelectedId = "title";
+    panel._editorSelectedIds = ["title"];
+    panel._render();
+    panel._handleEditorKeydown(new KeyboardEvent("keydown", {
+      key: "ArrowLeft",
+    }));
+    await panel._editorAction("delete-component");
+    const lockedResult = {
+      count: panel._editorDocument.design.components.length,
+      x: component.bounds.x,
+    };
+    const lockControl = panel.shadowRoot.querySelector("[data-editor-locked]");
+    lockControl.checked = false;
+    lockControl.dispatchEvent(new Event("change"));
+    clearTimeout(panel._editorSaveTimer);
+    panel._handleEditorKeydown(new KeyboardEvent("keydown", {
+      key: "ArrowLeft",
+    }));
+    return {
+      lockedResult,
+      locked: component.locked,
+      xAfterUnlock: component.bounds.x,
+    };
+  });
+  expect(result).toEqual({
+    lockedResult: { count: 1, x: 30 },
+    locked: false,
+    xAfterUnlock: 29,
   });
 });
 

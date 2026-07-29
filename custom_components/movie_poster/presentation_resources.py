@@ -7,7 +7,8 @@ from typing import Any, Final
 
 import voluptuous as vol
 
-DESIGN_SCHEMA_VERSION: Final = 1
+DESIGN_SCHEMA_VERSION: Final = 2
+LEGACY_DESIGN_SCHEMA_VERSION: Final = 1
 RESOURCE_VERSION: Final = 1
 CANVAS_MAX: Final = 100
 
@@ -66,6 +67,8 @@ _COLOR = vol.Match(r"^#[0-9a-fA-F]{6}$")
 _RESOURCE_ID = vol.Match(r"^(builtin|user)\.[a-z][a-z0-9_.-]{1,79}$")
 _COMPONENT_ID = vol.Match(r"^[a-z][a-z0-9_-]{0,63}$")
 _PERCENT = vol.All(vol.Coerce(float), vol.Range(min=0, max=100))
+BLEND_MODES: Final = ("normal", "multiply", "screen", "overlay", "soft-light")
+CLIP_POLICIES: Final = ("none", "canvas", "safe_opening")
 
 
 def _contained_bounds(bounds: dict[str, float]) -> dict[str, float]:
@@ -128,15 +131,35 @@ COMPONENT_STYLE_SCHEMA = vol.Schema(
     extra=vol.PREVENT_EXTRA,
 )
 
+COMPONENT_CONSTRAINT_SCHEMA = vol.Schema(
+    {
+        vol.Optional("max_lines", default=0): vol.All(
+            int,
+            vol.Range(min=0, max=20),
+        ),
+        vol.Optional("min_font_size", default=0.8): vol.All(
+            vol.Coerce(float),
+            vol.Range(min=0.1, max=20),
+        ),
+        vol.Optional("preserve_aspect", default=False): bool,
+    },
+    extra=vol.PREVENT_EXTRA,
+)
+
 COMPONENT_SCHEMA = vol.Schema(
     {
         vol.Required("id"): _COMPONENT_ID,
+        vol.Required("name"): vol.All(str, vol.Length(min=1, max=80)),
         vol.Required("type"): vol.In(COMPONENT_TYPES),
         vol.Required("bounds"): BOUNDS_SCHEMA,
         vol.Required("z_index"): vol.All(int, vol.Range(min=-100, max=100)),
         vol.Required("visible"): bool,
+        vol.Required("locked"): bool,
+        vol.Required("blend_mode"): vol.In(BLEND_MODES),
+        vol.Required("clip"): vol.In(CLIP_POLICIES),
         vol.Required("style_ref"): vol.All(str, vol.Length(min=1, max=80)),
         vol.Optional("style", default={}): COMPONENT_STYLE_SCHEMA,
+        vol.Optional("constraints", default={}): COMPONENT_CONSTRAINT_SCHEMA,
         vol.Optional("text", default=""): vol.All(str, vol.Length(max=500)),
         vol.Optional("orientation_overrides", default={}): {
             vol.In(ORIENTATION_KEYS): ORIENTATION_OVERRIDE_SCHEMA
@@ -238,6 +261,8 @@ FRAME_RESOURCE_SCHEMA = vol.Schema(
         vol.Required("layers"): [
             vol.Schema(
                 {
+                    vol.Required("id"): _COMPONENT_ID,
+                    vol.Required("name"): vol.All(str, vol.Length(min=1, max=80)),
                     vol.Required("slot"): vol.In(
                         (
                             "background",
@@ -256,6 +281,16 @@ FRAME_RESOURCE_SCHEMA = vol.Schema(
                         },
                     ),
                     vol.Required("token"): vol.Any(None, str),
+                    vol.Required("z_index"): vol.All(
+                        int,
+                        vol.Range(min=-100, max=100),
+                    ),
+                    vol.Required("locked"): bool,
+                    vol.Required("opacity"): vol.All(
+                        vol.Coerce(float),
+                        vol.Range(min=0, max=1),
+                    ),
+                    vol.Required("blend_mode"): vol.In(BLEND_MODES),
                 },
                 extra=vol.PREVENT_EXTRA,
             )
@@ -313,16 +348,36 @@ def _component(  # noqa: PLR0913 - concise built-in resource declarations
     visible: bool = True,
     portrait: dict[str, float] | None = None,
     landscape: dict[str, float] | None = None,
+    max_lines: int = 0,
+    locked: bool = False,
 ) -> dict[str, Any]:
     """Create a built-in component declaration."""
     return {
         "id": identifier,
+        "name": identifier.replace("_", " ").title(),
         "type": component_type,
         "bounds": bounds,
         "z_index": z_index,
         "visible": visible,
+        "locked": locked,
+        "blend_mode": "normal",
+        "clip": "safe_opening",
         "style_ref": style_ref,
         "style": {},
+        "constraints": {
+            "max_lines": (
+                max_lines
+                or (
+                    2
+                    if component_type == "title"
+                    else 4
+                    if component_type == "summary"
+                    else 0
+                )
+            ),
+            "min_font_size": 0.8,
+            "preserve_aspect": component_type in {"poster", "logo"},
+        },
         "text": "",
         "orientation_overrides": {
             key: {"bounds": value}
@@ -491,9 +546,21 @@ def _frame_resource(  # noqa: PLR0913 - declarative resource builder
         "name": name,
         "layers": [
             {
+                "id": f"frame_{slot}",
+                "name": slot.replace("_", " ").title(),
                 "slot": slot,
                 "asset": assets.get(slot),
                 "token": token,
+                "z_index": {
+                    "background": -100,
+                    "content_mask": 70,
+                    "bezel": 80,
+                    "lighting": 90,
+                    "foreground": 100,
+                }[slot],
+                "locked": True,
+                "opacity": 1,
+                "blend_mode": "normal",
             }
             for slot, token in (
                 ("background", "backdrop"),
@@ -830,6 +897,39 @@ def validate_builtin_catalog() -> None:
         LAYOUT_RESOURCE_SCHEMA(layout)
 
 
+def validate_design_document(document: dict[str, Any]) -> dict[str, Any]:
+    """Migrate and validate a declarative design document."""
+    candidate = deepcopy(document)
+    version = candidate.get("schema_version", LEGACY_DESIGN_SCHEMA_VERSION)
+    if version == LEGACY_DESIGN_SCHEMA_VERSION:
+        candidate["schema_version"] = DESIGN_SCHEMA_VERSION
+        for component in candidate.get("components", []):
+            identifier = str(component.get("id", "Layer"))
+            component.setdefault("name", identifier.replace("_", " ").title())
+            component.setdefault("locked", False)
+            component.setdefault("blend_mode", "normal")
+            component.setdefault("clip", "safe_opening")
+            component.setdefault(
+                "constraints",
+                {
+                    "max_lines": (
+                        2
+                        if component.get("type") == "title"
+                        else 4
+                        if component.get("type") == "summary"
+                        else 0
+                    ),
+                    "min_font_size": 0.8,
+                    "preserve_aspect": component.get("type")
+                    in {"poster", "logo"},
+                },
+            )
+    elif version != DESIGN_SCHEMA_VERSION:
+        msg = f"Unsupported design schema version: {version}"
+        raise vol.Invalid(msg)
+    return DESIGN_SCHEMA(candidate)
+
+
 def design_from_legacy_presentation(
     presentation: dict[str, Any],
 ) -> dict[str, Any]:
@@ -957,6 +1057,7 @@ def frame_geometry_for_presentation(
     return {
         "id": frame["id"],
         "version": frame["version"],
+        "layers": deepcopy(frame["layers"]),
         "safe_opening": deepcopy(frame["safe_opening"]),
         "layout_tuning": deepcopy(frame["layout_tuning"]),
     }

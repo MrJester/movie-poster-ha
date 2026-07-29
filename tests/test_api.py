@@ -105,6 +105,7 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
     assert state["design_frame"] == {
         "id": "builtin.frame.cyber_noir",
         "version": 1,
+        "layers": state["design_frame"]["layers"],
         "safe_opening": {
             "portrait": {"x": 19, "y": 16, "width": 62, "height": 70},
             "landscape": {"x": 15, "y": 19, "width": 70, "height": 64},
@@ -115,13 +116,38 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
             "details_padding": 0.7,
         },
     }
+    bezel = next(
+        layer
+        for layer in state["design_frame"]["layers"]
+        if layer["slot"] == "bezel"
+    )
+    assert bezel == {
+        "id": "frame_bezel",
+        "name": "Bezel",
+        "slot": "bezel",
+        "asset": {
+            "portrait": (
+                "/movie_poster_static/assets/cyber-noir-frame-portrait.png"
+            ),
+            "landscape": (
+                "/movie_poster_static/assets/cyber-noir-frame-landscape.png"
+            ),
+        },
+        "token": "border",
+        "z_index": 80,
+        "locked": True,
+        "opacity": 1,
+        "blend_mode": "normal",
+    }
     assert state["heading"] == "Feature Presentation"
     assert state["media"]["poster_url"].startswith(
         "/api/movie_poster/artwork/entry-1/poster/42?authSig="
     )
     assert state["session"]["player"] == "Theater"
     assert state["media"]["content_rating"] == "PG-13"
-    assert "token" not in str(state).casefold()
+    serialized_state = str(state).casefold()
+    assert "x-plex-token" not in serialized_state
+    assert "refresh-1" not in serialized_state
 
 
 def test_state_contract_reports_plex_outage_without_exposing_exception() -> None:

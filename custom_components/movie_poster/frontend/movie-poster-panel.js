@@ -201,6 +201,7 @@ class MoviePosterPanel extends HTMLElement {
     };
     this._profiles = {};
     this._presentationLibrary = null;
+    this._presentationCatalog = null;
     this._editorProfileId = null;
     this._editorDocument = null;
     this._editorSelectedId = null;
@@ -552,7 +553,18 @@ class MoviePosterPanel extends HTMLElement {
     const logoPosition = normalizeLogoPosition(presentation.logo_position);
     const backdrop = media.backdrop_url
       ? `url('${escapeHtml(media.backdrop_url)}')` : "none";
-    const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)};${safeOpeningStyle(state.design_frame?.safe_opening)};${frameLayoutStyle(state.design_frame?.layout_tuning)}"`;
+    const titleLayer = state.design?.components?.find(
+      (component) => component.type === "title",
+    );
+    const titleMaxLines = Math.min(
+      20, Math.max(1, Number(titleLayer?.constraints?.max_lines || 2)),
+    );
+    const titleMinimum = Math.min(
+      20, Math.max(0.1, Number(
+        titleLayer?.constraints?.min_font_size || 0.8,
+      )),
+    );
+    const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};--title-max-lines:${titleMaxLines};--title-design-min:${titleMinimum}cqw;${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)};${safeOpeningStyle(state.design_frame?.safe_opening)};${frameLayoutStyle(state.design_frame?.layout_tuning)}"`;
 
     const hasDetails = presentation.show_title !== false
       || (presentation.show_subtitle !== false && Boolean(media.subtitle))
@@ -636,6 +648,7 @@ class MoviePosterPanel extends HTMLElement {
             </article>
           </div>
           </div>
+          ${this._frameCompositeMarkup()}
         </section>
       </main>`;
     this._bindStudioControls();
@@ -744,24 +757,35 @@ class MoviePosterPanel extends HTMLElement {
   _fitMovieTitleToFrame(frame) {
     const title = frame.querySelector(".details h2");
     if (!title || getComputedStyle(title).display === "none") return;
+    const titleStyle = getComputedStyle(title);
+    const maxLines = Math.min(
+      20, Math.max(1, Number.parseInt(
+        titleStyle.getPropertyValue("--title-max-lines"), 10,
+      ) || 2),
+    );
     title.classList.remove("title-truncated");
     title.classList.add("title-measuring");
     title.style.removeProperty("font-size");
     const preferred = parseFloat(getComputedStyle(title).fontSize);
-    const minimum = Math.max(12, Math.min(32, frame.clientWidth * .025));
-    const fitsTwoLines = () => {
+    const designMinimum = parseFloat(
+      titleStyle.getPropertyValue("--title-design-min"),
+    ) || 0;
+    const minimum = Math.max(
+      12, designMinimum, Math.min(32, frame.clientWidth * .025),
+    );
+    const fitsConfiguredLines = () => {
       const style = getComputedStyle(title);
       const lineHeight = parseFloat(style.lineHeight)
         || parseFloat(style.fontSize) * 1.05;
-      return title.scrollHeight <= lineHeight * 2 + 1;
+      return title.scrollHeight <= lineHeight * maxLines + 1;
     };
     let size = Math.max(minimum, preferred);
     title.style.fontSize = `${size}px`;
-    while (size > minimum && !fitsTwoLines()) {
+    while (size > minimum && !fitsConfiguredLines()) {
       size = Math.max(minimum, size - 1);
       title.style.fontSize = `${size}px`;
     }
-    const truncate = !fitsTwoLines();
+    const truncate = !fitsConfiguredLines();
     title.classList.remove("title-measuring");
     if (truncate) title.classList.add("title-truncated");
     title.style.setProperty("--title-min-size", `${minimum}px`);
@@ -999,13 +1023,17 @@ class MoviePosterPanel extends HTMLElement {
       : "";
     return `<section class="visual-editor-canvas${this._editorSnapEnabled ? " snap-enabled" : ""}${deviceClass}"
       aria-label="Presentation canvas"${deviceStyle}>
+      ${this._frameCompositeMarkup("editor")}
       ${components.filter((component) => component.visible !== false)
         .sort((a, b) => a.z_index - b.z_index)
         .map((component) => {
           const bounds = this._editorBounds(component);
           const selected = this._editorSelectedIds.includes(component.id)
             ? " selected" : "";
-          return `<button type="button" class="editor-component component-${component.type}${selected}"
+          const constrained = Number(component.constraints?.max_lines) > 0
+            ? " constrained-lines" : "";
+          const locked = component.locked ? " locked" : "";
+          return `<button type="button" class="editor-component component-${component.type}${selected}${constrained}${locked}"
             data-editor-component="${escapeHtml(component.id)}"
             style="${this._editorComponentStyle(component, bounds)}">
             <span class="editor-component-content">${content(component)}</span>
@@ -1016,11 +1044,46 @@ class MoviePosterPanel extends HTMLElement {
     </section>`;
   }
 
+  _resolvedFrameLayers() {
+    const frameId = this._editorDocument?.design?.resources?.frame?.id
+      || this._state?.design_frame?.id;
+    const catalogFrame = Object.values(
+      this._presentationCatalog?.frames || {},
+    ).find((frame) => frame.id === frameId);
+    return catalogFrame?.layers || this._state?.design_frame?.layers || [];
+  }
+
+  _frameCompositeMarkup(scope = "display") {
+    return this._resolvedFrameLayers()
+      .filter((layer) => layer.asset)
+      .sort((a, b) => Number(a.z_index) - Number(b.z_index))
+      .map((layer) => {
+        const asset = typeof layer.asset === "string"
+          ? { portrait: layer.asset, landscape: layer.asset }
+          : layer.asset;
+        const portrait = escapeHtml(asset?.portrait || asset?.landscape || "");
+        const landscape = escapeHtml(asset?.landscape || asset?.portrait || "");
+        if (!portrait || !landscape) return "";
+        const opacity = Math.min(1, Math.max(0, Number(layer.opacity ?? 1)));
+        const blend = [
+          "normal", "multiply", "screen", "overlay", "soft-light",
+        ].includes(layer.blend_mode) ? layer.blend_mode : "normal";
+        return `<picture class="design-frame-layer frame-slot-${escapeHtml(layer.slot)}"
+          data-frame-layer="${escapeHtml(layer.id)}" data-frame-scope="${scope}"
+          style="z-index:${Number(layer.z_index) || 0};opacity:${opacity};mix-blend-mode:${blend}">
+          <source media="(orientation: landscape)" srcset="${landscape}">
+          <img src="${portrait}" alt="" aria-hidden="true">
+        </picture>`;
+      }).join("");
+  }
+
   _studioControls() {
     if (!this._studio) return "";
     const presentation = this._state?.presentation ?? {};
     const settings = this._settings ?? {};
     const editorComponents = this._editorDocument?.design?.components || [];
+    const editorFrameLayers = this._editorDocument
+      ? this._resolvedFrameLayers() : [];
     const selectedComponent = editorComponents.find(
       (component) => component.id === this._editorSelectedId,
     );
@@ -1170,14 +1233,21 @@ class MoviePosterPanel extends HTMLElement {
             <button type="button" data-editor-action="add">Add</button>
           </span>
         </label>
-        ${editorComponents.length ? `
+        ${editorFrameLayers.length || editorComponents.length ? `
           <fieldset class="editor-layers studio-wide">
             <legend>Layers</legend>
+            ${[...editorFrameLayers].sort((a, b) => b.z_index - a.z_index)
+              .map((layer) => `
+                <div class="editor-layer-row structural-layer">
+                  <span title="Structural frame layer">${escapeHtml(layer.name)}</span>
+                  <span class="layer-order">${Number(layer.z_index)}</span>
+                  <span title="Built-in frame layers are locked">Locked</span>
+                </div>`).join("")}
             ${[...editorComponents].sort((a, b) => b.z_index - a.z_index)
               .map((component) => `
                 <div class="editor-layer-row${this._editorSelectedIds.includes(component.id) ? " selected" : ""}">
                   <button type="button" data-editor-select="${escapeHtml(component.id)}">
-                    ${escapeHtml(component.type.replaceAll("_", " "))}
+                    ${escapeHtml(component.name || component.type.replaceAll("_", " "))}
                   </button>
                   <button type="button" title="Move layer forward"
                     data-editor-layer="forward" data-editor-target="${escapeHtml(component.id)}">↑</button>
@@ -1187,13 +1257,21 @@ class MoviePosterPanel extends HTMLElement {
                     data-editor-layer="visibility" data-editor-target="${escapeHtml(component.id)}">
                     ${component.visible === false ? "Show" : "Hide"}
                   </button>
+                  <button type="button" title="${component.locked ? "Unlock" : "Lock"} layer"
+                    data-editor-layer="lock" data-editor-target="${escapeHtml(component.id)}">
+                    ${component.locked ? "Unlock" : "Lock"}
+                  </button>
                 </div>`).join("")}
           </fieldset>` : ""}
         ${selectedComponent ? `
           <fieldset class="editor-properties studio-wide">
             <legend>${selectedComponents.length > 1
               ? `${selectedComponents.length} selected`
-              : escapeHtml(selectedComponent.type.replaceAll("_", " "))}</legend>
+              : escapeHtml(selectedComponent.name
+                || selectedComponent.type.replaceAll("_", " "))}</legend>
+            <label class="studio-wide">Layer name<input type="text" maxlength="80"
+              data-editor-name value="${escapeHtml(selectedComponent.name
+                || selectedComponent.type.replaceAll("_", " "))}"></label>
             ${["x", "y", "width", "height"].map((field) =>
               `<label>${field}<input type="number" min="${field === "width" || field === "height" ? ".1" : "0"}"
                 max="100" step=".1" data-editor-bound="${field}"
@@ -1214,6 +1292,14 @@ class MoviePosterPanel extends HTMLElement {
             </div>
             <label class="studio-check"><input type="checkbox" data-editor-visible
               ${selectedComponent.visible !== false ? "checked" : ""}>Visible</label>
+            <label class="studio-check"><input type="checkbox" data-editor-locked
+              ${selectedComponent.locked ? "checked" : ""}>Locked</label>
+            <label>Blend mode<select data-editor-blend>
+              ${["normal", "multiply", "screen", "overlay", "soft-light"]
+                .map((value) => `<option value="${value}"
+                  ${(selectedComponent.blend_mode || "normal") === value
+                    ? "selected" : ""}>${value}</option>`).join("")}
+            </select></label>
             <label class="studio-check studio-wide"><input type="checkbox"
               data-editor-orientation-override ${hasOrientationOverride ? "checked" : ""}>
               Override geometry in ${editorOrientation}</label>
@@ -1239,6 +1325,9 @@ class MoviePosterPanel extends HTMLElement {
             <label>Glow<input type="number" min="0" max="1" step=".05"
               data-editor-style="glow"
               value="${Number(selectedComponent.style?.glow ?? 0)}"></label>
+            <label>Maximum lines<input type="number" min="0" max="20" step="1"
+              data-editor-max-lines
+              value="${Number(selectedComponent.constraints?.max_lines ?? 0)}"></label>
             <button type="button" data-editor-action="delete-component">Remove component</button>
             <button type="button" data-editor-action="duplicate-component">Duplicate</button>
             <button type="button" data-editor-action="reset-component">Reset component</button>
@@ -1379,13 +1468,16 @@ class MoviePosterPanel extends HTMLElement {
           (item) => item.id === button.dataset.editorTarget,
         );
         if (!component) return;
+        const action = button.dataset.editorLayer;
+        if (component.locked && action !== "lock") return;
         this._recordEditorHistory();
         this._selectEditorComponent(component.id);
-        if (button.dataset.editorLayer === "forward") component.z_index += 1;
-        if (button.dataset.editorLayer === "backward") component.z_index -= 1;
-        if (button.dataset.editorLayer === "visibility") {
+        if (action === "forward") component.z_index += 1;
+        if (action === "backward") component.z_index -= 1;
+        if (action === "visibility") {
           component.visible = component.visible === false;
         }
+        if (action === "lock") component.locked = !component.locked;
         component.z_index = Math.min(100, Math.max(-100, component.z_index));
         this._render();
         this._scheduleEditorSave();
@@ -1406,7 +1498,7 @@ class MoviePosterPanel extends HTMLElement {
     this.shadowRoot.querySelectorAll("[data-editor-bound]").forEach((input) => {
       input.addEventListener("change", () => {
         const component = this._selectedEditorComponent();
-        if (!component) return;
+        if (!component || component.locked) return;
         this._recordEditorHistory();
         const field = input.dataset.editorBound;
         const minimum = field === "width" || field === "height" ? 0.1 : 0;
@@ -1424,7 +1516,7 @@ class MoviePosterPanel extends HTMLElement {
     this.shadowRoot.querySelector("[data-editor-z]")
       ?.addEventListener("change", (event) => {
         const component = this._selectedEditorComponent();
-        if (!component) return;
+        if (!component || component.locked) return;
         this._recordEditorHistory();
         component.z_index = Math.min(100, Math.max(-100, Number(event.target.value)));
         this._render();
@@ -1433,16 +1525,56 @@ class MoviePosterPanel extends HTMLElement {
     this.shadowRoot.querySelector("[data-editor-visible]")
       ?.addEventListener("change", (event) => {
         const component = this._selectedEditorComponent();
-        if (!component) return;
+        if (!component || component.locked) return;
         this._recordEditorHistory();
         component.visible = event.target.checked;
+        this._render();
+        this._scheduleEditorSave();
+      });
+    this.shadowRoot.querySelector("[data-editor-locked]")
+      ?.addEventListener("change", (event) => {
+        const component = this._selectedEditorComponent();
+        if (!component) return;
+        this._recordEditorHistory();
+        component.locked = event.target.checked;
+        this._render();
+        this._scheduleEditorSave();
+      });
+    this.shadowRoot.querySelector("[data-editor-name]")
+      ?.addEventListener("change", (event) => {
+        const component = this._selectedEditorComponent();
+        if (!component || component.locked) return;
+        this._recordEditorHistory();
+        component.name = event.target.value.trim()
+          || component.type.replaceAll("_", " ");
+        this._render();
+        this._scheduleEditorSave();
+      });
+    this.shadowRoot.querySelector("[data-editor-blend]")
+      ?.addEventListener("change", (event) => {
+        const component = this._selectedEditorComponent();
+        if (!component || component.locked) return;
+        this._recordEditorHistory();
+        component.blend_mode = event.target.value;
+        this._render();
+        this._scheduleEditorSave();
+      });
+    this.shadowRoot.querySelector("[data-editor-max-lines]")
+      ?.addEventListener("change", (event) => {
+        const component = this._selectedEditorComponent();
+        if (!component || component.locked) return;
+        this._recordEditorHistory();
+        component.constraints ||= {};
+        component.constraints.max_lines = Math.min(
+          20, Math.max(0, Number(event.target.value)),
+        );
         this._render();
         this._scheduleEditorSave();
       });
     this.shadowRoot.querySelector("[data-editor-text]")
       ?.addEventListener("change", (event) => {
         const component = this._selectedEditorComponent();
-        if (!component) return;
+        if (!component || component.locked) return;
         this._recordEditorHistory();
         component.text = event.target.value;
         this._render();
@@ -1451,7 +1583,7 @@ class MoviePosterPanel extends HTMLElement {
     this.shadowRoot.querySelectorAll("[data-editor-style]").forEach((input) => {
       input.addEventListener("change", () => {
         const component = this._selectedEditorComponent();
-        if (!component) return;
+        if (!component || component.locked) return;
         this._recordEditorHistory();
         component.style ||= {};
         component.style[input.dataset.editorStyle] = input.type === "number"
@@ -1471,7 +1603,7 @@ class MoviePosterPanel extends HTMLElement {
     this.shadowRoot.querySelector("[data-editor-orientation-override]")
       ?.addEventListener("change", (event) => {
         const component = this._selectedEditorComponent();
-        if (!component) return;
+        if (!component || component.locked) return;
         this._recordEditorHistory();
         const orientation = this._editorOrientation();
         if (event.target.checked) {
@@ -1629,10 +1761,14 @@ class MoviePosterPanel extends HTMLElement {
     if (action === "delete-component") {
       const components = this._editorDocument?.design?.components;
       if (!components) return;
-      this._recordEditorHistory();
       const selected = new Set(this._editorSelectedIds);
+      const deletable = components.filter(
+        (component) => !component.locked && selected.has(component.id),
+      );
+      if (!deletable.length) return;
+      this._recordEditorHistory();
       this._editorDocument.design.components = components.filter(
-        (component) => !selected.has(component.id),
+        (component) => component.locked || !selected.has(component.id),
       );
       this._editorSelectedId = null;
       this._editorSelectedIds = [];
@@ -1641,7 +1777,9 @@ class MoviePosterPanel extends HTMLElement {
       return;
     }
     if (action === "duplicate-component") {
-      const selected = this._selectedEditorComponents();
+      const selected = this._selectedEditorComponents().filter(
+        (component) => !component.locked,
+      );
       if (!selected.length || !this._editorDocument) return;
       this._recordEditorHistory();
       const components = this._editorDocument.design.components;
@@ -1668,7 +1806,9 @@ class MoviePosterPanel extends HTMLElement {
       return;
     }
     if (action === "reset-component") {
-      const selected = this._selectedEditorComponents();
+      const selected = this._selectedEditorComponents().filter(
+        (component) => !component.locked,
+      );
       if (!selected.length || !this._editorDocument) return;
       this._recordEditorHistory();
       const replacements = new Map(selected.map((component) => [
@@ -1693,14 +1833,24 @@ class MoviePosterPanel extends HTMLElement {
     };
     return {
       id: identifier,
+      name: type.replaceAll("_", " ").replace(/\b\w/g, (value) =>
+        value.toUpperCase()),
       type,
       bounds: structuredClone(
         boundsByType[type] || { x: 30, y: 30, width: 40, height: 12 },
       ),
       z_index: type === "backdrop" ? 0 : 10,
       visible: true,
+      locked: false,
+      blend_mode: "normal",
+      clip: "safe_opening",
       style_ref: type === "progress" ? "progress_fill" : "text_heading",
       style: {},
+      constraints: {
+        max_lines: type === "title" ? 2 : type === "summary" ? 4 : 0,
+        min_font_size: 0.8,
+        preserve_aspect: ["poster", "logo"].includes(type),
+      },
       text: type === "static_text" ? "Custom text" : "",
       orientation_overrides: {},
     };
@@ -1813,7 +1963,9 @@ class MoviePosterPanel extends HTMLElement {
       ArrowLeft: [-1, 0], ArrowRight: [1, 0],
       ArrowUp: [0, -1], ArrowDown: [0, 1],
     }[event.key];
-    const components = this._selectedEditorComponents();
+    const components = this._selectedEditorComponents().filter(
+      (component) => !component.locked,
+    );
     if (!movement || !components.length || event.metaKey || event.ctrlKey) return;
     event.preventDefault();
     this._recordEditorHistory();
@@ -1847,7 +1999,9 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   _alignEditorComponent(alignment) {
-    const components = this._selectedEditorComponents();
+    const components = this._selectedEditorComponents().filter(
+      (component) => !component.locked,
+    );
     if (!components.length) return;
     this._recordEditorHistory();
     const bounds = components.map((component) => this._editorBounds(component));
@@ -1884,7 +2038,9 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   _distributeEditorComponents(direction) {
-    const components = this._selectedEditorComponents();
+    const components = this._selectedEditorComponents().filter(
+      (component) => !component.locked,
+    );
     if (components.length < 3) return;
     this._recordEditorHistory();
     const horizontal = direction === "horizontal";
@@ -1934,12 +2090,19 @@ class MoviePosterPanel extends HTMLElement {
     const alignment = ["left", "center", "right"].includes(style.text_align)
       ? style.text_align : "center";
     const glow = Math.min(1, Math.max(0, Number(style.glow ?? 0)));
+    const blend = [
+      "normal", "multiply", "screen", "overlay", "soft-light",
+    ].includes(component.blend_mode) ? component.blend_mode : "normal";
+    const maxLines = Math.min(
+      20, Math.max(0, Number(component.constraints?.max_lines ?? 0)),
+    );
     return [
       `left:${bounds.x}%`, `top:${bounds.y}%`,
       `width:${bounds.width}%`, `height:${bounds.height}%`,
       `z-index:${component.z_index}`, `color:${textColor}`,
       `background-color:${backgroundColor}`, `font-size:${fontSize}cqw`,
       `opacity:${opacity}`, `text-align:${alignment}`,
+      `mix-blend-mode:${blend}`, `--editor-max-lines:${maxLines}`,
       `text-shadow:0 0 ${glow * 24}px ${textColor}`,
     ].join(";");
   }
@@ -1960,7 +2123,7 @@ class MoviePosterPanel extends HTMLElement {
     }
     const component = this._selectedEditorComponent();
     const canvas = this.shadowRoot.querySelector(".visual-editor-canvas");
-    if (!component || !canvas) return;
+    if (!component || component.locked || !canvas) return;
     this._recordEditorHistory();
     element.classList.add("selected");
     const canvasBox = canvas.getBoundingClientRect();
@@ -2244,10 +2407,14 @@ class MoviePosterPanel extends HTMLElement {
       });
       this._settings = result.settings;
       this._choices = result.choices;
+      this._presentationCatalog = result.presentation_catalog
+        || this._presentationCatalog;
       this._normalizePlaybackSettings();
       this._profiles = result.profiles || {};
       const library = await this._callLibrary("list");
       this._presentationLibrary = library.library;
+      this._presentationCatalog = library.catalog
+        || this._presentationCatalog;
       this._render();
     } catch (error) {
       const status = this.shadowRoot.querySelector(".studio-status");
@@ -2270,6 +2437,8 @@ class MoviePosterPanel extends HTMLElement {
       });
       this._settings = result.settings;
       this._choices = result.choices;
+      this._presentationCatalog = result.presentation_catalog
+        || this._presentationCatalog;
       this._normalizePlaybackSettings();
       this._profiles = result.profiles || {};
       this._state.presentation = { ...this._state.presentation,
@@ -2695,8 +2864,13 @@ class MoviePosterPanel extends HTMLElement {
       .editor-layers legend { padding-inline: 6px; color: var(--gold); }
       .editor-layer-row {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto auto auto;
+        grid-template-columns: minmax(0, 1fr) auto auto auto auto;
         gap: 5px;
+      }
+      .editor-layer-row.structural-layer {
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        align-items: center;
+        color: #ffffffa8;
       }
       .editor-layer-row > button:first-child {
         overflow: hidden;
@@ -5290,7 +5464,7 @@ class MoviePosterPanel extends HTMLElement {
         margin: 0;
         overflow: hidden;
         -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
+        -webkit-line-clamp: var(--title-max-lines, 2);
       }
       .theater.has-details .details h2.title-measuring {
         display: block !important;
@@ -5303,7 +5477,7 @@ class MoviePosterPanel extends HTMLElement {
         overflow: hidden !important;
         text-overflow: ellipsis;
         -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
+        -webkit-line-clamp: var(--title-max-lines, 2);
       }
       .theater.has-details.orientation-landscape:not(.layout-poster) .details {
         height: calc(100% - 24px);
@@ -5725,6 +5899,24 @@ class MoviePosterPanel extends HTMLElement {
       .frame-golden_age { --layout-poster-share: 42%; --layout-details-pad: clamp(6px, 1cqw, 16px); }
       .frame-steampunk { --layout-poster-share: 43%; --layout-gap: clamp(9px, 1.5cqw, 21px); }
       .visual-editor-active .marquee-frame { display: none; }
+      .marquee-frame,
+      .visual-editor-canvas {
+        isolation: isolate;
+      }
+      .design-frame-layer {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      .design-frame-layer img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: fill;
+      }
       .visual-editor-canvas {
         position: relative;
         z-index: 2;
@@ -5787,6 +5979,9 @@ class MoviePosterPanel extends HTMLElement {
         text-align: center;
         touch-action: none;
       }
+      .visual-editor-canvas > .design-frame-layer {
+        border: 0;
+      }
       .editor-component.selected {
         border-color: #f6cf70;
         outline: 2px solid #f6cf7099;
@@ -5799,6 +5994,13 @@ class MoviePosterPanel extends HTMLElement {
         place-items: center;
         overflow: hidden;
       }
+      .editor-component.constrained-lines .editor-component-content {
+        display: -webkit-box;
+        align-content: center;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: var(--editor-max-lines);
+      }
+      .editor-component.locked { cursor: not-allowed; }
       .editor-component-content img {
         width: 100%;
         height: 100%;

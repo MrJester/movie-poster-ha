@@ -63,7 +63,10 @@ from .const import (
     ORIENTATIONS,
     THEMES,
 )
-from .presentation_resources import DESIGN_SCHEMA, design_from_legacy_presentation
+from .presentation_resources import (
+    design_from_legacy_presentation,
+    validate_design_document,
+)
 
 PROFILE_VERSION = 2
 PROFILE_KEYS = (
@@ -213,7 +216,7 @@ def _migrate_profile_document(document: dict[str, Any]) -> dict[str, Any]:
             "design": design_from_legacy_presentation(legacy["presentation"]),
         }
 
-    return vol.Schema(
+    validated = vol.Schema(
         {
             vol.Required("version"): vol.Equal(PROFILE_VERSION),
             vol.Required("name"): vol.All(str, vol.Length(min=1, max=60)),
@@ -226,7 +229,9 @@ def _migrate_profile_document(document: dict[str, Any]) -> dict[str, Any]:
                 vol.Length(max=120),
             ),
             vol.Required("presentation"): PRESENTATION_SCHEMA,
-            vol.Required("design"): DESIGN_SCHEMA,
+            vol.Required("design"): dict,
         },
         extra=vol.PREVENT_EXTRA,
     )(document)
+    validated["design"] = validate_design_document(validated["design"])
+    return validated

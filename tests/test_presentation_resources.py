@@ -10,12 +10,14 @@ from custom_components.movie_poster.presentation_resources import (
     BUILTIN_LAYOUTS,
     BUILTIN_THEMES,
     DESIGN_SCHEMA,
+    DESIGN_SCHEMA_VERSION,
     FRAME_SAFE_OPENING,
     THEME_TOKEN_KEYS,
     builtin_catalog,
     design_from_legacy_presentation,
     semantic_style_for_presentation,
     validate_builtin_catalog,
+    validate_design_document,
 )
 
 
@@ -89,6 +91,40 @@ def test_invalid_geometry_and_executable_fields_are_rejected() -> None:
     executable["script"] = "alert(1)"
     with pytest.raises(vol.Invalid):
         DESIGN_SCHEMA(executable)
+
+
+def test_schema_one_designs_migrate_to_locked_layer_capable_schema() -> None:
+    """Stored schema-one component documents gain safe layer defaults."""
+    current = design_from_legacy_presentation({})
+    legacy = deepcopy(current)
+    legacy["schema_version"] = 1
+    for component in legacy["components"]:
+        for field in (
+            "name",
+            "locked",
+            "blend_mode",
+            "clip",
+            "constraints",
+        ):
+            component.pop(field)
+
+    migrated = validate_design_document(legacy)
+
+    assert migrated["schema_version"] == DESIGN_SCHEMA_VERSION
+    title = next(
+        component
+        for component in migrated["components"]
+        if component["type"] == "title"
+    )
+    assert title["name"] == "Title"
+    assert title["locked"] is False
+    assert title["blend_mode"] == "normal"
+    assert title["clip"] == "safe_opening"
+    assert title["constraints"] == {
+        "max_lines": 2,
+        "min_font_size": 0.8,
+        "preserve_aspect": False,
+    }
 
 
 def test_catalogs_are_independent_objects() -> None:
