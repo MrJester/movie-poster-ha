@@ -1251,6 +1251,80 @@ test("Profile motion controls animate authored layers with stagger", async ({ pa
   });
 });
 
+test("typography inspector preserves theme colors and readable minimums", async ({
+  page,
+}) => {
+  await openHarness(page, "?studio=1");
+  const result = await page.evaluate(() => {
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    const title = panel._defaultEditorComponent("title", "title");
+    panel._editorProfileId = "typography-test";
+    panel._editorSelectedId = "title";
+    panel._editorSelectedIds = ["title"];
+    panel._editorDocument = {
+      version: 2,
+      name: "Typography test",
+      description: "",
+      author: "",
+      presentation: { ...panel._state.presentation },
+      design: {
+        schema_version: 2,
+        resources: {
+          frame: { id: "builtin.frame.blank", version: 1 },
+          theme: { id: "builtin.theme.classic", version: 1 },
+          layout: { id: "builtin.layout.blank", version: 1 },
+        },
+        viewport: { fit: "contain", link_orientations: true },
+        components: [title],
+        motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+      },
+    };
+    panel._render();
+    const change = (selector, value, checked = null) => {
+      const control = panel.shadowRoot.querySelector(selector);
+      if (checked !== null) control.checked = checked;
+      else control.value = String(value);
+      control.dispatchEvent(new Event("change"));
+      clearTimeout(panel._editorSaveTimer);
+    };
+    change("[data-editor-style-ref]", "accent_secondary");
+    change("[data-editor-text-color-override]", null, true);
+    const overrideAdded = title.style.text_color;
+    change("[data-editor-text-color-override]", null, false);
+    change("[data-editor-min-font]", 2.2);
+    change('[data-editor-style="glow"]', 0.75);
+    const editorTitle = panel.shadowRoot.querySelector(
+      '[data-editor-component="title"]',
+    );
+    const inlineStyle = editorTitle.getAttribute("style");
+    return {
+      styleRef: title.style_ref,
+      overrideAdded,
+      overrideRemoved: !Object.hasOwn(title.style, "text_color"),
+      minFont: title.constraints.min_font_size,
+      glow: title.style.glow,
+      usesReadableClamp: inlineStyle.includes(
+        "font-size:clamp(2.2cqw,3cqw,20cqw)",
+      ),
+      usesThemeToken: inlineStyle.includes(
+        "color:var(--mp-accent-secondary,#ffffff)",
+      ),
+      glowRadius: inlineStyle.includes("text-shadow:0 0 18px"),
+    };
+  });
+  expect(result).toEqual({
+    styleRef: "accent_secondary",
+    overrideAdded: "#ffffff",
+    overrideRemoved: true,
+    minFont: 2.2,
+    glow: 0.75,
+    usesReadableClamp: true,
+    usesThemeToken: true,
+    glowRadius: true,
+  });
+});
+
 test("preserve aspect keeps image proportions during pointer resize", async ({
   page,
 }) => {

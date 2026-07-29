@@ -21,6 +21,9 @@
 - Add Profile-level Breathe, Pulse, Shimmer, and Chase motion controls with
   adjustable speed, intensity, per-layer staggering, live preview, and
   reduced-motion protection.
+- Complete authored typography controls with semantic Theme color bindings,
+  removable color overrides, glow strength, and a persisted minimum readable
+  font size.
 - Add browser regressions for structural layer ordering, locked behavior,
   published geometry, custom assets, image fit, and constrained resizing.
 

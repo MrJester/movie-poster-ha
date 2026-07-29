@@ -1452,7 +1452,22 @@ class MoviePosterPanel extends HTMLElement {
               ? `<label class="studio-wide">Text<input type="text" maxlength="500"
                 data-editor-text value="${escapeHtml(selectedComponent.text || "")}"></label>`
               : ""}
+            <label>Theme color<select data-editor-style-ref>
+              ${[
+                "text_heading", "text_body", "text_muted", "text_inverse",
+                "accent_primary", "accent_secondary", "light_primary",
+                "light_secondary", "progress_fill",
+              ].map((value) => `<option value="${value}"
+                ${(selectedComponent.style_ref || "text_heading") === value
+                  ? "selected" : ""}>${value.replaceAll("_", " ")}</option>`
+              ).join("")}
+            </select></label>
+            <label class="studio-check"><input type="checkbox"
+              data-editor-text-color-override
+              ${selectedComponent.style?.text_color ? "checked" : ""}>
+              Override theme color</label>
             <label>Text color<input type="color" data-editor-style="text_color"
+              ${selectedComponent.style?.text_color ? "" : "disabled"}
               value="${normalizeColor(selectedComponent.style?.text_color, "#ffffff")}"></label>
             <label>Background<input type="color" data-editor-style="background_color"
               value="${normalizeColor(selectedComponent.style?.background_color, "#10151b")}"></label>
@@ -1488,6 +1503,9 @@ class MoviePosterPanel extends HTMLElement {
             <label>Maximum lines<input type="number" min="0" max="20" step="1"
               data-editor-max-lines
               value="${Number(selectedComponent.constraints?.max_lines ?? 0)}"></label>
+            <label>Minimum font<input type="number" min=".1" max="20" step=".1"
+              data-editor-min-font
+              value="${Number(selectedComponent.constraints?.min_font_size ?? 0.8)}"></label>
             <button type="button" data-editor-action="delete-component">Remove component</button>
             <button type="button" data-editor-action="duplicate-component">Duplicate</button>
             <button type="button" data-editor-action="reset-component">Reset component</button>
@@ -1740,6 +1758,29 @@ class MoviePosterPanel extends HTMLElement {
         this._render();
         this._scheduleEditorSave();
       });
+    this.shadowRoot.querySelector("[data-editor-style-ref]")
+      ?.addEventListener("change", (event) => {
+        const component = this._selectedEditorComponent();
+        if (!component || component.locked) return;
+        this._recordEditorHistory();
+        component.style_ref = event.target.value;
+        this._render();
+        this._scheduleEditorSave();
+      });
+    this.shadowRoot.querySelector("[data-editor-text-color-override]")
+      ?.addEventListener("change", (event) => {
+        const component = this._selectedEditorComponent();
+        if (!component || component.locked) return;
+        this._recordEditorHistory();
+        component.style ||= {};
+        if (event.target.checked) {
+          component.style.text_color = "#ffffff";
+        } else {
+          delete component.style.text_color;
+        }
+        this._render();
+        this._scheduleEditorSave();
+      });
     this.shadowRoot.querySelector("[data-editor-clip]")
       ?.addEventListener("change", (event) => {
         const component = this._selectedEditorComponent();
@@ -1757,6 +1798,18 @@ class MoviePosterPanel extends HTMLElement {
         component.constraints ||= {};
         component.constraints.max_lines = Math.min(
           20, Math.max(0, Number(event.target.value)),
+        );
+        this._render();
+        this._scheduleEditorSave();
+      });
+    this.shadowRoot.querySelector("[data-editor-min-font]")
+      ?.addEventListener("change", (event) => {
+        const component = this._selectedEditorComponent();
+        if (!component || component.locked) return;
+        this._recordEditorHistory();
+        component.constraints ||= {};
+        component.constraints.min_font_size = Math.min(
+          20, Math.max(0.1, Number(event.target.value)),
         );
         this._render();
         this._scheduleEditorSave();
@@ -2315,6 +2368,9 @@ class MoviePosterPanel extends HTMLElement {
     const backgroundColor = normalizeColor(style.background_color, "")
       || "transparent";
     const fontSize = Math.min(20, Math.max(0.1, Number(style.font_size ?? 3)));
+    const minFontSize = Math.min(
+      20, Math.max(0.1, Number(component.constraints?.min_font_size ?? 0.8)),
+    );
     const opacity = Math.min(1, Math.max(0, Number(style.opacity ?? 1)));
     const alignment = ["left", "center", "right"].includes(style.text_align)
       ? style.text_align : "center";
@@ -2338,7 +2394,8 @@ class MoviePosterPanel extends HTMLElement {
       `left:${bounds.x}%`, `top:${bounds.y}%`,
       `width:${bounds.width}%`, `height:${bounds.height}%`,
       `z-index:${component.z_index}`, `color:${textColor}`,
-      `background-color:${backgroundColor}`, `font-size:${fontSize}cqw`,
+      `background-color:${backgroundColor}`,
+      `font-size:clamp(${minFontSize}cqw,${fontSize}cqw,20cqw)`,
       `opacity:${opacity}`, `text-align:${alignment}`,
       `--component-image-fit:${imageFit}`,
       `mix-blend-mode:${blend}`, `--editor-max-lines:${maxLines}`,
