@@ -561,10 +561,15 @@ class MoviePosterPanel extends HTMLElement {
       || (presentation.show_session !== false && Boolean(state.session))
       || (presentation.show_progress !== false && Boolean(hasProgress));
     const detailsClass = hasDetails ? " has-details" : "";
+    const hasExpandedDetails =
+      (presentation.show_summary !== false && Boolean(media.summary))
+      || (presentation.show_progress !== false && Boolean(hasProgress));
+    const detailsDensityClass = hasExpandedDetails
+      ? " details-expanded" : " details-compact";
     const summaryClass = presentation.show_summary !== false ? " show-summary" : "";
     const progressClass = presentation.show_progress !== false ? " show-progress" : "";
     this.shadowRoot.innerHTML = `${this._styles()}${this._studioControls()}
-      <main class="theater${studioClass}${rendererClass}${editorClass}${detailsClass} theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}${transitionClass}${summaryClass}${progressClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
+      <main class="theater${studioClass}${rendererClass}${editorClass}${detailsClass}${detailsDensityClass} theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}${transitionClass}${summaryClass}${progressClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
         ${presentationStyle} aria-label="Movie Poster display">
         <div class="ambient"></div>
         ${this._displayControls()}
@@ -5577,9 +5582,9 @@ class MoviePosterPanel extends HTMLElement {
         background:
           linear-gradient(145deg,
             color-mix(in srgb,
-              var(--mp-surface-elevated, #4a1711) 94%, transparent),
+              var(--mp-surface-elevated, #4a1711) 86%, transparent),
             color-mix(in srgb,
-              var(--mp-surface, #32110d) 96%, transparent));
+              var(--mp-surface, #32110d) 90%, transparent));
         box-shadow:
           inset 0 0 clamp(8px, 1.8cqw, 24px)
             color-mix(in srgb,
@@ -5639,6 +5644,14 @@ class MoviePosterPanel extends HTMLElement {
         column-gap: var(--layout-gap);
         row-gap: 1px;
       }
+      .theater.layout-poster.has-details.details-compact
+        .frame-stage .details {
+        max-height: 24%;
+      }
+      .theater.layout-poster.has-details.details-expanded
+        .frame-stage .details {
+        max-height: 40%;
+      }
       .theater.layout-poster.has-details .frame-stage .details h2,
       .theater.layout-poster.has-details .frame-stage .details .progress {
         grid-column: 1 / -1;
@@ -5652,7 +5665,11 @@ class MoviePosterPanel extends HTMLElement {
       }
       .theater:is(.orientation-portrait) .frame-stage .content {
         grid-template-columns: minmax(0, 1fr) !important;
-        grid-template-rows: minmax(0, 62%) minmax(0, 1fr) !important;
+        grid-template-rows: minmax(0, 69%) minmax(0, 1fr) !important;
+      }
+      .theater:is(.orientation-portrait).details-expanded
+        .frame-stage .content {
+        grid-template-rows: minmax(0, 58%) minmax(0, 1fr) !important;
       }
       .theater:is(.orientation-portrait).has-details .frame-stage .details {
         display: flex !important;
@@ -5674,7 +5691,11 @@ class MoviePosterPanel extends HTMLElement {
       @media (max-width: 720px), (orientation: portrait) {
         .theater.orientation-auto .frame-stage .content {
           grid-template-columns: minmax(0, 1fr) !important;
-          grid-template-rows: minmax(0, 62%) minmax(0, 1fr) !important;
+          grid-template-rows: minmax(0, 69%) minmax(0, 1fr) !important;
+        }
+        .theater.orientation-auto.details-expanded
+          .frame-stage .content {
+          grid-template-rows: minmax(0, 58%) minmax(0, 1fr) !important;
         }
         .theater.orientation-auto.has-details .frame-stage .details {
           display: flex !important;

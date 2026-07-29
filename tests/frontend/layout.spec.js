@@ -93,8 +93,8 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
         show_year: variant.showYear ?? true,
         show_rating: variant.showRating ?? true,
         show_runtime: variant.showRuntime ?? true,
-        show_summary: true,
-        show_progress: true,
+        show_summary: variant.showSummary ?? true,
+        show_progress: variant.showProgress ?? true,
         show_session: true,
         enable_motion: variant.enableMotion ?? false,
         kiosk_mode: false,
@@ -454,6 +454,50 @@ test("movie metadata is a styled panel with a two-line title contract", async ({
     expect(panel.titleLines, frame).toBeLessThanOrEqual(2);
     expect(panel.titleConstrained, frame).toBe(true);
   }
+});
+
+test("portrait metadata uses compact and expanded density states", async ({ page }) => {
+  await page.setViewportSize({ width: 720, height: 1280 });
+  await openHarness(page);
+  const measure = async (variant) => {
+    expect(await renderPoster(
+      page, "golden_age", "classic", "cinematic", "portrait", variant,
+    )).toEqual([]);
+    return page.evaluate(() => {
+      const root = document.querySelector("movie-poster-panel").shadowRoot;
+      const theater = root.querySelector(".theater");
+      const content = root.querySelector(".content").getBoundingClientRect();
+      const details = root.querySelector(".details").getBoundingClientRect();
+      const posterWrap = root.querySelector(".poster-wrap").getBoundingClientRect();
+      return {
+        expanded: theater.classList.contains("details-expanded"),
+        compact: theater.classList.contains("details-compact"),
+        detailsShare: details.height / content.height,
+        posterShare: posterWrap.height / content.height,
+      };
+    });
+  };
+
+  const compact = await measure({
+    showSummary: false,
+    showProgress: false,
+  });
+  const expanded = await measure({
+    showSummary: true,
+    showProgress: true,
+  });
+
+  expect(compact.compact).toBe(true);
+  expect(compact.expanded).toBe(false);
+  expect(compact.detailsShare).toBeGreaterThan(.28);
+  expect(compact.detailsShare).toBeLessThan(.34);
+  expect(compact.posterShare).toBeGreaterThan(.66);
+  expect(expanded.expanded).toBe(true);
+  expect(expanded.compact).toBe(false);
+  expect(expanded.detailsShare).toBeGreaterThan(.39);
+  expect(expanded.detailsShare).toBeLessThan(.44);
+  expect(expanded.posterShare).toBeGreaterThan(.55);
+  expect(expanded.detailsShare).toBeGreaterThan(compact.detailsShare);
 });
 
 test("reference renderer contains the complete Marquee canvas", async ({ page }) => {
