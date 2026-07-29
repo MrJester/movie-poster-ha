@@ -1099,6 +1099,82 @@ test("packaged image assets become movable canvas layers", async ({ page }) => {
   });
 });
 
+test("editor clip policies control authored layer overflow", async ({ page }) => {
+  await openHarness(page, "?studio=1");
+  const result = await page.evaluate(() => {
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    panel._state.profile_id = "clip-test";
+    const component = panel._defaultEditorComponent("custom_image", "overlay");
+    panel._state.design = {
+      schema_version: 2,
+      resources: {
+        frame: { id: "builtin.frame.blank", version: 1 },
+        theme: { id: "builtin.theme.classic", version: 1 },
+        layout: { id: "builtin.layout.blank", version: 1 },
+      },
+      viewport: { fit: "contain", link_orientations: true },
+      components: [structuredClone(component)],
+      motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+    };
+    panel._editorProfileId = "clip-test";
+    panel._editorDocument = {
+      version: 2,
+      name: "Clip test",
+      description: "",
+      author: "",
+      presentation: { ...panel._state.presentation },
+      design: {
+        ...structuredClone(panel._state.design),
+        components: [component],
+      },
+    };
+    panel._editorSelectedId = component.id;
+    panel._editorSelectedIds = [component.id];
+    panel._render();
+    const select = panel.shadowRoot.querySelector("[data-editor-clip]");
+    const options = [...select.options].map((option) => ({
+      value: option.value,
+      label: option.textContent.trim(),
+    }));
+    select.value = "canvas";
+    select.dispatchEvent(new Event("change"));
+    clearTimeout(panel._editorSaveTimer);
+    const editorLayer = panel.shadowRoot.querySelector(
+      '[data-editor-component="overlay"]',
+    );
+    const editorPolicy = editorLayer.dataset.componentClip;
+    const editorOverflow = getComputedStyle(editorLayer).overflow;
+
+    panel._state.design.components[0].clip = "none";
+    panel._editorDocument = null;
+    panel._render();
+    const authoredLayer = panel.shadowRoot.querySelector(
+      '[data-authored-component="overlay"]',
+    );
+    return {
+      options,
+      savedPolicy: component.clip,
+      editorPolicy,
+      editorOverflow,
+      authoredPolicy: authoredLayer.dataset.componentClip,
+      authoredOverflow: getComputedStyle(authoredLayer).overflow,
+    };
+  });
+  expect(result).toEqual({
+    options: [
+      { value: "safe_opening", label: "Frame opening" },
+      { value: "canvas", label: "Full canvas" },
+      { value: "none", label: "No clipping" },
+    ],
+    savedPolicy: "canvas",
+    editorPolicy: "canvas",
+    editorOverflow: "visible",
+    authoredPolicy: "none",
+    authoredOverflow: "visible",
+  });
+});
+
 test("preserve aspect keeps image proportions during pointer resize", async ({
   page,
 }) => {

@@ -1008,8 +1008,11 @@ class MoviePosterPanel extends HTMLElement {
           const constrained = Number(component.constraints?.max_lines) > 0
             ? " constrained-lines" : "";
           const locked = component.locked ? " locked" : "";
-          return `<button type="button" class="editor-component component-${component.type}${selected}${constrained}${locked}"
+          const clip = ["none", "canvas", "safe_opening"].includes(component.clip)
+            ? component.clip : "safe_opening";
+          return `<button type="button" class="editor-component component-${component.type} component-clip-${clip}${selected}${constrained}${locked}"
             data-editor-component="${escapeHtml(component.id)}"
+            data-component-clip="${clip}"
             style="${this._editorComponentStyle(component, bounds)}">
             <span class="editor-component-content">${this._componentContent(component)}</span>
             <span class="editor-component-label">${escapeHtml(component.type.replaceAll("_", " "))}</span>
@@ -1093,8 +1096,11 @@ class MoviePosterPanel extends HTMLElement {
           const bounds = this._displayComponentBounds(component);
           const constrained = Number(component.constraints?.max_lines) > 0
             ? " constrained-lines" : "";
-          return `<div class="authored-component component-${escapeHtml(component.type)}${constrained}"
+          const clip = ["none", "canvas", "safe_opening"].includes(component.clip)
+            ? component.clip : "safe_opening";
+          return `<div class="authored-component component-${escapeHtml(component.type)} component-clip-${clip}${constrained}"
             data-authored-component="${escapeHtml(component.id)}"
+            data-component-clip="${clip}"
             style="${this._editorComponentStyle(component, bounds)}">
             <span class="authored-component-content">${this._componentContent(component)}</span>
           </div>`;
@@ -1372,6 +1378,15 @@ class MoviePosterPanel extends HTMLElement {
                   ${(selectedComponent.blend_mode || "normal") === value
                     ? "selected" : ""}>${value}</option>`).join("")}
             </select></label>
+            <label>Clip layer<select data-editor-clip>
+              ${[
+                ["safe_opening", "Frame opening"],
+                ["canvas", "Full canvas"],
+                ["none", "No clipping"],
+              ].map(([value, label]) => `<option value="${value}"
+                ${(selectedComponent.clip || "safe_opening") === value
+                  ? "selected" : ""}>${label}</option>`).join("")}
+            </select></label>
             <label class="studio-check studio-wide"><input type="checkbox"
               data-editor-orientation-override ${hasOrientationOverride ? "checked" : ""}>
               Override geometry in ${editorOrientation}</label>
@@ -1643,6 +1658,15 @@ class MoviePosterPanel extends HTMLElement {
         if (!component || component.locked) return;
         this._recordEditorHistory();
         component.blend_mode = event.target.value;
+        this._render();
+        this._scheduleEditorSave();
+      });
+    this.shadowRoot.querySelector("[data-editor-clip]")
+      ?.addEventListener("change", (event) => {
+        const component = this._selectedEditorComponent();
+        if (!component || component.locked) return;
+        this._recordEditorHistory();
+        component.clip = event.target.value;
         this._render();
         this._scheduleEditorSave();
       });
@@ -2225,6 +2249,12 @@ class MoviePosterPanel extends HTMLElement {
     const maxLines = Math.min(
       20, Math.max(0, Number(component.constraints?.max_lines ?? 0)),
     );
+    const clipInset = [
+      -bounds.y / bounds.height * 100,
+      -(100 - bounds.x - bounds.width) / bounds.width * 100,
+      -(100 - bounds.y - bounds.height) / bounds.height * 100,
+      -bounds.x / bounds.width * 100,
+    ].map((value) => `${value}%`).join(" ");
     return [
       `left:${bounds.x}%`, `top:${bounds.y}%`,
       `width:${bounds.width}%`, `height:${bounds.height}%`,
@@ -2233,6 +2263,7 @@ class MoviePosterPanel extends HTMLElement {
       `opacity:${opacity}`, `text-align:${alignment}`,
       `--component-image-fit:${imageFit}`,
       `mix-blend-mode:${blend}`, `--editor-max-lines:${maxLines}`,
+      `--component-safe-clip:${clipInset}`,
       `text-shadow:0 0 ${glow * 24}px ${textColor}`,
     ].join(";");
   }
@@ -6089,7 +6120,7 @@ class MoviePosterPanel extends HTMLElement {
         position: absolute;
         inset:
           var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
-        overflow: hidden;
+        overflow: visible;
       }
       .authored-component {
         position: absolute;
@@ -6098,6 +6129,18 @@ class MoviePosterPanel extends HTMLElement {
         min-height: 1px;
         overflow: hidden;
         container-type: inline-size;
+      }
+      :is(.authored-component, .editor-component).component-clip-safe_opening,
+      :is(.authored-component, .editor-component).component-clip-canvas,
+      :is(.authored-component, .editor-component).component-clip-none {
+        overflow: visible;
+      }
+      :is(.authored-component, .editor-component).component-clip-safe_opening {
+        clip-path: inset(var(--component-safe-clip));
+      }
+      .authored-presentation-canvas,
+      .visual-editor-canvas {
+        clip-path: inset(0);
       }
       .authored-component-content {
         display: grid;

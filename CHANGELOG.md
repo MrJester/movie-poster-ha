@@ -16,6 +16,8 @@
 - Add packaged custom-image layers with authenticated signed asset delivery,
   Contain/Cover/Fill controls, opacity and blend support, and aspect-preserving
   pointer resize.
+- Expose per-layer Frame Opening, Full Canvas, and No Clipping policies in the
+  editor and apply the selected overflow boundary in authored live Profiles.
 - Add browser regressions for structural layer ordering, locked behavior,
   published geometry, custom assets, image fit, and constrained resizing.
 
