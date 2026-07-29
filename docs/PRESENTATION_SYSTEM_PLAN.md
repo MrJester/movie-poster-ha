@@ -1,8 +1,9 @@
 # Presentation System and Visual Editor Plan
 
 Status: Product specification
-Implementation status: Foundation and first editor slice implemented in
-0.1.0-beta.44
+Implementation status: Layered schema, shared custom-Profile renderer,
+Presentation Library publication, packaged image assets, and precision editor
+controls implemented through 0.1.0-beta.46.
 Scope: Presentation design only; Plex and playback behavior are explicitly out
 of scope.
 

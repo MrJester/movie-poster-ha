@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.0-beta.46
+
+- Upgrade presentation documents to a backward-compatible layered schema with
+  named, lockable components, blend modes, clipping policy, text constraints,
+  image-fit behavior, and automatic schema-one migration.
+- Render structural Frame artwork as ordered, locked layers in both Display
+  Studio and the live wall display so posters and metadata can sit behind
+  curtains, bezels, lighting, and foreground artwork.
+- Render published custom Profiles from their authored normalized geometry
+  instead of the legacy fixed layout while preserving the default compatibility
+  renderer.
+- Synchronize published and rolled-back Presentation Library Profiles into Home
+  Assistant's selectable live Profile list.
+- Add packaged custom-image layers with authenticated signed asset delivery,
+  Contain/Cover/Fill controls, opacity and blend support, and aspect-preserving
+  pointer resize.
+- Add browser regressions for structural layer ordering, locked behavior,
+  published geometry, custom assets, image fit, and constrained resizing.
+
 ## 0.1.0-beta.44
 
 - Introduce schema-versioned Frame, Theme, Layout, component, animation, and
