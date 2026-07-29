@@ -1175,6 +1175,82 @@ test("editor clip policies control authored layer overflow", async ({ page }) =>
   });
 });
 
+test("Profile motion controls animate authored layers with stagger", async ({ page }) => {
+  await openHarness(page, "?studio=1");
+  const result = await page.evaluate(() => {
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    const title = panel._defaultEditorComponent("title", "title");
+    const overlay = panel._defaultEditorComponent("custom_image", "overlay");
+    panel._editorProfileId = "motion-test";
+    panel._editorDocument = {
+      version: 2,
+      name: "Motion test",
+      description: "",
+      author: "",
+      presentation: { ...panel._state.presentation },
+      design: {
+        schema_version: 2,
+        resources: {
+          frame: { id: "builtin.frame.blank", version: 1 },
+          theme: { id: "builtin.theme.classic", version: 1 },
+          layout: { id: "builtin.layout.blank", version: 1 },
+        },
+        viewport: { fit: "contain", link_orientations: true },
+        components: [title, overlay],
+        motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+      },
+    };
+    panel._render();
+    const changeMotion = (field, value) => {
+      const control = panel.shadowRoot.querySelector(
+        `[data-editor-motion="${field}"]`,
+      );
+      control.value = String(value);
+      control.dispatchEvent(new Event("change"));
+      clearTimeout(panel._editorSaveTimer);
+    };
+    changeMotion("preset", "pulse");
+    changeMotion("speed", 2);
+    changeMotion("intensity", 0.8);
+    changeMotion("stagger", 0.25);
+    const storedMotion = structuredClone(panel._editorDocument.design.motion);
+
+    panel._state.profile_id = "motion-test";
+    panel._state.design = structuredClone(panel._editorDocument.design);
+    panel._state.presentation.enable_motion = true;
+    panel._editorDocument = null;
+    panel._render();
+    const canvas = panel.shadowRoot.querySelector(
+      ".authored-presentation-canvas",
+    );
+    const secondLayer = panel.shadowRoot.querySelector(
+      '[data-authored-component="overlay"]',
+    );
+    const computed = getComputedStyle(secondLayer);
+    return {
+      storedMotion,
+      canvasClass: canvas.className,
+      duration: computed.animationDuration,
+      delay: computed.animationDelay,
+      animationName: computed.animationName,
+      opacityFloor: canvas.style.getPropertyValue(
+        "--authored-motion-opacity",
+      ).trim(),
+    };
+  });
+  expect(result).toEqual({
+    storedMotion: {
+      preset: "pulse", speed: 2, intensity: 0.8, stagger: 0.25,
+    },
+    canvasClass: "authored-presentation-canvas authored-motion-pulse",
+    duration: "2s",
+    delay: "0.25s",
+    animationName: "authoredPulse",
+    opacityFloor: "0.72",
+  });
+});
+
 test("preserve aspect keeps image proportions during pointer resize", async ({
   page,
 }) => {

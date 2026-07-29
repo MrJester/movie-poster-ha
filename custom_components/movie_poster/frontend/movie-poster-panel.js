@@ -982,6 +982,15 @@ class MoviePosterPanel extends HTMLElement {
   _editorCanvas() {
     if (!this._studio || !this._editorDocument) return "";
     const components = this._editorDocument.design?.components || [];
+    const motion = this._editorDocument.design?.motion || {};
+    const motionPreset = [
+      "none", "breathe", "chase", "pulse", "shimmer",
+    ].includes(motion.preset) ? motion.preset : "none";
+    const motionSpeed = Math.min(5, Math.max(0.1, Number(motion.speed || 1)));
+    const motionIntensity = Math.min(
+      1, Math.max(0, Number(motion.intensity ?? 0)),
+    );
+    const motionStagger = Math.min(5, Math.max(0, Number(motion.stagger || 0)));
     const devicePresets = {
       responsive: null,
       phone: 9 / 19.5,
@@ -995,13 +1004,21 @@ class MoviePosterPanel extends HTMLElement {
     const deviceStyle = ratio
       ? ` style="--editor-preview-ratio:${ratio};--editor-preview-aspect:${ratio} / 1"`
       : "";
-    return `<section class="visual-editor-canvas${this._editorSnapEnabled ? " snap-enabled" : ""}${deviceClass}"
-      aria-label="Presentation canvas"${deviceStyle}>
+    const editorStyle = `${deviceStyle ? deviceStyle.slice(8, -1) : ""};
+      --authored-motion-duration:${4 / motionSpeed}s;
+      --authored-motion-intensity:${motionIntensity};
+      --authored-motion-shift:${motionIntensity * 2.5}%;
+      --authored-motion-opacity:${1 - motionIntensity * 0.35};
+      --authored-motion-scale:${1 + motionIntensity * 0.025};
+      --authored-motion-brightness:${1 + motionIntensity * 0.35};
+      --authored-motion-saturation:${1 + motionIntensity * 0.2}`;
+    return `<section class="visual-editor-canvas authored-motion-${motionPreset}${this._editorSnapEnabled ? " snap-enabled" : ""}${deviceClass}"
+      aria-label="Presentation canvas" style="${editorStyle}">
       ${this._frameCompositeMarkup("editor")}
       <div class="authored-component-surface editor-component-surface">
       ${components.filter((component) => component.visible !== false)
         .sort((a, b) => a.z_index - b.z_index)
-        .map((component) => {
+        .map((component, index) => {
           const bounds = this._editorBounds(component);
           const selected = this._editorSelectedIds.includes(component.id)
             ? " selected" : "";
@@ -1013,7 +1030,8 @@ class MoviePosterPanel extends HTMLElement {
           return `<button type="button" class="editor-component component-${component.type} component-clip-${clip}${selected}${constrained}${locked}"
             data-editor-component="${escapeHtml(component.id)}"
             data-component-clip="${clip}"
-            style="${this._editorComponentStyle(component, bounds)}">
+            style="${this._editorComponentStyle(component, bounds)};
+              --authored-motion-delay:${index * motionStagger}s">
             <span class="editor-component-content">${this._componentContent(component)}</span>
             <span class="editor-component-label">${escapeHtml(component.type.replaceAll("_", " "))}</span>
             <span class="editor-resize-handle" data-editor-resize aria-hidden="true"></span>
@@ -1087,12 +1105,28 @@ class MoviePosterPanel extends HTMLElement {
 
   _authoredCanvas() {
     const components = this._state?.design?.components || [];
-    return `<section class="authored-presentation-canvas"
-      aria-label="Authored movie presentation">
+    const motion = this._state?.design?.motion || {};
+    const motionPreset = [
+      "none", "breathe", "chase", "pulse", "shimmer",
+    ].includes(motion.preset) ? motion.preset : "none";
+    const motionSpeed = Math.min(5, Math.max(0.1, Number(motion.speed || 1)));
+    const motionIntensity = Math.min(
+      1, Math.max(0, Number(motion.intensity ?? 0)),
+    );
+    const motionStagger = Math.min(5, Math.max(0, Number(motion.stagger || 0)));
+    return `<section class="authored-presentation-canvas authored-motion-${motionPreset}"
+      aria-label="Authored movie presentation"
+      style="--authored-motion-duration:${4 / motionSpeed}s;
+        --authored-motion-intensity:${motionIntensity};
+        --authored-motion-shift:${motionIntensity * 2.5}%;
+        --authored-motion-opacity:${1 - motionIntensity * 0.35};
+        --authored-motion-scale:${1 + motionIntensity * 0.025};
+        --authored-motion-brightness:${1 + motionIntensity * 0.35};
+        --authored-motion-saturation:${1 + motionIntensity * 0.2}">
       <div class="authored-component-surface">
       ${components.filter((component) => component.visible !== false)
         .sort((a, b) => a.z_index - b.z_index)
-        .map((component) => {
+        .map((component, index) => {
           const bounds = this._displayComponentBounds(component);
           const constrained = Number(component.constraints?.max_lines) > 0
             ? " constrained-lines" : "";
@@ -1101,7 +1135,8 @@ class MoviePosterPanel extends HTMLElement {
           return `<div class="authored-component component-${escapeHtml(component.type)} component-clip-${clip}${constrained}"
             data-authored-component="${escapeHtml(component.id)}"
             data-component-clip="${clip}"
-            style="${this._editorComponentStyle(component, bounds)}">
+            style="${this._editorComponentStyle(component, bounds)};
+              --authored-motion-delay:${index * motionStagger}s">
             <span class="authored-component-content">${this._componentContent(component)}</span>
           </div>`;
         }).join("")}
@@ -1285,6 +1320,29 @@ class MoviePosterPanel extends HTMLElement {
           role="status"><strong>Design checks</strong><ul>${editorWarnings.map(
             (warning) => `<li>${escapeHtml(warning)}</li>`,
           ).join("")}</ul></div>` : ""}
+        <fieldset class="editor-motion studio-wide">
+          <legend>Profile motion</legend>
+          <label>Preset<select data-editor-motion="preset">
+            ${[
+              ["none", "None"],
+              ["breathe", "Breathe"],
+              ["pulse", "Pulse"],
+              ["shimmer", "Shimmer"],
+              ["chase", "Chase"],
+            ].map(([value, label]) => `<option value="${value}"
+              ${(this._editorDocument.design.motion?.preset || "none") === value
+                ? "selected" : ""}>${label}</option>`).join("")}
+          </select></label>
+          <label>Speed<input type="number" min=".1" max="5" step=".1"
+            data-editor-motion="speed"
+            value="${Number(this._editorDocument.design.motion?.speed ?? 1)}"></label>
+          <label>Intensity<input type="range" min="0" max="1" step=".05"
+            data-editor-motion="intensity"
+            value="${Number(this._editorDocument.design.motion?.intensity ?? 0)}"></label>
+          <label>Layer stagger<input type="number" min="0" max="5" step=".05"
+            data-editor-motion="stagger"
+            value="${Number(this._editorDocument.design.motion?.stagger ?? 0)}"></label>
+        </fieldset>
         <fieldset class="editor-assets studio-wide">
           <legend>Assets</legend>
           <div class="studio-profile-actions">
@@ -1589,6 +1647,27 @@ class MoviePosterPanel extends HTMLElement {
       ?.addEventListener("change", (event) => {
         this._editorSnapEnabled = event.target.checked;
       });
+    this.shadowRoot.querySelectorAll("[data-editor-motion]").forEach((control) => {
+      control.addEventListener("change", () => {
+        if (!this._editorDocument) return;
+        this._recordEditorHistory();
+        const field = control.dataset.editorMotion;
+        const limits = {
+          speed: [0.1, 5],
+          intensity: [0, 1],
+          stagger: [0, 5],
+        };
+        const value = field === "preset"
+          ? control.value
+          : Math.min(
+            limits[field][1],
+            Math.max(limits[field][0], Number(control.value)),
+          );
+        this._editorDocument.design.motion[field] = value;
+        this._render();
+        this._scheduleEditorSave();
+      });
+    });
     this.shadowRoot.querySelectorAll("[data-editor-align]").forEach((button) => {
       button.addEventListener("click", () =>
         this._alignEditorComponent(button.dataset.editorAlign));
@@ -6173,6 +6252,62 @@ class MoviePosterPanel extends HTMLElement {
         display: block;
         height: 100%;
         background: var(--mp-progress-fill, #f6cf70);
+      }
+      :is(.authored-presentation-canvas, .visual-editor-canvas)
+        :is(.authored-component, .editor-component) {
+        animation-duration: var(--authored-motion-duration, 4s);
+        animation-delay: var(--authored-motion-delay, 0s);
+        animation-timing-function: ease-in-out;
+        animation-iteration-count: infinite;
+        animation-direction: alternate;
+        will-change: auto;
+      }
+      :is(.authored-motion-breathe, .authored-motion-pulse,
+        .authored-motion-shimmer, .authored-motion-chase)
+        :is(.authored-component, .editor-component) {
+        will-change: transform, opacity, filter;
+      }
+      .authored-motion-breathe
+        :is(.authored-component, .editor-component) {
+        animation-name: authoredBreathe;
+      }
+      .authored-motion-pulse
+        :is(.authored-component, .editor-component) {
+        animation-name: authoredPulse;
+      }
+      .authored-motion-shimmer
+        :is(.authored-component, .editor-component) {
+        animation-name: authoredShimmer;
+      }
+      .authored-motion-chase
+        :is(.authored-component, .editor-component) {
+        animation-name: authoredChase;
+      }
+      .motion-off :is(.authored-presentation-canvas, .visual-editor-canvas)
+        :is(.authored-component, .editor-component) {
+        animation: none !important;
+      }
+      @keyframes authoredBreathe {
+        from { transform: scale(1); }
+        to {
+          transform: scale(var(--authored-motion-scale));
+        }
+      }
+      @keyframes authoredPulse {
+        from { opacity: var(--authored-motion-opacity); }
+        to { opacity: 1; }
+      }
+      @keyframes authoredShimmer {
+        from { filter: brightness(1) saturate(1); }
+        to {
+          filter:
+            brightness(var(--authored-motion-brightness))
+            saturate(var(--authored-motion-saturation));
+        }
+      }
+      @keyframes authoredChase {
+        from { transform: translateX(calc(-1 * var(--authored-motion-shift))); }
+        to { transform: translateX(var(--authored-motion-shift)); }
       }
       .visual-editor-canvas {
         position: relative;
