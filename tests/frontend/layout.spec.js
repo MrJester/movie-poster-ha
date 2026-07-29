@@ -908,6 +908,181 @@ test("locked editor components resist changes and can be unlocked", async ({ pag
   });
 });
 
+test("published custom profiles render authored geometry instead of legacy layout", async ({
+  page,
+}) => {
+  await openHarness(page, "?studio=1");
+  const result = await page.evaluate(async () => {
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    panel._state.profile_id = "custom-cinema";
+    panel._state.design_assets = {
+      "assets/user/overlay.png": "/api/signed-overlay.png",
+    };
+    panel._state.design = {
+      schema_version: 2,
+      resources: {
+        frame: { id: "builtin.frame.marquee", version: 1 },
+        theme: { id: "builtin.theme.classic", version: 1 },
+        layout: { id: "builtin.layout.blank", version: 1 },
+      },
+      viewport: { fit: "contain", link_orientations: true },
+      components: [
+        {
+          id: "poster",
+          name: "Poster",
+          type: "poster",
+          bounds: { x: 5, y: 10, width: 40, height: 80 },
+          z_index: 10,
+          visible: true,
+          locked: false,
+          blend_mode: "normal",
+          clip: "safe_opening",
+          style_ref: "surface",
+          style: {},
+          constraints: {
+            max_lines: 0, min_font_size: 0.8, preserve_aspect: true,
+          },
+          text: "",
+          orientation_overrides: {},
+        },
+        {
+          id: "title",
+          name: "Title",
+          type: "title",
+          bounds: { x: 50, y: 20, width: 45, height: 20 },
+          z_index: 20,
+          visible: true,
+          locked: false,
+          blend_mode: "normal",
+          clip: "safe_opening",
+          style_ref: "text_heading",
+          style: { font_size: 4, text_align: "left" },
+          constraints: {
+            max_lines: 2, min_font_size: 0.8, preserve_aspect: false,
+          },
+          text: "",
+          orientation_overrides: {},
+        },
+        {
+          id: "overlay",
+          name: "Overlay",
+          type: "custom_image",
+          bounds: { x: 0, y: 0, width: 100, height: 100 },
+          z_index: 30,
+          visible: true,
+          locked: false,
+          blend_mode: "screen",
+          clip: "safe_opening",
+          style_ref: "surface",
+          style: { opacity: 0.6 },
+          constraints: {
+            max_lines: 0, min_font_size: 0.8, preserve_aspect: true,
+          },
+          text: "",
+          asset_ref: "assets/user/overlay.png",
+          orientation_overrides: {},
+        },
+      ],
+      motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+    };
+    panel._render();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    const root = panel.shadowRoot;
+    const surface = root.querySelector(".authored-component-surface");
+    const poster = root.querySelector('[data-authored-component="poster"]');
+    const title = root.querySelector('[data-authored-component="title"]');
+    const surfaceBox = surface.getBoundingClientRect();
+    const posterBox = poster.getBoundingClientRect();
+    return {
+      authored: Boolean(root.querySelector(".authored-presentation-canvas")),
+      legacyHidden: getComputedStyle(root.querySelector(".frame-stage")).display,
+      title: title.textContent.trim(),
+      titleAlign: getComputedStyle(title).textAlign,
+      titleLines: getComputedStyle(
+        title.querySelector(".authored-component-content"),
+      ).webkitLineClamp,
+      overlayUrl: root.querySelector(
+        '[data-authored-component="overlay"] img',
+      )?.getAttribute("src"),
+      posterGeometry: {
+        x: Math.round((posterBox.left - surfaceBox.left) / surfaceBox.width * 100),
+        y: Math.round((posterBox.top - surfaceBox.top) / surfaceBox.height * 100),
+        width: Math.round(posterBox.width / surfaceBox.width * 100),
+        height: Math.round(posterBox.height / surfaceBox.height * 100),
+      },
+    };
+  });
+  expect(result).toEqual({
+    authored: true,
+    legacyHidden: "none",
+    title: "The Grand Premiere",
+    titleAlign: "left",
+    titleLines: "2",
+    overlayUrl: "/api/signed-overlay.png",
+    posterGeometry: { x: 5, y: 10, width: 40, height: 80 },
+  });
+});
+
+test("packaged image assets become movable canvas layers", async ({ page }) => {
+  await openHarness(page, "?studio=1");
+  const result = await page.evaluate(() => {
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    panel._editorProfileId = "assets";
+    panel._presentationLibrary = {
+      profiles: {
+        assets: {
+          draft: null,
+          published: [],
+          active_revision: null,
+          assets: {
+            "assets/user/curtain.png": "iVBORw0KGgo=",
+          },
+        },
+      },
+    };
+    panel._editorDocument = {
+      version: 2,
+      name: "Assets",
+      description: "",
+      author: "",
+      presentation: { ...panel._state.presentation },
+      design: {
+        schema_version: 2,
+        resources: {
+          frame: { id: "builtin.frame.blank", version: 1 },
+          theme: { id: "builtin.theme.classic", version: 1 },
+          layout: { id: "builtin.layout.blank", version: 1 },
+        },
+        viewport: { fit: "contain", link_orientations: true },
+        components: [],
+        motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+      },
+    };
+    panel._addEditorAssetLayer("assets/user/curtain.png");
+    clearTimeout(panel._editorSaveTimer);
+    const component = panel._editorDocument.design.components[0];
+    const image = panel.shadowRoot.querySelector(
+      '[data-editor-component="custom-image"] img',
+    );
+    return {
+      type: component.type,
+      name: component.name,
+      assetRef: component.asset_ref,
+      bounds: component.bounds,
+      imageUrl: image?.getAttribute("src"),
+    };
+  });
+  expect(result).toEqual({
+    type: "custom_image",
+    name: "curtain.png",
+    assetRef: "assets/user/curtain.png",
+    bounds: { x: 25, y: 20, width: 50, height: 50 },
+    imageUrl: "data:image/png;base64,iVBORw0KGgo=",
+  });
+});
+
 test("visual editor supports bounded undo and redo history", async ({ page }) => {
   await openHarness(page, "?studio=1");
   const result = await page.evaluate(async () => {

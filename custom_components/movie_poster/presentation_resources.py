@@ -24,6 +24,7 @@ COMPONENT_TYPES: Final = (
     "poster",
     "backdrop",
     "logo",
+    "custom_image",
     "mode_heading",
     "title",
     "subtitle",
@@ -161,6 +162,10 @@ COMPONENT_SCHEMA = vol.Schema(
         vol.Optional("style", default={}): COMPONENT_STYLE_SCHEMA,
         vol.Optional("constraints", default={}): COMPONENT_CONSTRAINT_SCHEMA,
         vol.Optional("text", default=""): vol.All(str, vol.Length(max=500)),
+        vol.Optional("asset_ref", default=""): vol.All(
+            str,
+            vol.Length(max=240),
+        ),
         vol.Optional("orientation_overrides", default={}): {
             vol.In(ORIENTATION_KEYS): ORIENTATION_OVERRIDE_SCHEMA
         },
@@ -379,6 +384,7 @@ def _component(  # noqa: PLR0913 - concise built-in resource declarations
             "preserve_aspect": component_type in {"poster", "logo"},
         },
         "text": "",
+        "asset_ref": "",
         "orientation_overrides": {
             key: {"bounds": value}
             for key, value in {

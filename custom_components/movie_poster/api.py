@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import base64
 import binascii
+import mimetypes
+from copy import deepcopy
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from urllib.parse import quote
 
 import voluptuous as vol
 from aiohttp import web
@@ -83,6 +86,7 @@ from .profiles import (
 )
 
 if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
 
     from .coordinator import CoordinatorData, MoviePosterCoordinator
@@ -109,6 +113,7 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
         require_admin=False,
     )
     hass.http.register_view(MoviePosterArtworkView())
+    hass.http.register_view(MoviePosterPresentationAssetView())
     websocket_api.async_register_command(hass, websocket_subscribe)
     websocket_api.async_register_command(hass, websocket_update_presentation)
     websocket_api.async_register_command(hass, websocket_get_settings)
@@ -645,6 +650,15 @@ async def websocket_presentation_library(
     action = msg["action"]
     try:
         result = await _async_library_action(library, entry.options, msg)
+        if action in {"publish", "rollback", "delete"}:
+            await _async_sync_library_assignment(
+                hass,
+                entry,
+                coordinator,
+                library,
+                action,
+                msg,
+            )
     except vol.Invalid as err:
         connection.send_error(
             msg["id"],
@@ -657,6 +671,34 @@ async def websocket_presentation_library(
     if action == "list":
         result["catalog"] = builtin_catalog()
     connection.send_result(msg["id"], result)
+
+
+async def _async_sync_library_assignment(  # noqa: PLR0913
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    coordinator: MoviePosterCoordinator,
+    library: PresentationLibrary,
+    action: str,
+    msg: dict[str, Any],
+) -> None:
+    """Synchronize published library Profiles with live display choices."""
+    identifier = _required_profile_id(msg)
+    custom_profiles = deepcopy(
+        entry.options.get(CONF_DISPLAY_PROFILES, {}),
+    )
+    if action == "delete":
+        custom_profiles.pop(identifier, None)
+    else:
+        custom_profiles[identifier] = await library.async_active_profile(identifier)
+    hass.config_entries.async_update_entry(
+        entry,
+        options={
+            **entry.options,
+            CONF_DISPLAY_PROFILES: custom_profiles,
+        },
+    )
+    coordinator.presentation_revision += 1
+    coordinator.async_update_listeners()
 
 
 @websocket_api.require_admin
@@ -936,6 +978,13 @@ def _serialize_state(  # noqa: PLR0913
             **active_presentation,
         },
         "design": design or design_from_legacy_presentation(active_presentation),
+        "design_assets": _signed_design_assets(
+            hass,
+            coordinator.entry_id,
+            profile_id,
+            design,
+            connection_refresh_token_id=refresh_token_id,
+        ),
         "design_frame": frame_geometry_for_presentation(active_presentation),
         "design_style": semantic_style_for_presentation(active_presentation),
         "mode": data.mode.mode,
@@ -968,6 +1017,70 @@ def _signed_artwork(
         _ARTWORK_EXPIRATION,
         refresh_token_id=refresh_token_id,
     )
+
+
+def _signed_design_assets(
+    hass: HomeAssistant,
+    entry_id: str,
+    profile_id: str,
+    design: dict[str, Any] | None,
+    *,
+    connection_refresh_token_id: str | None,
+) -> dict[str, str]:
+    """Return signed URLs for assets referenced by the active design."""
+    references = {
+        str(component.get("asset_ref", "")).strip()
+        for component in (design or {}).get("components", [])
+        if str(component.get("asset_ref", "")).strip()
+    }
+    return {
+        reference: async_sign_path(
+            hass,
+            (
+                "/api/movie_poster/presentation_asset/"
+                f"{quote(entry_id, safe='')}/{quote(profile_id, safe='')}/"
+                f"{quote(reference, safe='/')}"
+            ),
+            _ARTWORK_EXPIRATION,
+            refresh_token_id=connection_refresh_token_id,
+        )
+        for reference in sorted(references)
+    }
+
+
+class MoviePosterPresentationAssetView(HomeAssistantView):
+    """Serve a validated local Presentation Library asset."""
+
+    url = (
+        "/api/movie_poster/presentation_asset/"
+        "{entry_id}/{profile_id}/{asset_path:.*}"
+    )
+    name = "api:movie_poster:presentation_asset"
+    requires_auth = True
+
+    async def get(
+        self,
+        request: web.Request,
+        entry_id: str,
+        profile_id: str,
+        asset_path: str,
+    ) -> web.Response:
+        """Return one packaged asset without exposing library storage."""
+        hass = request.app["hass"]
+        entry = hass.config_entries.async_get_entry(entry_id)
+        if entry is None or not asset_path:
+            raise web.HTTPNotFound
+        library = await _presentation_library(hass, entry_id, entry.options)
+        try:
+            content = (await library.async_assets(profile_id))[asset_path]
+        except (KeyError, vol.Invalid):
+            raise web.HTTPNotFound from None
+        content_type = mimetypes.guess_type(asset_path)[0]
+        return web.Response(
+            body=content,
+            content_type=content_type or "application/octet-stream",
+            headers={"Cache-Control": "private, max-age=86400"},
+        )
 
 
 class MoviePosterArtworkView(HomeAssistantView):

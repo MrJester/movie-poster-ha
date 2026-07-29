@@ -544,6 +544,9 @@ class MoviePosterPanel extends HTMLElement {
       && theme === "classic"
       && layout === "cinematic";
     const rendererClass = referenceRenderer ? " renderer-reference" : "";
+    const authoredRenderer = state.profile_id !== "default"
+      && Number(state.design?.schema_version) >= 2;
+    const authoredClass = authoredRenderer ? " renderer-authored" : "";
     const editorClass = this._editorDocument ? " visual-editor-active" : "";
     const headingFont = normalizeFont(presentation.heading_font || "cinematic");
     const bodyFont = normalizeFont(presentation.body_font);
@@ -581,7 +584,7 @@ class MoviePosterPanel extends HTMLElement {
     const summaryClass = presentation.show_summary !== false ? " show-summary" : "";
     const progressClass = presentation.show_progress !== false ? " show-progress" : "";
     this.shadowRoot.innerHTML = `${this._styles()}${this._studioControls()}
-      <main class="theater${studioClass}${rendererClass}${editorClass}${detailsClass}${detailsDensityClass} theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}${transitionClass}${summaryClass}${progressClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
+      <main class="theater${studioClass}${rendererClass}${authoredClass}${editorClass}${detailsClass}${detailsDensityClass} theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}${transitionClass}${summaryClass}${progressClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
         ${presentationStyle} aria-label="Movie Poster display">
         <div class="ambient"></div>
         ${this._displayControls()}
@@ -597,6 +600,7 @@ class MoviePosterPanel extends HTMLElement {
           </div>
           <div class="marquee-bulbs" aria-hidden="true">
           </div>
+          ${authoredRenderer ? this._authoredCanvas() : ""}
           <div class="frame-stage">
           ${logoUrl ? `<div class="brand-row logo-${logoPosition}">
             <div class="brand-logo logo-${logoPosition}">
@@ -978,36 +982,6 @@ class MoviePosterPanel extends HTMLElement {
   _editorCanvas() {
     if (!this._studio || !this._editorDocument) return "";
     const components = this._editorDocument.design?.components || [];
-    const media = this._state?.media || {};
-    const content = (component) => {
-      switch (component.type) {
-        case "poster":
-          return media.poster_url
-            ? `<img src="${escapeHtml(media.poster_url)}" alt="">`
-            : "Poster";
-        case "backdrop":
-          return media.backdrop_url
-            ? `<img src="${escapeHtml(media.backdrop_url)}" alt="">`
-            : "Backdrop";
-        case "logo":
-          return this._state.presentation?.logo_url
-            ? `<img src="${escapeHtml(this._state.presentation.logo_url)}" alt="">`
-            : "Logo";
-        case "mode_heading": return escapeHtml(this._state.heading || "Coming Soon");
-        case "title": return escapeHtml(media.title || "Movie Title");
-        case "subtitle": return escapeHtml(media.subtitle || "Subtitle or tagline");
-        case "year": return escapeHtml(media.year || "2026");
-        case "content_rating": return escapeHtml(media.content_rating || "PG-13");
-        case "runtime": return formatRuntime(media.duration_ms) || "2h 3m";
-        case "summary": return escapeHtml(media.summary || "Movie summary");
-        case "progress": return `<i style="width:35%"></i>`;
-        case "active_user": return escapeHtml(this._state.session?.user || "Movie Fan");
-        case "player_name": return escapeHtml(this._state.session?.player || "Theater");
-        case "playback_state": return escapeHtml(this._state.session?.state || "Playing");
-        case "static_text": return escapeHtml(component.text || "Custom text");
-        default: return escapeHtml(component.type);
-      }
-    };
     const devicePresets = {
       responsive: null,
       phone: 9 / 19.5,
@@ -1024,6 +998,7 @@ class MoviePosterPanel extends HTMLElement {
     return `<section class="visual-editor-canvas${this._editorSnapEnabled ? " snap-enabled" : ""}${deviceClass}"
       aria-label="Presentation canvas"${deviceStyle}>
       ${this._frameCompositeMarkup("editor")}
+      <div class="authored-component-surface editor-component-surface">
       ${components.filter((component) => component.visible !== false)
         .sort((a, b) => a.z_index - b.z_index)
         .map((component) => {
@@ -1036,12 +1011,106 @@ class MoviePosterPanel extends HTMLElement {
           return `<button type="button" class="editor-component component-${component.type}${selected}${constrained}${locked}"
             data-editor-component="${escapeHtml(component.id)}"
             style="${this._editorComponentStyle(component, bounds)}">
-            <span class="editor-component-content">${content(component)}</span>
+            <span class="editor-component-content">${this._componentContent(component)}</span>
             <span class="editor-component-label">${escapeHtml(component.type.replaceAll("_", " "))}</span>
             <span class="editor-resize-handle" data-editor-resize aria-hidden="true"></span>
           </button>`;
         }).join("")}
+      </div>
     </section>`;
+  }
+
+  _componentContent(component) {
+    const media = this._state?.media || {};
+    switch (component.type) {
+      case "poster":
+        return media.poster_url
+          ? `<img src="${escapeHtml(media.poster_url)}" alt="">`
+          : "Poster";
+      case "backdrop":
+        return media.backdrop_url
+          ? `<img src="${escapeHtml(media.backdrop_url)}" alt="">`
+          : "Backdrop";
+      case "logo":
+        return this._state.presentation?.logo_url
+          ? `<img src="${escapeHtml(this._state.presentation.logo_url)}" alt="">`
+            : "Logo";
+      case "custom_image": {
+        const assetUrl = this._componentAssetUrl(component);
+        return assetUrl
+          ? `<img src="${escapeHtml(assetUrl)}" alt="">`
+          : "Custom image";
+      }
+      case "mode_heading": return escapeHtml(this._state.heading || "Coming Soon");
+      case "title": return escapeHtml(media.title || "Movie Title");
+      case "subtitle": return escapeHtml(media.subtitle || "Subtitle or tagline");
+      case "year": return escapeHtml(media.year || "2026");
+      case "content_rating": return escapeHtml(media.content_rating || "PG-13");
+      case "runtime": return formatRuntime(media.duration_ms) || "2h 3m";
+      case "summary": return escapeHtml(media.summary || "Movie summary");
+      case "progress": {
+        const progress = media.duration_ms
+          ? Math.min(100, Math.max(0,
+            Number(media.position_ms || 0) / Number(media.duration_ms) * 100))
+          : 35;
+        return `<i style="width:${progress}%"></i>`;
+      }
+      case "active_user": return escapeHtml(this._state.session?.user || "Movie Fan");
+      case "player_name": return escapeHtml(this._state.session?.player || "Theater");
+      case "playback_state": return escapeHtml(this._state.session?.state || "Playing");
+      case "static_text": return escapeHtml(component.text || "Custom text");
+      default: return escapeHtml(component.type);
+    }
+  }
+
+  _componentAssetUrl(component) {
+    const reference = String(component.asset_ref || "").trim();
+    if (!reference) return "";
+    const signed = this._state?.design_assets?.[reference];
+    if (signed) return signed;
+    const encoded = this._presentationLibrary?.profiles?.[
+      this._editorProfileId
+    ]?.assets?.[reference];
+    if (!encoded) return "";
+    const extension = reference.split(".").at(-1)?.toLowerCase();
+    const mediaType = {
+      png: "image/png",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      webp: "image/webp",
+    }[extension];
+    return mediaType ? `data:${mediaType};base64,${encoded}` : "";
+  }
+
+  _authoredCanvas() {
+    const components = this._state?.design?.components || [];
+    return `<section class="authored-presentation-canvas"
+      aria-label="Authored movie presentation">
+      <div class="authored-component-surface">
+      ${components.filter((component) => component.visible !== false)
+        .sort((a, b) => a.z_index - b.z_index)
+        .map((component) => {
+          const bounds = this._displayComponentBounds(component);
+          const constrained = Number(component.constraints?.max_lines) > 0
+            ? " constrained-lines" : "";
+          return `<div class="authored-component component-${escapeHtml(component.type)}${constrained}"
+            data-authored-component="${escapeHtml(component.id)}"
+            style="${this._editorComponentStyle(component, bounds)}">
+            <span class="authored-component-content">${this._componentContent(component)}</span>
+          </div>`;
+        }).join("")}
+      </div>
+    </section>`;
+  }
+
+  _displayComponentBounds(component) {
+    const orientation = normalizeOrientation(this._state?.presentation?.orientation);
+    const resolved = orientation === "auto"
+      ? (window.matchMedia("(orientation: portrait)").matches
+        ? "portrait" : "landscape")
+      : orientation;
+    return component.orientation_overrides?.[resolved]?.bounds
+      || component.bounds;
   }
 
   _resolvedFrameLayers() {
@@ -1103,7 +1172,7 @@ class MoviePosterPanel extends HTMLElement {
     const editorRevisions = editorLibraryItem?.published || [];
     const editorAssets = Object.keys(editorLibraryItem?.assets || {}).sort();
     const componentTypes = [
-      "poster", "backdrop", "logo", "mode_heading", "title", "subtitle",
+      "poster", "backdrop", "logo", "custom_image", "mode_heading", "title", "subtitle",
       "year", "content_rating", "runtime", "summary", "progress",
       "active_user", "player_name", "playback_state", "static_text",
     ];
@@ -1220,6 +1289,9 @@ class MoviePosterPanel extends HTMLElement {
           ${editorAssets.length ? editorAssets.map((path) => `
             <div class="editor-asset-row">
               <code title="${escapeHtml(path)}">${escapeHtml(path)}</code>
+              ${/\.(png|jpe?g|webp)$/i.test(path)
+                ? `<button type="button" data-editor-add-asset="${escapeHtml(path)}">Add to canvas</button>`
+                : ""}
               <button type="button" data-editor-delete-asset="${escapeHtml(path)}">Remove</button>
             </div>`).join("") : "<small>No custom assets in this Profile.</small>"}
         </fieldset>
@@ -1626,6 +1698,10 @@ class MoviePosterPanel extends HTMLElement {
       button.addEventListener("click", () =>
         this._deleteEditorAsset(button.dataset.editorDeleteAsset));
     });
+    this.shadowRoot.querySelectorAll("[data-editor-add-asset]").forEach((button) => {
+      button.addEventListener("click", () =>
+        this._addEditorAssetLayer(button.dataset.editorAddAsset));
+    });
   }
 
   async _editorAction(action) {
@@ -1828,6 +1904,7 @@ class MoviePosterPanel extends HTMLElement {
       backdrop: { x: 0, y: 0, width: 100, height: 100 },
       poster: { x: 8, y: 12, width: 40, height: 60 },
       logo: { x: 35, y: 4, width: 30, height: 10 },
+      custom_image: { x: 25, y: 20, width: 50, height: 50 },
       summary: { x: 52, y: 45, width: 40, height: 28 },
       progress: { x: 52, y: 82, width: 40, height: 3 },
     };
@@ -1852,8 +1929,28 @@ class MoviePosterPanel extends HTMLElement {
         preserve_aspect: ["poster", "logo"].includes(type),
       },
       text: type === "static_text" ? "Custom text" : "",
+      asset_ref: "",
       orientation_overrides: {},
     };
+  }
+
+  _addEditorAssetLayer(path) {
+    if (!path || !this._editorDocument) return;
+    this._recordEditorHistory();
+    const components = this._editorDocument.design.components;
+    let identifier = "custom-image";
+    let suffix = 2;
+    while (components.some((component) => component.id === identifier)) {
+      identifier = `custom-image-${suffix++}`;
+    }
+    const component = this._defaultEditorComponent("custom_image", identifier);
+    component.name = path.split("/").at(-1) || "Custom Image";
+    component.asset_ref = path;
+    components.push(component);
+    this._editorSelectedId = identifier;
+    this._editorSelectedIds = [identifier];
+    this._render();
+    this._scheduleEditorSave();
   }
 
   _editorWarnings() {
@@ -2083,8 +2180,12 @@ class MoviePosterPanel extends HTMLElement {
 
   _editorComponentStyle(component, bounds) {
     const style = component.style || {};
-    const textColor = normalizeColor(style.text_color, "#ffffff");
-    const backgroundColor = normalizeColor(style.background_color, "#10151b");
+    const semanticToken = String(component.style_ref || "text_body")
+      .replaceAll("_", "-");
+    const textColor = normalizeColor(style.text_color, "")
+      || `var(--mp-${semanticToken},#ffffff)`;
+    const backgroundColor = normalizeColor(style.background_color, "")
+      || "transparent";
     const fontSize = Math.min(20, Math.max(0.1, Number(style.font_size ?? 3)));
     const opacity = Math.min(1, Math.max(0, Number(style.opacity ?? 1)));
     const alignment = ["left", "center", "right"].includes(style.text_align)
@@ -2122,7 +2223,7 @@ class MoviePosterPanel extends HTMLElement {
       this._selectEditorComponent(identifier);
     }
     const component = this._selectedEditorComponent();
-    const canvas = this.shadowRoot.querySelector(".visual-editor-canvas");
+    const canvas = this.shadowRoot.querySelector(".editor-component-surface");
     if (!component || component.locked || !canvas) return;
     this._recordEditorHistory();
     element.classList.add("selected");
@@ -5917,6 +6018,61 @@ class MoviePosterPanel extends HTMLElement {
         height: 100%;
         object-fit: fill;
       }
+      .renderer-authored .frame-stage {
+        display: none !important;
+      }
+      .authored-presentation-canvas {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        overflow: hidden;
+      }
+      .authored-component-surface {
+        position: absolute;
+        inset:
+          var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+        overflow: hidden;
+      }
+      .authored-component {
+        position: absolute;
+        display: block;
+        min-width: 1px;
+        min-height: 1px;
+        overflow: hidden;
+        container-type: inline-size;
+      }
+      .authored-component-content {
+        display: grid;
+        width: 100%;
+        height: 100%;
+        place-items: center;
+        overflow: hidden;
+      }
+      .authored-component.constrained-lines .authored-component-content {
+        display: -webkit-box;
+        align-content: center;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: var(--editor-max-lines);
+      }
+      .authored-component-content img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .authored-component.component-backdrop .authored-component-content img {
+        object-fit: cover;
+      }
+      .authored-component.component-progress .authored-component-content {
+        display: block;
+        height: clamp(3px, 8%, 12px);
+        margin-top: 46%;
+        background: var(--mp-progress-track, #ffffff33);
+      }
+      .authored-component.component-progress .authored-component-content i {
+        display: block;
+        height: 100%;
+        background: var(--mp-progress-fill, #f6cf70);
+      }
       .visual-editor-canvas {
         position: relative;
         z-index: 2;
@@ -5972,7 +6128,7 @@ class MoviePosterPanel extends HTMLElement {
         overflow: hidden;
         border: 1px solid #ffffff55;
         border-radius: 0;
-        background: #10151bcc;
+        background: #10151b38;
         color: #fff;
         cursor: move;
         font: inherit;
@@ -5981,6 +6137,9 @@ class MoviePosterPanel extends HTMLElement {
       }
       .visual-editor-canvas > .design-frame-layer {
         border: 0;
+      }
+      .visual-editor-canvas .editor-component-surface {
+        z-index: 1;
       }
       .editor-component.selected {
         border-color: #f6cf70;

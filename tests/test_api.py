@@ -3,9 +3,12 @@
 from types import SimpleNamespace
 
 from custom_components.movie_poster.api import (
+    _async_sync_library_assignment,
     _serialize_state,
+    _signed_design_assets,
     _updated_presentation_options,
 )
+from custom_components.movie_poster.const import CONF_DISPLAY_PROFILES
 from custom_components.movie_poster.models import (
     DisplayMode,
     MediaPresentation,
@@ -13,6 +16,86 @@ from custom_components.movie_poster.models import (
     SessionCandidate,
 )
 from custom_components.movie_poster.state_machine import ModeSnapshot, TransitionReason
+
+
+def test_design_assets_receive_scoped_signed_urls() -> None:
+    """Only assets referenced by the active design receive browser URLs."""
+    urls = _signed_design_assets(
+        SimpleNamespace(data={}),
+        "entry-one",
+        "cinema",
+        {
+            "components": [
+                {"asset_ref": "assets/user/curtain.png"},
+                {"asset_ref": ""},
+                {"asset_ref": "assets/user/curtain.png"},
+            ],
+        },
+        connection_refresh_token_id="refresh-1",  # noqa: S106
+    )
+
+    assert set(urls) == {"assets/user/curtain.png"}
+    assert urls["assets/user/curtain.png"].startswith(
+        "/api/movie_poster/presentation_asset/"
+        "entry-one/cinema/assets/user/curtain.png?authSig="
+    )
+
+
+async def test_published_library_profiles_sync_to_live_choices() -> None:
+    """Publishing and deleting a library Profile updates live assignments."""
+    profile = {"version": 2, "name": "Cinema"}
+    initial_revision = 4
+
+    class FakeLibrary:
+        async def async_active_profile(self, identifier: str) -> dict:
+            assert identifier == "cinema"
+            return profile
+
+    updates = []
+    hass = SimpleNamespace(
+        config_entries=SimpleNamespace(
+            async_update_entry=lambda _entry, **changes: updates.append(changes),
+        ),
+    )
+    entry = SimpleNamespace(
+        options={
+            "library": "Movies",
+            CONF_DISPLAY_PROFILES: {"existing": {"name": "Existing"}},
+        },
+    )
+    listener_calls = []
+    coordinator = SimpleNamespace(
+        presentation_revision=initial_revision,
+        async_update_listeners=lambda: listener_calls.append(True),
+    )
+
+    await _async_sync_library_assignment(
+        hass,
+        entry,
+        coordinator,
+        FakeLibrary(),
+        "publish",
+        {"profile_id": "cinema"},
+    )
+
+    published_options = updates[-1]["options"]
+    assert published_options["library"] == "Movies"
+    assert published_options[CONF_DISPLAY_PROFILES]["existing"]["name"] == "Existing"
+    assert published_options[CONF_DISPLAY_PROFILES]["cinema"] == profile
+    assert coordinator.presentation_revision == initial_revision + 1
+    assert listener_calls == [True]
+
+    entry.options = published_options
+    await _async_sync_library_assignment(
+        hass,
+        entry,
+        coordinator,
+        FakeLibrary(),
+        "delete",
+        {"profile_id": "cinema"},
+    )
+    assert "cinema" not in updates[-1]["options"][CONF_DISPLAY_PROFILES]
+    assert coordinator.presentation_revision == initial_revision + 2
 
 
 def test_state_contract_contains_signed_artwork_and_session() -> None:
