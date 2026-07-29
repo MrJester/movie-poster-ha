@@ -1,9 +1,12 @@
 # Presentation System and Visual Editor Plan
 
 Status: Product specification
-Implementation status: Layered schema, shared custom-Profile renderer,
-Presentation Library publication, packaged image assets, and precision editor
-controls implemented through 0.1.0-beta.46.
+Implementation status: Layered schema, shared renderer for every built-in and
+custom Profile, semantic Theme mappings, high-resolution portrait/landscape
+Frame assets, Presentation Library publication, packaged assets, and precision
+editor controls implemented through 0.1.0-beta.47. Automated acceptance covers
+every built-in Frame/Theme/Layout combination in both browser engines. Final
+visual acceptance on the deployed Home Assistant build remains a release gate.
 Scope: Presentation design only; Plex and playback behavior are explicitly out
 of scope.
 

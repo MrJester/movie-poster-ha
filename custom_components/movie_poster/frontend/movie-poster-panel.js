@@ -227,6 +227,10 @@ class MoviePosterPanel extends HTMLElement {
     this._editorSnapEnabled = true;
     this._editorGridSize = 1;
     this._editorDevicePreset = "responsive";
+    this._editorGuidesEnabled = true;
+    this._editorZoom = 1;
+    this._editorPanX = 0;
+    this._editorPanY = 0;
     this._editorKeyHandler = (event) => this._handleEditorKeydown(event);
     if (this._studio) this._state = studioState();
   }
@@ -554,10 +558,12 @@ class MoviePosterPanel extends HTMLElement {
     const orientation = normalizeOrientation(presentation.orientation);
     const layout = normalizeLayout(presentation.layout);
     const frame = normalizeFrame(presentation.frame_theme);
-    const referenceRenderer = frame === "marquee"
-      && theme === "classic"
-      && layout === "cinematic";
-    const rendererClass = referenceRenderer ? " renderer-reference" : "";
+    // Every built-in combination now shares the declarative containment and
+    // semantic-token renderer. Frame, Theme, and Layout remain independent;
+    // the legacy selector name is retained as an internal CSS hook while
+    // existing installations migrate.
+    const declarativeRenderer = true;
+    const rendererClass = declarativeRenderer ? " renderer-reference" : "";
     const authoredRenderer = state.profile_id !== "default"
       && Number(state.design?.schema_version) >= 2;
     const authoredClass = authoredRenderer ? " renderer-authored" : "";
@@ -1019,6 +1025,9 @@ class MoviePosterPanel extends HTMLElement {
       ? ` style="--editor-preview-ratio:${ratio};--editor-preview-aspect:${ratio} / 1"`
       : "";
     const editorStyle = `${deviceStyle ? deviceStyle.slice(8, -1) : ""};
+      --editor-zoom:${this._editorZoom};
+      --editor-pan-x:${this._editorPanX}%;
+      --editor-pan-y:${this._editorPanY}%;
       --authored-motion-duration:${4 / motionSpeed}s;
       --authored-motion-intensity:${motionIntensity};
       --authored-motion-shift:${motionIntensity * 2.5}%;
@@ -1026,8 +1035,15 @@ class MoviePosterPanel extends HTMLElement {
       --authored-motion-scale:${1 + motionIntensity * 0.025};
       --authored-motion-brightness:${1 + motionIntensity * 0.35};
       --authored-motion-saturation:${1 + motionIntensity * 0.2}`;
-    return `<section class="visual-editor-canvas authored-motion-${motionPreset}${this._editorSnapEnabled ? " snap-enabled" : ""}${deviceClass}"
+    return `<section class="visual-editor-canvas authored-motion-${motionPreset}${this._editorSnapEnabled ? " snap-enabled" : ""}${this._editorGuidesEnabled ? " guides-enabled" : ""}${deviceClass}"
       aria-label="Presentation canvas" style="${editorStyle}">
+      <div class="editor-design-guides" aria-hidden="true">
+        <i class="editor-ruler editor-ruler-horizontal"></i>
+        <i class="editor-ruler editor-ruler-vertical"></i>
+        <i class="editor-guide editor-guide-safe"></i>
+        <i class="editor-guide editor-guide-horizontal"></i>
+        <i class="editor-guide editor-guide-vertical"></i>
+      </div>
       ${this._frameCompositeMarkup("editor")}
       <div class="authored-component-surface editor-component-surface">
       ${components.filter((component) => component.visible !== false)
@@ -1320,7 +1336,20 @@ class MoviePosterPanel extends HTMLElement {
             ${this._editorRedoStack.length ? "" : "disabled"}>Redo</button>
           <label class="studio-check"><input type="checkbox" data-editor-snap
             ${this._editorSnapEnabled ? "checked" : ""}>Snap to 1% grid</label>
+          <label class="studio-check"><input type="checkbox" data-editor-guides
+            ${this._editorGuidesEnabled ? "checked" : ""}>Guides & rulers</label>
         </div>
+        <fieldset class="editor-viewport studio-wide">
+          <legend>Canvas view</legend>
+          <label>Zoom<input type="range" min=".5" max="1.5" step=".05"
+            data-editor-viewport="zoom" value="${this._editorZoom}"></label>
+          <output>${Math.round(this._editorZoom * 100)}%</output>
+          <label>Pan X<input type="range" min="-50" max="50" step="1"
+            data-editor-viewport="pan-x" value="${this._editorPanX}"></label>
+          <label>Pan Y<input type="range" min="-50" max="50" step="1"
+            data-editor-viewport="pan-y" value="${this._editorPanY}"></label>
+          <button type="button" data-editor-action="reset-view">Fit canvas</button>
+        </fieldset>
         ${editorRevisions.length ? `
           <label class="studio-wide">Published revision
             <span class="studio-inline">
@@ -1547,6 +1576,9 @@ class MoviePosterPanel extends HTMLElement {
             <label>Glow<input type="number" min="0" max="1" step=".05"
               data-editor-style="glow"
               value="${Number(selectedComponent.style?.glow ?? 0)}"></label>
+            <label>Rotation<input type="number" min="-180" max="180" step="1"
+              data-editor-style="rotation"
+              value="${Number(selectedComponent.style?.rotation ?? 0)}"></label>
             <label>Maximum lines<input type="number" min="0" max="20" step="1"
               data-editor-max-lines
               value="${Number(selectedComponent.constraints?.max_lines ?? 0)}"></label>
@@ -1604,12 +1636,12 @@ class MoviePosterPanel extends HTMLElement {
       </select></label>
       <label>Layout<select data-studio="layout">
         ${["cinematic", "poster", "split"].map((value) =>
-          `<option value="${value}" ${presentation.layout === value ? "selected" : ""}>${value}</option>`
+          `<option value="${value}" ${presentation.layout === value ? "selected" : ""}>${value.replace(/\b\w/g, (letter) => letter.toUpperCase())}</option>`
         ).join("")}
       </select></label>
       <label>Orientation<select data-studio="orientation">
         ${["auto", "landscape", "portrait"].map((value) =>
-          `<option value="${value}" ${presentation.orientation === value ? "selected" : ""}>${value}</option>`
+          `<option value="${value}" ${presentation.orientation === value ? "selected" : ""}>${value.replace(/\b\w/g, (letter) => letter.toUpperCase())}</option>`
         ).join("")}
       </select></label>
       <label>Heading font<select data-studio="heading_font">
@@ -1763,6 +1795,34 @@ class MoviePosterPanel extends HTMLElement {
     this.shadowRoot.querySelector("[data-editor-snap]")
       ?.addEventListener("change", (event) => {
         this._editorSnapEnabled = event.target.checked;
+        this._render();
+      });
+    this.shadowRoot.querySelector("[data-editor-guides]")
+      ?.addEventListener("change", (event) => {
+        this._editorGuidesEnabled = event.target.checked;
+        this._render();
+      });
+    this.shadowRoot.querySelectorAll("[data-editor-viewport]")
+      .forEach((control) => {
+        control.addEventListener("input", () => {
+          const field = control.dataset.editorViewport;
+          if (field === "zoom") {
+            this._editorZoom = Math.min(
+              1.5, Math.max(0.5, Number(control.value)),
+            );
+          }
+          if (field === "pan-x") {
+            this._editorPanX = Math.min(
+              50, Math.max(-50, Number(control.value)),
+            );
+          }
+          if (field === "pan-y") {
+            this._editorPanY = Math.min(
+              50, Math.max(-50, Number(control.value)),
+            );
+          }
+          this._render();
+        });
       });
     this.shadowRoot.querySelectorAll("[data-editor-motion]").forEach((control) => {
       control.addEventListener("change", () => {
@@ -1986,6 +2046,13 @@ class MoviePosterPanel extends HTMLElement {
 
   async _editorAction(action) {
     const status = this.shadowRoot.querySelector(".studio-status");
+    if (action === "reset-view") {
+      this._editorZoom = 1;
+      this._editorPanX = 0;
+      this._editorPanY = 0;
+      this._render();
+      return;
+    }
     if (action === "new-preset" || action === "new-blank") {
       const name = window.prompt(action === "new-blank"
         ? "Name this blank presentation" : "Name this customized presentation");
@@ -2483,6 +2550,9 @@ class MoviePosterPanel extends HTMLElement {
     const alignment = ["left", "center", "right"].includes(style.text_align)
       ? style.text_align : "center";
     const glow = Math.min(1, Math.max(0, Number(style.glow ?? 0)));
+    const rotation = Math.min(
+      180, Math.max(-180, Number(style.rotation ?? 0)),
+    );
     const imageFit = ["contain", "cover", "fill"].includes(style.image_fit)
       ? style.image_fit
       : component.type === "backdrop" ? "cover" : "contain";
@@ -2511,6 +2581,7 @@ class MoviePosterPanel extends HTMLElement {
       `font-size:clamp(${minFontSize}cqw,${fontSize}cqw,20cqw)`,
       `opacity:${opacity}`, `text-align:${alignment}`,
       `--component-image-fit:${imageFit}`,
+      `--component-rotation:${rotation}deg`,
       `mix-blend-mode:${blend}`, `--editor-max-lines:${maxLines}`,
       `--component-safe-clip:${clipInset}`,
       `text-shadow:0 0 ${glow * 24}px ${textColor}`,
@@ -5737,9 +5808,8 @@ class MoviePosterPanel extends HTMLElement {
           font-size: .58rem;
         }
       }
-      /* Declarative reference renderer: the complete authored canvas is
-         contained and scaled as one unit. Other combinations remain on the
-         compatibility renderer until converted and visually approved. */
+      /* Declarative built-in renderer: every Frame/Theme/Layout combination
+         uses the same contained canvas and semantic-token contract. */
       .renderer-reference {
         color: var(--mp-text-body, #e8dcc2);
         background:
@@ -6464,6 +6534,8 @@ class MoviePosterPanel extends HTMLElement {
         height: 100%;
         place-items: center;
         overflow: hidden;
+        transform: rotate(var(--component-rotation, 0deg));
+        transform-origin: center;
       }
       .authored-component.constrained-lines .authored-component-content {
         display: -webkit-box;
@@ -6563,6 +6635,71 @@ class MoviePosterPanel extends HTMLElement {
           linear-gradient(45deg, #151515 25%, #090909 25%) 10px -10px/20px 20px;
         box-shadow: 0 24px 70px #000c;
         touch-action: none;
+        transform:
+          translate(var(--editor-pan-x, 0%), var(--editor-pan-y, 0%))
+          scale(var(--editor-zoom, 1));
+        transform-origin: center;
+      }
+      .editor-design-guides {
+        display: none;
+        position: absolute;
+        z-index: 1050;
+        inset: 0;
+        pointer-events: none;
+      }
+      .visual-editor-canvas.guides-enabled .editor-design-guides {
+        display: block;
+      }
+      .editor-guide,
+      .editor-ruler {
+        position: absolute;
+        pointer-events: none;
+      }
+      .editor-guide-safe {
+        inset:
+          var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+        border: 1px dashed #45e6ffbb;
+        box-shadow: 0 0 0 1px #0008;
+      }
+      .editor-guide-horizontal {
+        top: 50%;
+        right: 0;
+        left: 0;
+        border-top: 1px dashed #f6cf7088;
+      }
+      .editor-guide-vertical {
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        border-left: 1px dashed #f6cf7088;
+      }
+      .editor-ruler-horizontal {
+        top: 0;
+        right: 0;
+        left: 0;
+        height: 9px;
+        background:
+          repeating-linear-gradient(
+            90deg,
+            #ffffffa8 0 1px,
+            transparent 1px 5%,
+            #ffffff55 5% calc(5% + 1px),
+            transparent calc(5% + 1px) 10%
+          );
+      }
+      .editor-ruler-vertical {
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 9px;
+        background:
+          repeating-linear-gradient(
+            180deg,
+            #ffffffa8 0 1px,
+            transparent 1px 5%,
+            #ffffff55 5% calc(5% + 1px),
+            transparent calc(5% + 1px) 10%
+          );
       }
       .visual-editor-canvas.snap-enabled::before {
         content: "";
@@ -6662,6 +6799,8 @@ class MoviePosterPanel extends HTMLElement {
         height: 100%;
         place-items: center;
         overflow: hidden;
+        transform: rotate(var(--component-rotation, 0deg));
+        transform-origin: center;
       }
       .editor-component.constrained-lines .editor-component-content {
         display: -webkit-box;

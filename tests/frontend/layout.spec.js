@@ -140,6 +140,19 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
       session: { player: "Home Theater", user: "Movie Fan", state: "playing" },
     };
     poster._render();
+    await Promise.all(
+      [...poster.shadowRoot.querySelectorAll("img")].map(async (image) => {
+        if (!image.complete) {
+          await new Promise((resolve) => {
+            image.addEventListener("load", resolve, { once: true });
+            image.addEventListener("error", resolve, { once: true });
+          });
+        }
+        await image.decode?.().catch(() => {});
+      }),
+    );
+    const renderedFrame = poster.shadowRoot.querySelector(".marquee-frame");
+    if (renderedFrame) poster._layoutMarqueeBulbs(renderedFrame);
     await new Promise((resolve) => requestAnimationFrame(() =>
       requestAnimationFrame(() => requestAnimationFrame(resolve))));
 
@@ -503,7 +516,7 @@ test("portrait metadata uses compact and expanded density states", async ({ page
   expect(expanded.detailsShare).toBeGreaterThan(compact.detailsShare);
 });
 
-test("reference renderer contains the complete Marquee canvas", async ({ page }) => {
+test("declarative renderer contains every built-in frame canvas", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await openHarness(page);
   expect(await renderPoster(
@@ -526,13 +539,19 @@ test("reference renderer contains the complete Marquee canvas", async ({ page })
   expect(result.contained).toBe(true);
   expect(result.ratio).toBeCloseTo(4 / 3, 2);
 
-  expect(await renderPoster(
-    page, "cyber_noir", "classic", "cinematic", "landscape",
-  )).toEqual([]);
-  expect(await page.evaluate(() => document
-    .querySelector("movie-poster-panel").shadowRoot
-    .querySelector(".theater").classList.contains("renderer-reference")))
-    .toBe(false);
+  for (const frame of FRAMES) {
+    for (const theme of THEMES) {
+      for (const layout of LAYOUTS) {
+        expect(await renderPoster(
+          page, frame, theme, layout, "landscape",
+        )).toEqual([]);
+        expect(await page.evaluate(() => document
+          .querySelector("movie-poster-panel").shadowRoot
+          .querySelector(".theater").classList.contains("renderer-reference")))
+          .toBe(true);
+      }
+    }
+  }
 });
 
 test("Marquee keeps registered glow and individual chasing bulbs", async ({ page }) => {
@@ -1377,6 +1396,9 @@ test("component settings use a contextual progressive-disclosure inspector", asy
     const titleHasFont = Boolean(
       root.querySelector('[data-editor-style="font_family"]'),
     );
+    const titleHasRotation = Boolean(
+      root.querySelector('[data-editor-style="rotation"]'),
+    );
     const titleHasNoImageFit = !root.querySelector(
       '[data-editor-style="image_fit"]',
     );
@@ -1396,6 +1418,7 @@ test("component settings use a contextual progressive-disclosure inspector", asy
       toolbarInsideSurface,
       closedInitially,
       titleHasFont,
+      titleHasRotation,
       titleHasNoImageFit,
       advancedClosed,
       posterHasImageFit,
@@ -1407,11 +1430,75 @@ test("component settings use a contextual progressive-disclosure inspector", asy
     toolbarInsideSurface: true,
     closedInitially: true,
     titleHasFont: true,
+    titleHasRotation: true,
     titleHasNoImageFit: true,
     advancedClosed: true,
     posterHasImageFit: true,
     posterHasNoFont: true,
     escapeClosed: true,
+  });
+});
+
+test("editor canvas provides guides, rulers, zoom, pan, and fit reset", async ({
+  page,
+}) => {
+  await openHarness(page, "?studio=1");
+  const result = await page.evaluate(async () => {
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    panel._editorProfileId = "viewport-tools";
+    panel._editorDocument = {
+      version: 2,
+      name: "Viewport tools",
+      description: "",
+      author: "",
+      presentation: { ...panel._state.presentation },
+      design: {
+        schema_version: 2,
+        resources: {
+          frame: { id: "builtin.frame.marquee", version: 1 },
+          theme: { id: "builtin.theme.classic", version: 1 },
+          layout: { id: "builtin.layout.blank", version: 1 },
+        },
+        viewport: { fit: "contain", link_orientations: true },
+        components: [panel._defaultEditorComponent("poster", "poster")],
+        motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+      },
+    };
+    panel._render();
+    const root = panel.shadowRoot;
+    root.querySelector('[data-editor-viewport="zoom"]').value = "1.25";
+    root.querySelector('[data-editor-viewport="zoom"]').dispatchEvent(
+      new Event("input", { bubbles: true }),
+    );
+    panel._editorPanX = 12;
+    panel._editorPanY = -8;
+    panel._render();
+    const transformed = getComputedStyle(
+      panel.shadowRoot.querySelector(".visual-editor-canvas"),
+    ).transform !== "none";
+    const guideCount = panel.shadowRoot.querySelectorAll(
+      ".editor-design-guides .editor-guide, .editor-design-guides .editor-ruler",
+    ).length;
+    await panel._editorAction("reset-view");
+    return {
+      transformed,
+      guideCount,
+      guidesEnabled: panel.shadowRoot.querySelector(
+        ".visual-editor-canvas",
+      ).classList.contains("guides-enabled"),
+      zoom: panel._editorZoom,
+      panX: panel._editorPanX,
+      panY: panel._editorPanY,
+    };
+  });
+  expect(result).toEqual({
+    transformed: true,
+    guideCount: 5,
+    guidesEnabled: true,
+    zoom: 1,
+    panX: 0,
+    panY: 0,
   });
 });
 
@@ -1888,7 +1975,9 @@ test("long movie titles fit two lines before truncating at a safe minimum", asyn
     };
   });
   expect(fit.lines).toBeLessThanOrEqual(2.05);
-  expect(fit.fontSize).toBeGreaterThanOrEqual(fit.minimum);
+  // Browser engines round computed font sizes to different sub-pixel
+  // precision. A hundredth of a pixel still enforces the authored floor.
+  expect(fit.fontSize + 0.01).toBeGreaterThanOrEqual(fit.minimum);
   expect(fit.truncated).toBe(true);
 });
 

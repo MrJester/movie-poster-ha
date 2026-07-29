@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.0-beta.47
+
+- Move every built-in Frame, Theme, and Layout combination onto the shared
+  declarative containment and semantic-token renderer instead of limiting the
+  new renderer to Marquee, Classic, and Cinematic.
+- Complete the precision canvas view with safe-area and center guides, rulers,
+  50–150% zoom, two-axis pan, and one-click Fit Canvas reset.
+- Add validated per-component rotation that renders consistently in editor
+  previews and published Profiles.
+- Capitalize Layout and Orientation labels throughout Display Studio.
+- Make browser acceptance measurements wait for frame artwork decode and a
+  final deterministic layout pass, eliminating the delayed-image race that
+  caused the previous GitHub Actions failure.
+
 ## 0.1.0-beta.46
 
 - Upgrade presentation documents to a backward-compatible layered schema with

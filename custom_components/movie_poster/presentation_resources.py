@@ -140,6 +140,10 @@ COMPONENT_STYLE_SCHEMA = vol.Schema(
             vol.Coerce(float),
             vol.Range(min=0, max=1),
         ),
+        vol.Optional("rotation"): vol.All(
+            vol.Coerce(float),
+            vol.Range(min=-180, max=180),
+        ),
     },
     extra=vol.PREVENT_EXTRA,
 )

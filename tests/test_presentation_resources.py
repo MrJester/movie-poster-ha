@@ -109,6 +109,22 @@ def test_component_font_family_is_validated() -> None:
         DESIGN_SCHEMA(design)
 
 
+def test_component_rotation_is_bounded_and_declarative() -> None:
+    """Authored rotation accepts a safe angle and rejects unbounded values."""
+    design = design_from_legacy_presentation({})
+    poster = next(
+        component
+        for component in design["components"]
+        if component["type"] == "poster"
+    )
+    poster["style"]["rotation"] = -12.5
+    assert DESIGN_SCHEMA(design)["components"]
+
+    poster["style"]["rotation"] = 181
+    with pytest.raises(vol.Invalid):
+        DESIGN_SCHEMA(design)
+
+
 def test_schema_one_designs_migrate_to_locked_layer_capable_schema() -> None:
     """Stored schema-one component documents gain safe layer defaults."""
     current = design_from_legacy_presentation({})
