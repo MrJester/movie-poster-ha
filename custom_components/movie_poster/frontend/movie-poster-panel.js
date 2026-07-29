@@ -1035,7 +1035,8 @@ class MoviePosterPanel extends HTMLElement {
       --authored-motion-scale:${1 + motionIntensity * 0.025};
       --authored-motion-brightness:${1 + motionIntensity * 0.35};
       --authored-motion-saturation:${1 + motionIntensity * 0.2}`;
-    return `<section class="visual-editor-canvas authored-motion-${motionPreset}${this._editorSnapEnabled ? " snap-enabled" : ""}${this._editorGuidesEnabled ? " guides-enabled" : ""}${deviceClass}"
+    return `<div class="visual-editor-viewport">
+      <section class="visual-editor-canvas authored-motion-${motionPreset}${this._editorSnapEnabled ? " snap-enabled" : ""}${this._editorGuidesEnabled ? " guides-enabled" : ""}${deviceClass}"
       aria-label="Presentation canvas" style="${editorStyle}">
       <div class="editor-design-guides" aria-hidden="true">
         <i class="editor-ruler editor-ruler-horizontal"></i>
@@ -1069,7 +1070,8 @@ class MoviePosterPanel extends HTMLElement {
         }).join("")}
         ${this._editorContextToolbar()}
       </div>
-    </section>`;
+      </section>
+    </div>`;
   }
 
   _editorContextToolbar() {
@@ -6639,6 +6641,17 @@ class MoviePosterPanel extends HTMLElement {
           translate(var(--editor-pan-x, 0%), var(--editor-pan-y, 0%))
           scale(var(--editor-zoom, 1));
         transform-origin: center;
+      }
+      .visual-editor-viewport {
+        position: absolute;
+        z-index: 2;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        box-sizing: border-box;
+        padding: clamp(12px, 1.5vw, 24px);
+        contain: layout paint;
       }
       .editor-design-guides {
         display: none;

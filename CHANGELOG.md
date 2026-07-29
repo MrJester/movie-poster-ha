@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-beta.48
+
+- Keep the Customize Preset editor inside a fixed, contained viewport so
+  rerenders and inspector changes cannot move the canvas around the display.
+- Replace repeated high-resolution frame decoding in browser acceptance tests
+  with direct geometry stabilization, making CI faster and deterministic.
+- Give the exhaustive declarative-renderer matrix an explicit acceptance-test
+  timeout for slower GitHub runners.
+
 ## 0.1.0-beta.47
 
 - Move every built-in Frame, Theme, and Layout combination onto the shared

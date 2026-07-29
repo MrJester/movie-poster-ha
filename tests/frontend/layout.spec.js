@@ -140,21 +140,37 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
       session: { player: "Home Theater", user: "Movie Fan", state: "playing" },
     };
     poster._render();
-    await Promise.all(
-      [...poster.shadowRoot.querySelectorAll("img")].map(async (image) => {
-        if (!image.complete) {
-          await new Promise((resolve) => {
-            image.addEventListener("load", resolve, { once: true });
-            image.addEventListener("error", resolve, { once: true });
-          });
-        }
-        await image.decode?.().catch(() => {});
-      }),
-    );
-    const renderedFrame = poster.shadowRoot.querySelector(".marquee-frame");
-    if (renderedFrame) poster._layoutMarqueeBulbs(renderedFrame);
-    await new Promise((resolve) => requestAnimationFrame(() =>
-      requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await document.fonts?.ready;
+    const posterImage = poster.shadowRoot.querySelector(".poster");
+    if (posterImage && !posterImage.complete) {
+      await Promise.race([
+        posterImage.decode?.().catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 1_000)),
+      ]);
+    }
+    // Frame artwork is absolutely positioned and cannot affect geometry.
+    // Waiting for every high-resolution asset to decode made CI roughly five
+    // times slower and still raced the final responsive layout. Instead wait
+    // until the measured layout itself is stable for two animation frames.
+    let priorGeometry = "";
+    let stableFrames = 0;
+    for (let attempt = 0; attempt < 20 && stableFrames < 2; attempt += 1) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const renderedFrame = poster.shadowRoot.querySelector(".marquee-frame");
+      if (renderedFrame) poster._layoutMarqueeBulbs(renderedFrame);
+      const geometry = [
+        ".marquee-frame", ".frame-stage", ".details", ".meta",
+      ].map((selector) => {
+        const box = poster.shadowRoot.querySelector(selector)
+          ?.getBoundingClientRect();
+        return box
+          ? [box.x, box.y, box.width, box.height]
+            .map((value) => Math.round(value * 10) / 10).join(",")
+          : "missing";
+      }).join("|");
+      stableFrames = geometry === priorGeometry ? stableFrames + 1 : 0;
+      priorGeometry = geometry;
+    }
 
     const root = poster.shadowRoot;
     const element = (selector) => root.querySelector(selector);
@@ -517,6 +533,7 @@ test("portrait metadata uses compact and expanded density states", async ({ page
 });
 
 test("declarative renderer contains every built-in frame canvas", async ({ page }) => {
+  test.setTimeout(120_000);
   await page.setViewportSize({ width: 1280, height: 720 });
   await openHarness(page);
   expect(await renderPoster(
@@ -1467,6 +1484,9 @@ test("editor canvas provides guides, rulers, zoom, pan, and fit reset", async ({
     };
     panel._render();
     const root = panel.shadowRoot;
+    const viewportBefore = root.querySelector(
+      ".visual-editor-viewport",
+    ).getBoundingClientRect();
     root.querySelector('[data-editor-viewport="zoom"]').value = "1.25";
     root.querySelector('[data-editor-viewport="zoom"]').dispatchEvent(
       new Event("input", { bubbles: true }),
@@ -1474,6 +1494,9 @@ test("editor canvas provides guides, rulers, zoom, pan, and fit reset", async ({
     panel._editorPanX = 12;
     panel._editorPanY = -8;
     panel._render();
+    const viewportAfter = panel.shadowRoot.querySelector(
+      ".visual-editor-viewport",
+    ).getBoundingClientRect();
     const transformed = getComputedStyle(
       panel.shadowRoot.querySelector(".visual-editor-canvas"),
     ).transform !== "none";
@@ -1483,6 +1506,9 @@ test("editor canvas provides guides, rulers, zoom, pan, and fit reset", async ({
     await panel._editorAction("reset-view");
     return {
       transformed,
+      viewportStable: ["x", "y", "width", "height"].every(
+        (key) => Math.abs(viewportBefore[key] - viewportAfter[key]) < 0.5,
+      ),
       guideCount,
       guidesEnabled: panel.shadowRoot.querySelector(
         ".visual-editor-canvas",
@@ -1494,6 +1520,7 @@ test("editor canvas provides guides, rulers, zoom, pan, and fit reset", async ({
   });
   expect(result).toEqual({
     transformed: true,
+    viewportStable: true,
     guideCount: 5,
     guidesEnabled: true,
     zoom: 1,
