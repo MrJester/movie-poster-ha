@@ -16,15 +16,15 @@ case "$target" in
 esac
 
 run_backend() {
-  if command -v python3 >/dev/null 2>&1 \
+  if [ -x ".venv/bin/python" ] \
+    && .venv/bin/python -c "import pytest, ruff" >/dev/null 2>&1; then
+    python_cmd=".venv/bin/python"
+  elif command -v python3 >/dev/null 2>&1 \
     && python3 -c "import pytest, ruff" >/dev/null 2>&1; then
     python_cmd="python3"
   elif command -v python >/dev/null 2>&1 \
     && python -c "import pytest, ruff" >/dev/null 2>&1; then
     python_cmd="python"
-  elif [ -x ".venv/bin/python" ] \
-    && .venv/bin/python -c "import pytest, ruff" >/dev/null 2>&1; then
-    python_cmd=".venv/bin/python"
   else
     echo "The Python test environment is missing; install with pip install -e '.[test]'." >&2
     exit 1
@@ -48,6 +48,20 @@ run_frontend() {
     node -e 'process.stdout.write(require("playwright").webkit.executablePath())'
   )"
 
+  if [ ! -x "$chromium_path" ]; then
+    for candidate in \
+      "$(command -v google-chrome 2>/dev/null || true)" \
+      "$(command -v chromium 2>/dev/null || true)" \
+      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+      "/Applications/Chromium.app/Contents/MacOS/Chromium"
+    do
+      if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+        chromium_path="$candidate"
+        break
+      fi
+    done
+  fi
+
   if [ ! -x "$chromium_path" ] || [ ! -x "$webkit_path" ]; then
     echo "Playwright browsers are missing; run: npx playwright install chromium webkit" >&2
     exit 1
@@ -55,6 +69,28 @@ run_frontend() {
 
   export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH="${PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH:-$chromium_path}"
   export PLAYWRIGHT_WEBKIT_EXECUTABLE_PATH="${PLAYWRIGHT_WEBKIT_EXECUTABLE_PATH:-$webkit_path}"
+
+  echo "==> Verifying Chromium and WebKit can launch"
+  node <<'EOF'
+const { chromium, webkit } = require("playwright");
+(async () => {
+  for (const [browserType, executablePath] of [
+    [chromium, process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH],
+    [webkit, process.env.PLAYWRIGHT_WEBKIT_EXECUTABLE_PATH],
+  ]) {
+    let browser;
+    try {
+      browser = await browserType.launch({ executablePath });
+    } catch (error) {
+      console.error(`${browserType.name()} failed to launch: ${error.message}`);
+      process.exitCode = 1;
+      return;
+    } finally {
+      await browser?.close();
+    }
+  }
+})();
+EOF
 
   echo "==> Running the complete Chromium and WebKit renderer suite"
   npm run test:frontend

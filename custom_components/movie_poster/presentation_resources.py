@@ -119,6 +119,17 @@ COMPONENT_STYLE_SCHEMA = vol.Schema(
             vol.Coerce(float),
             vol.Range(min=0.1, max=20),
         ),
+        vol.Optional("font_family"): vol.In(
+            (
+                "theme_heading",
+                "theme_body",
+                "system",
+                "cinematic",
+                "serif",
+                "modern",
+                "condensed",
+            )
+        ),
         vol.Optional("opacity"): vol.All(
             vol.Coerce(float),
             vol.Range(min=0, max=1),

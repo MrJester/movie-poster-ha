@@ -59,6 +59,19 @@ const FRAME_LABELS = {
 const normalizeFrame = (value) => FRAMES.has(value) ? value : "marquee";
 const FONTS = new Set(["system", "cinematic", "serif", "modern", "condensed"]);
 const normalizeFont = (value) => FONTS.has(value) ? value : "system";
+const COMPONENT_FONTS = new Set([
+  "theme_heading", "theme_body", "system", "cinematic", "serif", "modern",
+  "condensed",
+]);
+const componentFontFamily = (value) => ({
+  theme_heading: "var(--heading-font, Impact, sans-serif)",
+  theme_body: "var(--body-font, 'Trebuchet MS', Arial, sans-serif)",
+  system: "system-ui, -apple-system, 'Segoe UI', sans-serif",
+  cinematic: "Impact, 'Arial Narrow', sans-serif",
+  serif: "Georgia, 'Times New Roman', serif",
+  modern: 'Avenir, Montserrat, Arial, sans-serif',
+  condensed: "'Arial Narrow', Impact, sans-serif",
+})[COMPONENT_FONTS.has(value) ? value : "theme_body"];
 const normalizeColor = (value, fallback) => /^#[0-9a-f]{6}$/i.test(value ?? "")
   ? value : fallback;
 const semanticColorStyle = (colors) => Object.entries(SEMANTIC_COLOR_PROPERTIES)
@@ -206,6 +219,7 @@ class MoviePosterPanel extends HTMLElement {
     this._editorDocument = null;
     this._editorSelectedId = null;
     this._editorSelectedIds = [];
+    this._editorSettingsOpenId = null;
     this._editorPreviewState = "coming_soon";
     this._editorSaveTimer = null;
     this._editorUndoStack = [];
@@ -1037,8 +1051,31 @@ class MoviePosterPanel extends HTMLElement {
             <span class="editor-resize-handle" data-editor-resize aria-hidden="true"></span>
           </button>`;
         }).join("")}
+        ${this._editorContextToolbar()}
       </div>
     </section>`;
+  }
+
+  _editorContextToolbar() {
+    const component = this._selectedEditorComponent();
+    if (!component || this._editorSelectedIds.length !== 1) return "";
+    const bounds = this._editorBounds(component);
+    const left = Math.min(98, Math.max(2, bounds.x + bounds.width));
+    const top = Math.min(98, Math.max(2, bounds.y));
+    return `<div class="editor-context-toolbar"
+      style="left:${left}%;top:${top}%"
+      aria-label="${escapeHtml(component.name)} actions">
+      <button type="button" data-editor-context="settings"
+        aria-expanded="${this._editorSettingsOpenId === component.id}"
+        title="Edit ${escapeHtml(component.name)} settings">⚙<span>Settings</span></button>
+      <button type="button" data-editor-context="duplicate"
+        title="Duplicate ${escapeHtml(component.name)}">⧉</button>
+      <button type="button" data-editor-context="lock"
+        title="${component.locked ? "Unlock" : "Lock"} ${escapeHtml(component.name)}">
+        ${component.locked ? "🔒" : "🔓"}</button>
+      <button type="button" data-editor-context="delete"
+        title="Remove ${escapeHtml(component.name)}">×</button>
+    </div>`;
   }
 
   _componentContent(component) {
@@ -1200,6 +1237,11 @@ class MoviePosterPanel extends HTMLElement {
     const selectedComponents = this._selectedEditorComponents();
     const selectedBounds = selectedComponent
       ? this._editorBounds(selectedComponent) : null;
+    const selectedIsImage = [
+      "poster", "backdrop", "logo", "custom_image",
+    ].includes(selectedComponent?.type);
+    const selectedIsText = Boolean(selectedComponent)
+      && !selectedIsImage && selectedComponent.type !== "progress";
     const editorWarnings = this._editorWarnings();
     const editorOrientation = this._editorOrientation();
     const hasOrientationOverride = Boolean(
@@ -1399,12 +1441,20 @@ class MoviePosterPanel extends HTMLElement {
                   </button>
                 </div>`).join("")}
           </fieldset>` : ""}
-        ${selectedComponent ? `
-          <fieldset class="editor-properties studio-wide">
+        ${selectedComponent
+          && this._editorSettingsOpenId === selectedComponent.id ? `
+          <fieldset class="editor-properties editor-context-popover studio-wide"
+            style="--popover-x:${selectedBounds.x + selectedBounds.width / 2};
+              --popover-y:${selectedBounds.y + selectedBounds.height}">
             <legend>${selectedComponents.length > 1
               ? `${selectedComponents.length} selected`
               : escapeHtml(selectedComponent.name
                 || selectedComponent.type.replaceAll("_", " "))}</legend>
+            <button type="button" class="editor-popover-close"
+              data-editor-context="close" aria-label="Close component settings">×</button>
+            <details class="editor-advanced studio-wide">
+              <summary>Advanced position and layer settings</summary>
+              <div class="editor-advanced-grid">
             <label class="studio-wide">Layer name<input type="text" maxlength="80"
               data-editor-name value="${escapeHtml(selectedComponent.name
                 || selectedComponent.type.replaceAll("_", " "))}"></label>
@@ -1448,10 +1498,27 @@ class MoviePosterPanel extends HTMLElement {
             <label class="studio-check studio-wide"><input type="checkbox"
               data-editor-orientation-override ${hasOrientationOverride ? "checked" : ""}>
               Override geometry in ${editorOrientation}</label>
+              </div>
+            </details>
             ${selectedComponent.type === "static_text"
               ? `<label class="studio-wide">Text<input type="text" maxlength="500"
                 data-editor-text value="${escapeHtml(selectedComponent.text || "")}"></label>`
               : ""}
+            ${selectedIsText ? `<label>Font<select data-editor-style="font_family">
+              ${[
+                ["theme_heading", "Theme heading"],
+                ["theme_body", "Theme body"],
+                ["system", "System"],
+                ["cinematic", "Cinematic"],
+                ["serif", "Serif"],
+                ["modern", "Modern"],
+                ["condensed", "Condensed"],
+              ].map(([value, label]) => `<option value="${value}"
+                ${(selectedComponent.style?.font_family
+                  || (["mode_heading", "title"].includes(selectedComponent.type)
+                    ? "theme_heading" : "theme_body")) === value
+                  ? "selected" : ""}>${label}</option>`).join("")}
+            </select></label>
             <label>Theme color<select data-editor-style-ref>
               ${[
                 "text_heading", "text_body", "text_muted", "text_inverse",
@@ -1469,29 +1536,9 @@ class MoviePosterPanel extends HTMLElement {
             <label>Text color<input type="color" data-editor-style="text_color"
               ${selectedComponent.style?.text_color ? "" : "disabled"}
               value="${normalizeColor(selectedComponent.style?.text_color, "#ffffff")}"></label>
-            <label>Background<input type="color" data-editor-style="background_color"
-              value="${normalizeColor(selectedComponent.style?.background_color, "#10151b")}"></label>
             <label>Font size<input type="number" min=".1" max="20" step=".1"
               data-editor-style="font_size"
               value="${Number(selectedComponent.style?.font_size ?? 3)}"></label>
-            <label>Opacity<input type="number" min="0" max="1" step=".05"
-              data-editor-style="opacity"
-              value="${Number(selectedComponent.style?.opacity ?? 1)}"></label>
-            ${["poster", "backdrop", "logo", "custom_image"].includes(
-              selectedComponent.type,
-            ) ? `<label>Image fit<select data-editor-style="image_fit">
-              ${["contain", "cover", "fill"].map((value) =>
-                `<option value="${value}"
-                  ${(selectedComponent.style?.image_fit
-                    || (selectedComponent.type === "backdrop"
-                      ? "cover" : "contain")) === value ? "selected" : ""}>
-                  ${value}</option>`
-              ).join("")}
-            </select></label>
-            <label class="studio-check"><input type="checkbox"
-              data-editor-preserve-aspect
-              ${selectedComponent.constraints?.preserve_aspect
-                ? "checked" : ""}>Preserve aspect</label>` : ""}
             <label>Alignment<select data-editor-style="text_align">
               ${["left", "center", "right"].map((value) =>
                 `<option value="${value}" ${(selectedComponent.style?.text_align || "center") === value ? "selected" : ""}>${value}</option>`
@@ -1505,11 +1552,32 @@ class MoviePosterPanel extends HTMLElement {
               value="${Number(selectedComponent.constraints?.max_lines ?? 0)}"></label>
             <label>Minimum font<input type="number" min=".1" max="20" step=".1"
               data-editor-min-font
-              value="${Number(selectedComponent.constraints?.min_font_size ?? 0.8)}"></label>
+              value="${Number(selectedComponent.constraints?.min_font_size ?? 0.8)}"></label>`
+              : ""}
+            <label>Background<input type="color" data-editor-style="background_color"
+              value="${normalizeColor(selectedComponent.style?.background_color, "#10151b")}"></label>
+            <label>Opacity<input type="number" min="0" max="1" step=".05"
+              data-editor-style="opacity"
+              value="${Number(selectedComponent.style?.opacity ?? 1)}"></label>
+            ${selectedIsImage ? `<label>Image fit<select data-editor-style="image_fit">
+              ${["contain", "cover", "fill"].map((value) =>
+                `<option value="${value}"
+                  ${(selectedComponent.style?.image_fit
+                    || (selectedComponent.type === "backdrop"
+                      ? "cover" : "contain")) === value ? "selected" : ""}>
+                  ${value}</option>`
+              ).join("")}
+            </select></label>
+            <label class="studio-check"><input type="checkbox"
+              data-editor-preserve-aspect
+              ${selectedComponent.constraints?.preserve_aspect
+                ? "checked" : ""}>Preserve aspect</label>` : ""}
             <button type="button" data-editor-action="delete-component">Remove component</button>
             <button type="button" data-editor-action="duplicate-component">Duplicate</button>
             <button type="button" data-editor-action="reset-component">Reset component</button>
-          </fieldset>` : `<small class="studio-wide">Select a component on the canvas to edit it.</small>`}
+          </fieldset>` : `<small class="studio-wide editor-selection-help">
+            Select an item on the canvas, then use its Settings button to edit it.
+          </small>`}
         <small class="studio-wide">Drag components to move them. Drag the lower-right handle to resize. Changes autosave to this draft.</small>
       ` : ""}
       <label class="studio-wide">Display profile<select data-profile-select>
@@ -1633,6 +1701,37 @@ class MoviePosterPanel extends HTMLElement {
     this.shadowRoot.querySelectorAll("[data-editor-component]").forEach((component) => {
       component.addEventListener("pointerdown", (event) =>
         this._startEditorPointer(event, component));
+    });
+    this.shadowRoot.querySelectorAll("[data-editor-context]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const action = button.dataset.editorContext;
+        const component = this._selectedEditorComponent();
+        if (action === "settings") {
+          this._editorSettingsOpenId =
+            this._editorSettingsOpenId === component?.id ? null : component?.id;
+          this._render();
+          return;
+        }
+        if (action === "close") {
+          this._editorSettingsOpenId = null;
+          this._render();
+          return;
+        }
+        if (action === "duplicate") {
+          this._editorAction("duplicate-component");
+          return;
+        }
+        if (action === "delete") {
+          this._editorAction("delete-component");
+          return;
+        }
+        if (action === "lock" && component) {
+          this._recordEditorHistory();
+          component.locked = !component.locked;
+          this._render();
+          this._scheduleEditorSave();
+        }
+      });
     });
     this.shadowRoot.querySelectorAll("[data-editor-select]").forEach((button) => {
       button.addEventListener("click", (event) => {
@@ -2180,6 +2279,9 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   _selectEditorComponent(identifier, additive = false) {
+    if (identifier !== this._editorSelectedId) {
+      this._editorSettingsOpenId = null;
+    }
     if (!additive) {
       this._editorSelectedIds = [identifier];
       this._editorSelectedId = identifier;
@@ -2229,6 +2331,12 @@ class MoviePosterPanel extends HTMLElement {
 
   _handleEditorKeydown(event) {
     if (!this._editorDocument) return;
+    if (event.key === "Escape" && this._editorSettingsOpenId) {
+      event.preventDefault();
+      this._editorSettingsOpenId = null;
+      this._render();
+      return;
+    }
     if (event.target instanceof HTMLInputElement
       || event.target instanceof HTMLTextAreaElement
       || event.target instanceof HTMLSelectElement) return;
@@ -2378,6 +2486,10 @@ class MoviePosterPanel extends HTMLElement {
     const imageFit = ["contain", "cover", "fill"].includes(style.image_fit)
       ? style.image_fit
       : component.type === "backdrop" ? "cover" : "contain";
+    const fontFamily = componentFontFamily(
+      style.font_family || (["mode_heading", "title"].includes(component.type)
+        ? "theme_heading" : "theme_body"),
+    );
     const blend = [
       "normal", "multiply", "screen", "overlay", "soft-light",
     ].includes(component.blend_mode) ? component.blend_mode : "normal";
@@ -2395,6 +2507,7 @@ class MoviePosterPanel extends HTMLElement {
       `width:${bounds.width}%`, `height:${bounds.height}%`,
       `z-index:${component.z_index}`, `color:${textColor}`,
       `background-color:${backgroundColor}`,
+      `font-family:${fontFamily}`,
       `font-size:clamp(${minFontSize}cqw,${fontSize}cqw,20cqw)`,
       `opacity:${opacity}`, `text-align:${alignment}`,
       `--component-image-fit:${imageFit}`,
@@ -3178,6 +3291,64 @@ class MoviePosterPanel extends HTMLElement {
         margin: 0;
         padding: 10px;
         border: 1px solid #ffffff24;
+      }
+      .editor-context-popover {
+        position: fixed;
+        z-index: 120;
+        left: max(182px, min(
+          calc(100vw - 596px),
+          calc((100vw - 414px) * var(--popover-x) / 100)
+        ));
+        top: max(12px, min(
+          calc(100dvh - 520px),
+          calc(24px + (100dvh - 48px) * var(--popover-y) / 100)
+        ));
+        width: min(340px, calc(100vw - 438px));
+        max-height: min(72dvh, 620px);
+        overflow: auto;
+        padding: 14px;
+        border: 1px solid #f6cf7088;
+        border-radius: 12px;
+        background: #100d0bec;
+        box-shadow: 0 18px 55px #000e;
+        color: #fff7df;
+        font-size: .78rem;
+        backdrop-filter: blur(18px);
+      }
+      .editor-context-popover legend {
+        max-width: calc(100% - 42px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .editor-popover-close {
+        position: absolute;
+        top: 7px;
+        right: 7px;
+        width: 32px;
+        min-height: 32px !important;
+        padding: 0 !important;
+        border-radius: 50% !important;
+        font-size: 20px;
+        line-height: 1;
+      }
+      .editor-advanced {
+        margin: 2px 0;
+        padding: 0;
+        border: 0;
+      }
+      .editor-advanced summary {
+        padding: 8px 10px;
+        border: 1px solid #ffffff24;
+        border-radius: 6px;
+        color: #e8d5a7;
+        cursor: pointer;
+      }
+      .editor-advanced-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        padding-top: 8px;
       }
       .editor-layers {
         display: grid;
@@ -5252,18 +5423,27 @@ class MoviePosterPanel extends HTMLElement {
       .marquee-frame.frame-ultra-compact .brand-row.logo-center .brand-logo {
         width: min(72px, 30%);
       }
+      .marquee-frame.frame-ultra-compact .brand-row.logo-center {
+        min-height: 36px;
+        gap: 1px;
+      }
+      .marquee-frame.frame-ultra-compact
+        .brand-row.logo-center .brand-logo {
+        height: 22px;
+      }
       .marquee-frame.frame-ultra-compact .brand-eyebrow {
         display: block;
         font-size: .5rem;
         letter-spacing: .12em;
       }
-      .marquee-frame.frame-ultra-compact .eyebrow,
-      .marquee-frame.frame-ultra-compact .marquee-divider-bulbs,
-      .marquee-frame.frame-ultra-compact .subtitle,
-      .marquee-frame.frame-ultra-compact .meta,
-      .marquee-frame.frame-ultra-compact .summary,
-      .marquee-frame.frame-ultra-compact .session,
-      .marquee-frame.frame-ultra-compact .progress {
+      .theater:not(.has-details) .marquee-frame.frame-ultra-compact .eyebrow,
+      .theater:not(.has-details) .marquee-frame.frame-ultra-compact
+        .marquee-divider-bulbs,
+      .theater:not(.has-details) .marquee-frame.frame-ultra-compact .subtitle,
+      .theater:not(.has-details) .marquee-frame.frame-ultra-compact .meta,
+      .theater:not(.has-details) .marquee-frame.frame-ultra-compact .summary,
+      .theater:not(.has-details) .marquee-frame.frame-ultra-compact .session,
+      .theater:not(.has-details) .marquee-frame.frame-ultra-compact .progress {
         display: none;
       }
       .marquee-frame.frame-ultra-compact h1 {
@@ -6439,6 +6619,43 @@ class MoviePosterPanel extends HTMLElement {
         outline: 2px solid #f6cf7099;
         outline-offset: 1px;
       }
+      .editor-context-toolbar {
+        position: absolute;
+        z-index: 1100;
+        display: flex;
+        gap: 4px;
+        transform: translate(-100%, calc(-100% - 6px));
+        padding: 4px;
+        border: 1px solid #f6cf7088;
+        border-radius: 8px;
+        background: #100d0bef;
+        box-shadow: 0 7px 22px #000c;
+        color: #fff7df;
+        font: 600 11px/1 system-ui, sans-serif;
+        white-space: nowrap;
+        backdrop-filter: blur(10px);
+      }
+      .editor-context-toolbar button {
+        display: inline-flex;
+        min-width: 30px;
+        min-height: 30px;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        padding: 0 7px;
+        border: 1px solid #ffffff2e;
+        border-radius: 5px;
+        background: #251d18;
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
+      }
+      .editor-context-toolbar button:hover,
+      .editor-context-toolbar button:focus-visible {
+        border-color: #f6cf70;
+        outline: 2px solid #f6cf70;
+        outline-offset: 1px;
+      }
       .editor-component-content {
         display: grid;
         width: 100%;
@@ -6496,6 +6713,19 @@ class MoviePosterPanel extends HTMLElement {
         cursor: nwse-resize;
       }
       @media (max-width: 900px) {
+        .editor-context-popover {
+          z-index: 140;
+          left: max(8px, env(safe-area-inset-left));
+          right: max(8px, env(safe-area-inset-right));
+          bottom: max(8px, env(safe-area-inset-bottom));
+          top: auto;
+          width: auto;
+          max-height: min(68dvh, 620px);
+          border-radius: 16px 16px 10px 10px;
+        }
+        .editor-context-toolbar {
+          transform: translate(-100%, calc(-100% - 4px));
+        }
         .visual-editor-canvas {
           width: min(96vw, calc((54dvh - 20px) * 9 / 16));
           max-height: calc(54dvh - 20px);

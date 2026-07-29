@@ -93,6 +93,22 @@ def test_invalid_geometry_and_executable_fields_are_rejected() -> None:
         DESIGN_SCHEMA(executable)
 
 
+def test_component_font_family_is_validated() -> None:
+    """Component typography accepts safe presets and rejects arbitrary CSS."""
+    design = design_from_legacy_presentation({})
+    title = next(
+        component
+        for component in design["components"]
+        if component["type"] == "title"
+    )
+    title["style"]["font_family"] = "serif"
+    assert DESIGN_SCHEMA(design)["components"]
+
+    title["style"]["font_family"] = "url(evil)"
+    with pytest.raises(vol.Invalid):
+        DESIGN_SCHEMA(design)
+
+
 def test_schema_one_designs_migrate_to_locked_layer_capable_schema() -> None:
     """Stored schema-one component documents gain safe layer defaults."""
     current = design_from_legacy_presentation({})

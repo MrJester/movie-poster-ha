@@ -24,6 +24,14 @@
 - Complete authored typography controls with semantic Theme color bindings,
   removable color overrides, glow strength, and a persisted minimum readable
   font size.
+- Replace the always-open component inspector with an on-canvas action bar and
+  focused settings popover, keep advanced geometry collapsed, and show only
+  controls relevant to text or image layers.
+- Add validated per-component font-family presets that inherit Theme heading or
+  body typography by default.
+- Keep configured metadata visible in ultra-compact portrait Poster layouts,
+  pin the CI lint version, and make local validation fail immediately when
+  either required browser cannot launch.
 - Add browser regressions for structural layer ordering, locked behavior,
   published geometry, custom assets, image fit, and constrained resizing.
 

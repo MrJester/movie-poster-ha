@@ -94,7 +94,7 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-beta.46-presentation.13"
+_FRONTEND_VERSION = "0.1.0-beta.46-presentation.14"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
@@ -673,7 +673,7 @@ async def websocket_presentation_library(
     connection.send_result(msg["id"], result)
 
 
-async def _async_sync_library_assignment(  # noqa: PLR0913
+async def _async_sync_library_assignment(  # noqa: PLR0913, PLR0917
     hass: HomeAssistant,
     entry: ConfigEntry,
     coordinator: MoviePosterCoordinator,

@@ -879,6 +879,7 @@ test("locked editor components resist changes and can be unlocked", async ({ pag
     };
     panel._editorSelectedId = "title";
     panel._editorSelectedIds = ["title"];
+    panel._editorSettingsOpenId = "title";
     panel._render();
     panel._handleEditorKeydown(new KeyboardEvent("keydown", {
       key: "ArrowLeft",
@@ -1061,6 +1062,8 @@ test("packaged image assets become movable canvas layers", async ({ page }) => {
       },
     };
     panel._addEditorAssetLayer("assets/user/curtain.png");
+    panel._editorSettingsOpenId = panel._editorSelectedId;
+    panel._render();
     clearTimeout(panel._editorSaveTimer);
     const component = panel._editorDocument.design.components[0];
     const image = panel.shadowRoot.querySelector(
@@ -1131,6 +1134,7 @@ test("editor clip policies control authored layer overflow", async ({ page }) =>
     };
     panel._editorSelectedId = component.id;
     panel._editorSelectedIds = [component.id];
+    panel._editorSettingsOpenId = component.id;
     panel._render();
     const select = panel.shadowRoot.querySelector("[data-editor-clip]");
     const options = [...select.options].map((option) => ({
@@ -1280,6 +1284,7 @@ test("typography inspector preserves theme colors and readable minimums", async 
         motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
       },
     };
+    panel._editorSettingsOpenId = "title";
     panel._render();
     const change = (selector, value, checked = null) => {
       const control = panel.shadowRoot.querySelector(selector);
@@ -1294,6 +1299,7 @@ test("typography inspector preserves theme colors and readable minimums", async 
     change("[data-editor-text-color-override]", null, false);
     change("[data-editor-min-font]", 2.2);
     change('[data-editor-style="glow"]', 0.75);
+    change('[data-editor-style="font_family"]', "serif");
     const editorTitle = panel.shadowRoot.querySelector(
       '[data-editor-component="title"]',
     );
@@ -1304,6 +1310,7 @@ test("typography inspector preserves theme colors and readable minimums", async 
       overrideRemoved: !Object.hasOwn(title.style, "text_color"),
       minFont: title.constraints.min_font_size,
       glow: title.style.glow,
+      fontFamily: title.style.font_family,
       usesReadableClamp: inlineStyle.includes(
         "font-size:clamp(2.2cqw,3cqw,20cqw)",
       ),
@@ -1311,6 +1318,9 @@ test("typography inspector preserves theme colors and readable minimums", async 
         "color:var(--mp-accent-secondary,#ffffff)",
       ),
       glowRadius: inlineStyle.includes("text-shadow:0 0 18px"),
+      usesComponentFont: inlineStyle.includes(
+        "font-family:Georgia, 'Times New Roman', serif",
+      ),
     };
   });
   expect(result).toEqual({
@@ -1319,9 +1329,89 @@ test("typography inspector preserves theme colors and readable minimums", async 
     overrideRemoved: true,
     minFont: 2.2,
     glow: 0.75,
+    fontFamily: "serif",
     usesReadableClamp: true,
     usesThemeToken: true,
     glowRadius: true,
+    usesComponentFont: true,
+  });
+});
+
+test("component settings use a contextual progressive-disclosure inspector", async ({
+  page,
+}) => {
+  await openHarness(page, "?studio=1");
+  const result = await page.evaluate(() => {
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    const title = panel._defaultEditorComponent("title", "title");
+    const poster = panel._defaultEditorComponent("poster", "poster");
+    panel._editorProfileId = "contextual-settings";
+    panel._editorSelectedId = "title";
+    panel._editorSelectedIds = ["title"];
+    panel._editorDocument = {
+      version: 2,
+      name: "Contextual settings",
+      description: "",
+      author: "",
+      presentation: { ...panel._state.presentation },
+      design: {
+        schema_version: 2,
+        resources: {
+          frame: { id: "builtin.frame.blank", version: 1 },
+          theme: { id: "builtin.theme.classic", version: 1 },
+          layout: { id: "builtin.layout.blank", version: 1 },
+        },
+        viewport: { fit: "contain", link_orientations: true },
+        components: [poster, title],
+        motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+      },
+    };
+    panel._render();
+    const root = panel.shadowRoot;
+    const toolbarInsideSurface = Boolean(
+      root.querySelector(".editor-component-surface > .editor-context-toolbar"),
+    );
+    const closedInitially = !root.querySelector(".editor-context-popover");
+    root.querySelector('[data-editor-context="settings"]').click();
+    const titleHasFont = Boolean(
+      root.querySelector('[data-editor-style="font_family"]'),
+    );
+    const titleHasNoImageFit = !root.querySelector(
+      '[data-editor-style="image_fit"]',
+    );
+    const advancedClosed = !root.querySelector(".editor-advanced").open;
+    panel._selectEditorComponent("poster");
+    panel._render();
+    root.querySelector('[data-editor-context="settings"]').click();
+    const posterHasImageFit = Boolean(
+      root.querySelector('[data-editor-style="image_fit"]'),
+    );
+    const posterHasNoFont = !root.querySelector(
+      '[data-editor-style="font_family"]',
+    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    const escapeClosed = !root.querySelector(".editor-context-popover");
+    return {
+      toolbarInsideSurface,
+      closedInitially,
+      titleHasFont,
+      titleHasNoImageFit,
+      advancedClosed,
+      posterHasImageFit,
+      posterHasNoFont,
+      escapeClosed,
+    };
+  });
+  expect(result).toEqual({
+    toolbarInsideSurface: true,
+    closedInitially: true,
+    titleHasFont: true,
+    titleHasNoImageFit: true,
+    advancedClosed: true,
+    posterHasImageFit: true,
+    posterHasNoFont: true,
+    escapeClosed: true,
   });
 });
 
