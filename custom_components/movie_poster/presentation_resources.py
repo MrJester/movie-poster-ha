@@ -124,6 +124,7 @@ COMPONENT_STYLE_SCHEMA = vol.Schema(
             vol.Range(min=0, max=1),
         ),
         vol.Optional("text_align"): vol.In(("left", "center", "right")),
+        vol.Optional("image_fit"): vol.In(("contain", "cover", "fill")),
         vol.Optional("glow"): vol.All(
             vol.Coerce(float),
             vol.Range(min=0, max=1),
@@ -381,7 +382,7 @@ def _component(  # noqa: PLR0913 - concise built-in resource declarations
                 )
             ),
             "min_font_size": 0.8,
-            "preserve_aspect": component_type in {"poster", "logo"},
+            "preserve_aspect": component_type in {"poster", "logo", "custom_image"},
         },
         "text": "",
         "asset_ref": "",
@@ -927,7 +928,7 @@ def validate_design_document(document: dict[str, Any]) -> dict[str, Any]:
                     ),
                     "min_font_size": 0.8,
                     "preserve_aspect": component.get("type")
-                    in {"poster", "logo"},
+                    in {"poster", "logo", "custom_image"},
                 },
             )
     elif version != DESIGN_SCHEMA_VERSION:

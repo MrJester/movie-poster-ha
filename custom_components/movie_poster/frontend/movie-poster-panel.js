@@ -1389,6 +1389,21 @@ class MoviePosterPanel extends HTMLElement {
             <label>Opacity<input type="number" min="0" max="1" step=".05"
               data-editor-style="opacity"
               value="${Number(selectedComponent.style?.opacity ?? 1)}"></label>
+            ${["poster", "backdrop", "logo", "custom_image"].includes(
+              selectedComponent.type,
+            ) ? `<label>Image fit<select data-editor-style="image_fit">
+              ${["contain", "cover", "fill"].map((value) =>
+                `<option value="${value}"
+                  ${(selectedComponent.style?.image_fit
+                    || (selectedComponent.type === "backdrop"
+                      ? "cover" : "contain")) === value ? "selected" : ""}>
+                  ${value}</option>`
+              ).join("")}
+            </select></label>
+            <label class="studio-check"><input type="checkbox"
+              data-editor-preserve-aspect
+              ${selectedComponent.constraints?.preserve_aspect
+                ? "checked" : ""}>Preserve aspect</label>` : ""}
             <label>Alignment<select data-editor-style="text_align">
               ${["left", "center", "right"].map((value) =>
                 `<option value="${value}" ${(selectedComponent.style?.text_align || "center") === value ? "selected" : ""}>${value}</option>`
@@ -1640,6 +1655,16 @@ class MoviePosterPanel extends HTMLElement {
         component.constraints.max_lines = Math.min(
           20, Math.max(0, Number(event.target.value)),
         );
+        this._render();
+        this._scheduleEditorSave();
+      });
+    this.shadowRoot.querySelector("[data-editor-preserve-aspect]")
+      ?.addEventListener("change", (event) => {
+        const component = this._selectedEditorComponent();
+        if (!component || component.locked) return;
+        this._recordEditorHistory();
+        component.constraints ||= {};
+        component.constraints.preserve_aspect = event.target.checked;
         this._render();
         this._scheduleEditorSave();
       });
@@ -1926,7 +1951,7 @@ class MoviePosterPanel extends HTMLElement {
       constraints: {
         max_lines: type === "title" ? 2 : type === "summary" ? 4 : 0,
         min_font_size: 0.8,
-        preserve_aspect: ["poster", "logo"].includes(type),
+        preserve_aspect: ["poster", "logo", "custom_image"].includes(type),
       },
       text: type === "static_text" ? "Custom text" : "",
       asset_ref: "",
@@ -2191,6 +2216,9 @@ class MoviePosterPanel extends HTMLElement {
     const alignment = ["left", "center", "right"].includes(style.text_align)
       ? style.text_align : "center";
     const glow = Math.min(1, Math.max(0, Number(style.glow ?? 0)));
+    const imageFit = ["contain", "cover", "fill"].includes(style.image_fit)
+      ? style.image_fit
+      : component.type === "backdrop" ? "cover" : "contain";
     const blend = [
       "normal", "multiply", "screen", "overlay", "soft-light",
     ].includes(component.blend_mode) ? component.blend_mode : "normal";
@@ -2203,6 +2231,7 @@ class MoviePosterPanel extends HTMLElement {
       `z-index:${component.z_index}`, `color:${textColor}`,
       `background-color:${backgroundColor}`, `font-size:${fontSize}cqw`,
       `opacity:${opacity}`, `text-align:${alignment}`,
+      `--component-image-fit:${imageFit}`,
       `mix-blend-mode:${blend}`, `--editor-max-lines:${maxLines}`,
       `text-shadow:0 0 ${glow * 24}px ${textColor}`,
     ].join(";");
@@ -2238,20 +2267,49 @@ class MoviePosterPanel extends HTMLElement {
       x: event.clientX, y: event.clientY,
       bounds: { ...bounds },
       resize: Boolean(event.target.closest("[data-editor-resize]")),
+      preserveAspect: Boolean(component.constraints?.preserve_aspect),
+      aspectRatio: (bounds.width / 100 * canvasBox.width)
+        / Math.max(1, bounds.height / 100 * canvasBox.height),
     };
     element.setPointerCapture(event.pointerId);
     const move = (moveEvent) => {
       const dx = ((moveEvent.clientX - start.x) / canvasBox.width) * 100;
       const dy = ((moveEvent.clientY - start.y) / canvasBox.height) * 100;
       if (start.resize) {
-        bounds.width = Math.min(
+        let width = Math.min(
           100 - bounds.x,
           Math.max(0.1, this._snapEditorValue(start.bounds.width + dx)),
         );
-        bounds.height = Math.min(
+        let height = Math.min(
           100 - bounds.y,
           Math.max(0.1, this._snapEditorValue(start.bounds.height + dy)),
         );
+        if (start.preserveAspect) {
+          const ratio = start.aspectRatio;
+          const widthFromHeight = (
+            height / 100 * canvasBox.height * ratio / canvasBox.width * 100
+          );
+          const heightFromWidth = (
+            width / 100 * canvasBox.width / ratio / canvasBox.height * 100
+          );
+          if (Math.abs(dx * canvasBox.width) >= Math.abs(dy * canvasBox.height)) {
+            height = Math.min(100 - bounds.y, Math.max(0.1, heightFromWidth));
+            width = Math.min(
+              100 - bounds.x,
+              height / 100 * canvasBox.height * ratio / canvasBox.width * 100,
+            );
+          } else {
+            width = Math.min(100 - bounds.x, Math.max(0.1, widthFromHeight));
+            height = Math.min(
+              100 - bounds.y,
+              width / 100 * canvasBox.width / ratio / canvasBox.height * 100,
+            );
+          }
+          width = Math.round(width * 10) / 10;
+          height = Math.round(height * 10) / 10;
+        }
+        bounds.width = width;
+        bounds.height = height;
       } else {
         const groupLeft = Math.min(...selectedBounds.map((item) => item.start.x));
         const groupRight = Math.max(...selectedBounds.map(
@@ -6057,10 +6115,10 @@ class MoviePosterPanel extends HTMLElement {
       .authored-component-content img {
         width: 100%;
         height: 100%;
-        object-fit: contain;
+        object-fit: var(--component-image-fit, contain);
       }
       .authored-component.component-backdrop .authored-component-content img {
-        object-fit: cover;
+        object-fit: var(--component-image-fit, cover);
       }
       .authored-component.component-progress .authored-component-content {
         display: block;
@@ -6163,7 +6221,7 @@ class MoviePosterPanel extends HTMLElement {
       .editor-component-content img {
         width: 100%;
         height: 100%;
-        object-fit: contain;
+        object-fit: var(--component-image-fit, contain);
       }
       .editor-component-label {
         position: absolute;
@@ -6176,7 +6234,9 @@ class MoviePosterPanel extends HTMLElement {
         line-height: 1;
         text-transform: uppercase;
       }
-      .component-backdrop .editor-component-content img { object-fit: cover; }
+      .component-backdrop .editor-component-content img {
+        object-fit: var(--component-image-fit, cover);
+      }
       .component-progress .editor-component-content {
         display: block;
         height: 5px;

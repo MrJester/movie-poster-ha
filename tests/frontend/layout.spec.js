@@ -1066,12 +1066,26 @@ test("packaged image assets become movable canvas layers", async ({ page }) => {
     const image = panel.shadowRoot.querySelector(
       '[data-editor-component="custom-image"] img',
     );
+    const fitControl = panel.shadowRoot.querySelector(
+      '[data-editor-style="image_fit"]',
+    );
+    const aspectControl = panel.shadowRoot.querySelector(
+      "[data-editor-preserve-aspect]",
+    );
+    fitControl.value = "cover";
+    fitControl.dispatchEvent(new Event("change"));
+    clearTimeout(panel._editorSaveTimer);
+    const renderedImage = panel.shadowRoot.querySelector(
+      '[data-editor-component="custom-image"] img',
+    );
     return {
       type: component.type,
       name: component.name,
       assetRef: component.asset_ref,
       bounds: component.bounds,
       imageUrl: image?.getAttribute("src"),
+      imageFit: getComputedStyle(renderedImage).objectFit,
+      preserveAspect: aspectControl.checked,
     };
   });
   expect(result).toEqual({
@@ -1080,7 +1094,59 @@ test("packaged image assets become movable canvas layers", async ({ page }) => {
     assetRef: "assets/user/curtain.png",
     bounds: { x: 25, y: 20, width: 50, height: 50 },
     imageUrl: "data:image/png;base64,iVBORw0KGgo=",
+    imageFit: "cover",
+    preserveAspect: true,
   });
+});
+
+test("preserve aspect keeps image proportions during pointer resize", async ({
+  page,
+}) => {
+  await openHarness(page, "?studio=1");
+  await page.evaluate(() => {
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    panel._editorProfileId = "aspect";
+    const image = panel._defaultEditorComponent("custom_image", "image");
+    panel._editorDocument = {
+      version: 2,
+      name: "Aspect",
+      description: "",
+      author: "",
+      presentation: { ...panel._state.presentation },
+      design: {
+        schema_version: 2,
+        resources: {
+          frame: { id: "builtin.frame.blank", version: 1 },
+          theme: { id: "builtin.theme.classic", version: 1 },
+          layout: { id: "builtin.layout.blank", version: 1 },
+        },
+        viewport: { fit: "contain", link_orientations: true },
+        components: [image],
+        motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+      },
+    };
+    panel._editorSelectedId = "image";
+    panel._editorSelectedIds = ["image"];
+    panel._render();
+  });
+  const component = page.locator('[data-editor-component="image"]');
+  const handle = component.locator("[data-editor-resize]");
+  const before = await component.boundingBox();
+  const handleBox = await handle.boundingBox();
+  await page.mouse.move(
+    handleBox.x + handleBox.width / 2,
+    handleBox.y + handleBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    handleBox.x + handleBox.width / 2 + 35,
+    handleBox.y + handleBox.height / 2,
+  );
+  await page.mouse.up();
+  const after = await component.boundingBox();
+  expect(after.width).toBeGreaterThan(before.width);
+  expect(after.width / after.height).toBeCloseTo(before.width / before.height, 1);
 });
 
 test("visual editor supports bounded undo and redo history", async ({ page }) => {
