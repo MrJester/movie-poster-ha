@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.0-beta.49
+
+- Prevent portrait movie metadata from flex-collapsing under Linux font
+  metrics, and enforce the invariant in both Chromium and WebKit.
+- Complete the editor workflow with keyboard duplicate/delete commands,
+  low-contrast warnings, clean editor teardown after publishing, and
+  deterministic canvas reset when opening a design.
+- Add end-to-end browser acceptance coverage for preset and blank creation,
+  orientation overrides, autosave, publishing, export/import, rollback, and
+  keyboard editing.
+
 ## 0.1.0-beta.48
 
 - Keep the Customize Preset editor inside a fixed, contained viewport so

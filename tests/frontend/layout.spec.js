@@ -434,6 +434,8 @@ test("enabled movie details remain readable in every frame and layout", async ({
             titleSize: Math.round(parseFloat(getComputedStyle(title).fontSize)),
             metaVisible: getComputedStyle(meta).display !== "none"
               && metaBox.width >= 60 && metaBox.height >= 8,
+            metaHeight: metaBox.height,
+            metaFlexShrink: getComputedStyle(meta).flexShrink,
           };
         });
         expect(
@@ -443,6 +445,10 @@ test("enabled movie details remain readable in every frame and layout", async ({
           titleVisible: true,
           metaVisible: true,
         });
+        if (configuration.orientation === "portrait") {
+          expect(readability.metaFlexShrink).toBe("0");
+        }
+        expect(readability.metaHeight).toBeGreaterThanOrEqual(8);
         expect(readability.detailsWidth).toBeGreaterThanOrEqual(80);
         expect(readability.detailsHeight).toBeGreaterThanOrEqual(28);
         expect(readability.titleSize).toBeGreaterThanOrEqual(12);
@@ -1745,6 +1751,212 @@ test("visual editor supports bounded undo and redo history", async ({ page }) =>
     undoDepth: 7,
     redoDepth: 0,
   });
+});
+
+test("editor workflow creates, autosaves, publishes, rolls back, packages, and supports keyboard editing", async ({
+  page,
+}) => {
+  await openHarness(page, "?studio=1");
+  const result = await page.evaluate(async () => {
+    const panel = document.createElement("movie-poster-panel");
+    panel._state.entry_id = "editor-workflow";
+    panel._state.presentation.orientation = "portrait";
+    document.body.append(panel);
+
+    const requests = [];
+    let sequence = 0;
+    const library = { profiles: {} };
+    const documentFor = (name, blank) => ({
+      version: 2,
+      name,
+      description: "",
+      author: "",
+      presentation: { ...panel._state.presentation },
+      design: {
+        schema_version: 2,
+        resources: {
+          frame: { id: "builtin.frame.marquee", version: 1 },
+          theme: { id: "builtin.theme.classic", version: 1 },
+          layout: { id: "builtin.layout.blank", version: 1 },
+        },
+        viewport: { fit: "contain", link_orientations: true },
+        components: blank ? [] : [
+          panel._defaultEditorComponent("poster", "poster"),
+          panel._defaultEditorComponent("title", "title"),
+        ],
+        motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+      },
+    });
+    panel._callLibrary = async (action, fields = {}) => {
+      requests.push({ action, ...fields });
+      if (action === "create") {
+        const profileId = `profile-${++sequence}`;
+        library.profiles[profileId] = {
+          active_revision: null,
+          draft: documentFor(fields.name, fields.blank),
+          published: [],
+          assets: {},
+        };
+        return { profile_id: profileId, library };
+      }
+      if (action === "update") {
+        library.profiles[fields.profile_id].draft =
+          structuredClone(fields.document);
+        return { library };
+      }
+      if (action === "publish") {
+        const item = library.profiles[fields.profile_id];
+        const revision = item.published.length + 1;
+        item.published.push({
+          revision,
+          profile: structuredClone(item.draft),
+        });
+        item.active_revision = revision;
+        item.draft = null;
+        return { revision, library };
+      }
+      if (action === "rollback") {
+        library.profiles[fields.profile_id].active_revision = fields.revision;
+        return { library };
+      }
+      if (action === "export") {
+        return { package: btoa("movieposter") };
+      }
+      if (action === "import") {
+        const profileId = `profile-${++sequence}`;
+        library.profiles[profileId] = {
+          active_revision: null,
+          draft: documentFor("Imported", false),
+          published: [],
+          assets: {},
+        };
+        return { profile_id: profileId, library };
+      }
+      throw new Error(`Unexpected library action: ${action}`);
+    };
+
+    const prompts = ["Customized", "Blank"];
+    window.prompt = () => prompts.shift();
+    await panel._editorAction("new-preset");
+    const customizedId = panel._editorProfileId;
+    const customizedComponentCount =
+      panel._editorDocument.design.components.length;
+
+    panel._editorSelectedId = "title";
+    panel._editorSelectedIds = ["title"];
+    panel._editorDocument.design.components.find(
+      (component) => component.id === "title",
+    ).style = {
+      text_color: "#777777",
+      background_color: "#808080",
+    };
+    panel._editorSettingsOpenId = "title";
+    panel._render();
+    const override = panel.shadowRoot.querySelector(
+      "[data-editor-orientation-override]",
+    );
+    override.checked = true;
+    override.dispatchEvent(new Event("change", { bubbles: true }));
+    const linkedOverride = structuredClone(
+      panel._selectedEditorComponent().orientation_overrides.portrait.bounds,
+    );
+    const warnings = panel._editorWarnings();
+
+    panel._handleEditorKeydown(new KeyboardEvent("keydown", {
+      key: "d", ctrlKey: true,
+    }));
+    const duplicateId = panel._editorSelectedId;
+    panel._handleEditorKeydown(new KeyboardEvent("keydown", {
+      key: "Delete",
+    }));
+    const deletedWithKeyboard = !panel._editorDocument.design.components.some(
+      (component) => component.id === duplicateId,
+    );
+
+    await panel._flushEditorSave();
+    await panel._editorAction("publish");
+    const closedAfterPublish = panel._editorDocument === null;
+
+    panel._presentationLibrary = library;
+    panel._render();
+    const originalCreateObjectUrl = URL.createObjectURL;
+    const originalRevokeObjectUrl = URL.revokeObjectURL;
+    const originalClick = HTMLAnchorElement.prototype.click;
+    let downloadClicks = 0;
+    URL.createObjectURL = () => "blob:movieposter";
+    URL.revokeObjectURL = () => {};
+    HTMLAnchorElement.prototype.click = function click() {
+      downloadClicks += 1;
+    };
+    panel.shadowRoot.querySelector("[data-editor-library-select]").value =
+      customizedId;
+    await panel._editorAction("export-package");
+    URL.createObjectURL = originalCreateObjectUrl;
+    URL.revokeObjectURL = originalRevokeObjectUrl;
+    HTMLAnchorElement.prototype.click = originalClick;
+
+    const published = library.profiles[customizedId].published[0].profile;
+    library.profiles[customizedId].draft = structuredClone(published);
+    panel._openEditor(customizedId, library);
+    panel._presentationLibrary.profiles[customizedId].published.push({
+      revision: 2,
+      profile: structuredClone(published),
+    });
+    panel._render();
+    panel.shadowRoot.querySelector("[data-editor-revision]").value = "1";
+    await panel._editorAction("rollback");
+
+    await panel._importPresentationPackage(new File(
+      [new TextEncoder().encode("movieposter")],
+      "shared.movieposter",
+      { type: "application/zip" },
+    ));
+    const importedName = panel._editorDocument.name;
+    await panel._editorAction("close");
+    await panel._editorAction("new-blank");
+
+    clearTimeout(panel._editorSaveTimer);
+    return {
+      customizedComponentCount,
+      linkedOverride,
+      contrastWarning: warnings.includes(
+        "title text contrast is below 4.5:1.",
+      ),
+      duplicateId,
+      deletedWithKeyboard,
+      closedAfterPublish,
+      publishedRevision: library.profiles[customizedId].active_revision,
+      downloadClicks,
+      importedName,
+      blankComponentCount: panel._editorDocument.design.components.length,
+      createModes: requests.filter((request) => request.action === "create")
+        .map((request) => request.blank),
+      actions: requests.map((request) => request.action),
+    };
+  });
+  expect(result).toMatchObject({
+    customizedComponentCount: 2,
+    linkedOverride: { x: 30, y: 30, width: 40, height: 12 },
+    contrastWarning: true,
+    duplicateId: "title-copy",
+    deletedWithKeyboard: true,
+    closedAfterPublish: true,
+    publishedRevision: 1,
+    downloadClicks: 1,
+    importedName: "Imported",
+    blankComponentCount: 0,
+    createModes: [false, true],
+  });
+  expect(result.actions).toEqual([
+    "create",
+    "update",
+    "update",
+    "publish",
+    "export",
+    "rollback",
+    "import",
+    "create",
+  ]);
 });
 
 test("Cyber Noir themes recolor its powered system without changing its frame", async ({ page }, testInfo) => {

@@ -74,6 +74,19 @@ const componentFontFamily = (value) => ({
 })[COMPONENT_FONTS.has(value) ? value : "theme_body"];
 const normalizeColor = (value, fallback) => /^#[0-9a-f]{6}$/i.test(value ?? "")
   ? value : fallback;
+const colorContrastRatio = (foreground, background) => {
+  const luminance = (color) => {
+    const channels = color.slice(1).match(/.{2}/g).map(
+      (channel) => parseInt(channel, 16) / 255,
+    ).map((channel) => channel <= 0.04045
+      ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
+    return channels[0] * 0.2126 + channels[1] * 0.7152
+      + channels[2] * 0.0722;
+  };
+  const first = luminance(foreground);
+  const second = luminance(background);
+  return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+};
 const semanticColorStyle = (colors) => Object.entries(SEMANTIC_COLOR_PROPERTIES)
   .flatMap(([key, property]) => /^#[0-9a-f]{6}$/i.test(colors?.[key] || "")
     ? [`${property}:${colors[key]}`] : [])
@@ -2070,12 +2083,7 @@ class MoviePosterPanel extends HTMLElement {
       return;
     }
     if (action === "close") {
-      this._editorProfileId = null;
-      this._editorDocument = null;
-      this._editorSelectedId = null;
-      this._editorSelectedIds = [];
-      this._editorUndoStack = [];
-      this._editorRedoStack = [];
+      this._closeEditor();
       this._render();
       return;
     }
@@ -2142,6 +2150,8 @@ class MoviePosterPanel extends HTMLElement {
         });
         this._presentationLibrary = result.library;
         if (status) status.textContent = `Published revision ${result.revision}.`;
+        this._closeEditor();
+        this._render();
       } catch (error) {
         if (status) status.textContent = error?.message || "Unable to publish draft.";
       }
@@ -2328,6 +2338,14 @@ class MoviePosterPanel extends HTMLElement {
         && fontSize < 1) {
         warnings.push(`${component.id} text may be unreadably small.`);
       }
+      const textColor = normalizeColor(component.style?.text_color, "");
+      const backgroundColor = normalizeColor(
+        component.style?.background_color, "",
+      );
+      if (textColor && backgroundColor
+        && colorContrastRatio(textColor, backgroundColor) < 4.5) {
+        warnings.push(`${component.id} text contrast is below 4.5:1.`);
+      }
     });
     return warnings.slice(0, 8);
   }
@@ -2412,6 +2430,16 @@ class MoviePosterPanel extends HTMLElement {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
       event.preventDefault();
       this._restoreEditorHistory(event.shiftKey ? "redo" : "undo");
+      return;
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") {
+      event.preventDefault();
+      this._editorAction("duplicate-component");
+      return;
+    }
+    if (["Backspace", "Delete"].includes(event.key)) {
+      event.preventDefault();
+      this._editorAction("delete-component");
       return;
     }
     const movement = {
@@ -2752,7 +2780,22 @@ class MoviePosterPanel extends HTMLElement {
       ? [this._editorSelectedId] : [];
     this._editorUndoStack = [];
     this._editorRedoStack = [];
+    this._editorZoom = 1;
+    this._editorPanX = 0;
+    this._editorPanY = 0;
     this._render();
+  }
+
+  _closeEditor() {
+    clearTimeout(this._editorSaveTimer);
+    this._editorSaveTimer = null;
+    this._editorProfileId = null;
+    this._editorDocument = null;
+    this._editorSelectedId = null;
+    this._editorSelectedIds = [];
+    this._editorSettingsOpenId = null;
+    this._editorUndoStack = [];
+    this._editorRedoStack = [];
   }
 
   _applyEditorPreview(preview) {
@@ -6436,6 +6479,15 @@ class MoviePosterPanel extends HTMLElement {
         width: 100%;
         white-space: normal;
       }
+      /* Preserve the core movie facts when Linux and macOS font metrics
+         allocate slightly different heights to the portrait details stack.
+         Flex shrinking previously allowed the metadata row to collapse to
+         zero height on slower Linux CI runners. */
+      .theater:is(.orientation-portrait).has-details .frame-stage
+        .details .meta {
+        flex: 0 0 auto;
+        min-height: 1.15em;
+      }
       .theater:is(.orientation-portrait).has-details .frame-stage
         .details .summary {
         -webkit-line-clamp: 2;
@@ -6461,6 +6513,10 @@ class MoviePosterPanel extends HTMLElement {
           :is(.subtitle, .meta, .summary, .session) {
           width: 100%;
           white-space: normal;
+        }
+        .theater.orientation-auto.has-details .frame-stage .details .meta {
+          flex: 0 0 auto;
+          min-height: 1.15em;
         }
         .theater.orientation-auto.has-details .frame-stage .details
           .summary {
