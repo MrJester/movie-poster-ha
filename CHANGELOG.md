@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-beta.51
+
+- Preserve declarative Frame motion when Display Studio merges live Home
+  Assistant state into its sample preview, so practical lights appear there.
+- Isolate each Frame-motion browser assertion in a fresh page to prevent the
+  long-running WebKit CI process from closing during the combined test.
+
 ## 0.1.0-beta.50
 
 - Give every built-in Frame a declarative practical-light and motion character,

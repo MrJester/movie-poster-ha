@@ -2164,6 +2164,61 @@ test("display resubscribes after a presentation revision changes", async ({ page
     window.__subscriptionTest.unsubscribeCount())).toBe(1);
 });
 
+test("Display Studio preserves subscribed Frame motion in its sample preview", async ({ page }) => {
+  await openHarness(page, "?studio=1");
+  const result = await page.evaluate(async () => {
+    const subscriptions = [];
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    panel.hass = {
+      connection: {
+        subscribeMessage: (callback) => {
+          subscriptions.push(callback);
+          return Promise.resolve(() => {});
+        },
+      },
+      callWS: async (request) => request.type === "movie_poster/get_settings"
+        ? {
+          settings: { profile_id: "default", player_id: "", user_id: "" },
+          choices: { players: [], users: [], player_ids_by_user: {} },
+          profiles: {},
+          presentation_catalog: { frames: {} },
+        }
+        : { library: { profiles: {} }, catalog: { frames: {} } },
+    };
+    subscriptions[0]({
+      ...window.studioStateForTest(),
+      presentation: {
+        ...window.studioStateForTest().presentation,
+        frame_theme: "theater_classic",
+        enable_motion: true,
+      },
+      design_frame: {
+        id: "builtin.frame.theater_classic",
+        version: 1,
+        layers: [],
+        safe_opening: {},
+        layout_tuning: {},
+        motion: {
+          preset: "theater_sconce", speed: 0.55,
+          intensity: 0.65, light_count: 4,
+        },
+      },
+    });
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    const theater = panel.shadowRoot.querySelector(".theater");
+    return {
+      motionClass: [...theater.classList].find((name) =>
+        name.startsWith("frame-motion-")),
+      lightCount: panel.shadowRoot.querySelectorAll(".frame-motion-layer i").length,
+    };
+  });
+  expect(result).toEqual({
+    motionClass: "frame-motion-theater_sconce",
+    lightCount: 4,
+  });
+});
+
 test("Display Studio saves edited behavior and presentation settings", async ({ page }) => {
   await openHarness(page, "?studio=1");
   await page.evaluate(() => {
@@ -2304,11 +2359,11 @@ test("long movie titles fit two lines before truncating at a safe minimum", asyn
   expect(fit.truncated).toBe(true);
 });
 
-test("every Frame renders its declarative practical-light motion", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 720 });
-  await openHarness(page);
-  for (const frame of FRAMES) {
+for (const frame of FRAMES) {
+  test(`${frame} renders its declarative practical-light motion`, async ({ page }) => {
     const [preset, lightCount] = FRAME_MOTIONS[frame];
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await openHarness(page);
     expect(await renderPoster(
       page, frame, "neon", "cinematic", "landscape",
       {
@@ -2335,8 +2390,8 @@ test("every Frame renders its declarative practical-light motion", async ({ page
       lightCount,
       animationName: expect.not.stringMatching(/^none$/),
     });
-  }
-});
+  });
+}
 
 test("display remains semantic, keyboard accessible, and reduced-motion safe", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });

@@ -298,9 +298,14 @@ class MoviePosterPanel extends HTMLElement {
           const presentation = { ...sample.presentation, ...state.presentation };
           this._state = {
             ...sample,
+            ...state,
             entry_id: state.entry_id,
+            health: state.health || sample.health,
+            mode: sample.mode,
             heading: presentation.coming_soon_text,
             presentation,
+            media: sample.media,
+            session: sample.session,
           };
           this._studioLoaded = true;
           this._render();
