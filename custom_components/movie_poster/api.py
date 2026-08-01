@@ -94,7 +94,8 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-beta.49-presentation.17"
+_FRONTEND_VERSION = "0.1.0-beta.50-presentation.18"
+_FRONTEND_ELEMENT = "movie-poster-panel-v18"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
@@ -106,7 +107,7 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     await panel_custom.async_register_panel(
         hass,
         frontend_url_path=PANEL_URL,
-        webcomponent_name="movie-poster-panel",
+        webcomponent_name=_FRONTEND_ELEMENT,
         sidebar_title="Movie Poster",
         sidebar_icon="mdi:movie-open-star",
         module_url=f"{STATIC_URL}/movie-poster-panel.js?v={_FRONTEND_VERSION}",

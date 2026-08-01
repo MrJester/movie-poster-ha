@@ -29,6 +29,15 @@ const FRAMES = [
 ];
 const THEMES = ["classic", "art_deco", "neon", "minimal", "oled"];
 const LAYOUTS = ["cinematic", "poster", "split"];
+const FRAME_MOTIONS = {
+  marquee: ["marquee_chase", 18],
+  cyber_noir: ["cyber_scan", 8],
+  comic_hero: ["comic_energy", 6],
+  theater_classic: ["theater_sconce", 4],
+  indie_nature: ["nature_dapple", 5],
+  golden_age: ["golden_footlights", 12],
+  steampunk: ["steampunk_mechanical", 6],
+};
 
 const VIEWPORTS = [
   { name: "small-phone", width: 320, height: 568, orientation: "portrait" },
@@ -52,6 +61,24 @@ const VIEWPORTS = [
   { name: "digital-signage", width: 1200, height: 1920, orientation: "portrait" },
   { name: "rotated-4k-tv", width: 2160, height: 3840, orientation: "portrait" },
 ];
+
+test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
+  await openHarness(page);
+  const result = await page.evaluate(() => {
+    const current = document.createElement("movie-poster-panel-v18");
+    document.body.append(current);
+    return {
+      registered: current.localName,
+      hasCurrentEditor: typeof current._closeEditor === "function",
+      stableAlias: Boolean(customElements.get("movie-poster-panel")),
+    };
+  });
+  expect(result).toEqual({
+    registered: "movie-poster-panel-v18",
+    hasCurrentEditor: true,
+    stableAlias: true,
+  });
+});
 
 async function rendererGeometry(page) {
   return page.evaluate(() => {
@@ -112,12 +139,13 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
       },
       design: variant.design,
       design_frame: variant.safeOpening || variant.layoutTuning
-        || variant.frameLayers ? {
+        || variant.frameLayers || variant.frameMotion ? {
         id: `builtin.frame.${frame}`,
         version: 1,
         safe_opening: variant.safeOpening,
         layout_tuning: variant.layoutTuning,
         layers: variant.frameLayers,
+        motion: variant.frameMotion,
       } : undefined,
       mode: "coming_soon",
       heading: variant.heading || "Coming Soon",
@@ -1297,6 +1325,62 @@ test("Profile motion controls animate authored layers with stagger", async ({ pa
   });
 });
 
+test("editor authors Frame practical-light motion independently", async ({ page }) => {
+  await openHarness(page, "?studio=1");
+  const result = await page.evaluate(() => {
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    panel._editorProfileId = "frame-motion-test";
+    panel._editorDocument = {
+      version: 2,
+      name: "Frame motion test",
+      description: "",
+      author: "",
+      presentation: { ...panel._state.presentation },
+      design: {
+        schema_version: 2,
+        resources: {
+          frame: { id: "builtin.frame.blank", version: 1 },
+          theme: { id: "builtin.theme.classic", version: 1 },
+          layout: { id: "builtin.layout.blank", version: 1 },
+        },
+        viewport: { fit: "contain", link_orientations: true },
+        components: [],
+        motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+      },
+    };
+    panel._render();
+    const change = (field, value) => {
+      const control = panel.shadowRoot.querySelector(
+        `[data-editor-frame-motion="${field}"]`,
+      );
+      control.value = String(value);
+      control.dispatchEvent(new Event("change"));
+      clearTimeout(panel._editorSaveTimer);
+    };
+    change("preset", "theater_sconce");
+    change("speed", 0.6);
+    change("intensity", 0.7);
+    change("light_count", 4);
+    const lights = panel.shadowRoot.querySelectorAll(".frame-motion-layer i");
+    return {
+      stored: structuredClone(panel._editorDocument.design.frame_motion),
+      className: [...panel.shadowRoot.querySelector(".theater").classList]
+        .find((name) => name.startsWith("frame-motion-")),
+      lights: lights.length,
+      animation: getComputedStyle(lights[0]).animationName,
+    };
+  });
+  expect(result).toEqual({
+    stored: {
+      preset: "theater_sconce", speed: 0.6, intensity: 0.7, light_count: 4,
+    },
+    className: "frame-motion-theater_sconce",
+    lights: 4,
+    animation: "frameSconceBreathe",
+  });
+});
+
 test("typography inspector preserves theme colors and readable minimums", async ({
   page,
 }) => {
@@ -2220,12 +2304,51 @@ test("long movie titles fit two lines before truncating at a safe minimum", asyn
   expect(fit.truncated).toBe(true);
 });
 
+test("every Frame renders its declarative practical-light motion", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openHarness(page);
+  for (const frame of FRAMES) {
+    const [preset, lightCount] = FRAME_MOTIONS[frame];
+    expect(await renderPoster(
+      page, frame, "neon", "cinematic", "landscape",
+      {
+        enableMotion: true,
+        frameMotion: {
+          preset, light_count: lightCount, speed: 1, intensity: 0.8,
+        },
+      },
+    )).toEqual([]);
+    const result = await page.evaluate(() => {
+      const root = document.querySelector("movie-poster-panel").shadowRoot;
+      const theater = root.querySelector(".theater");
+      const lights = root.querySelectorAll(".frame-motion-layer i");
+      return {
+        className: [...theater.classList].find((name) =>
+          name.startsWith("frame-motion-")),
+        lightCount: lights.length,
+        animationName: lights.length
+          ? getComputedStyle(lights[0]).animationName : "none",
+      };
+    });
+    expect(result).toEqual({
+      className: `frame-motion-${preset}`,
+      lightCount,
+      animationName: expect.not.stringMatching(/^none$/),
+    });
+  }
+});
+
 test("display remains semantic, keyboard accessible, and reduced-motion safe", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await openHarness(page);
   expect(await renderPoster(
-    page, "marquee", "classic", "cinematic", "landscape",
+    page, "marquee", "classic", "cinematic", "landscape", {
+      enableMotion: true,
+      frameMotion: {
+        preset: "marquee_chase", light_count: 18, speed: 1, intensity: 0.8,
+      },
+    },
   )).toEqual([]);
   const result = await page.evaluate(async () => {
     const root = document.querySelector("movie-poster-panel").shadowRoot;
@@ -2242,6 +2365,9 @@ test("display remains semantic, keyboard accessible, and reduced-motion safe", a
     const controls = root.querySelector(".display-controls");
     const buttonStyle = getComputedStyle(button);
     const contentStyle = getComputedStyle(root.querySelector(".content"));
+    const frameLightStyle = getComputedStyle(
+      root.querySelector(".frame-motion-layer i"),
+    );
     return {
       live: heading.getAttribute("aria-live"),
       labelled: article.getAttribute("aria-labelledby") === "movie-poster-title",
@@ -2250,6 +2376,7 @@ test("display remains semantic, keyboard accessible, and reduced-motion safe", a
       focusVisible: buttonStyle.outlineStyle !== "none"
         && parseFloat(buttonStyle.outlineWidth) >= 2,
       transitionMs: parseFloat(contentStyle.transitionDuration) * 1000,
+      frameLightAnimation: frameLightStyle.animationName,
     };
   });
   expect(result.live).toBe("polite");
@@ -2258,6 +2385,29 @@ test("display remains semantic, keyboard accessible, and reduced-motion safe", a
   expect(result.controlsVisible).toBe(true);
   expect(result.focusVisible).toBe(true);
   expect(result.transitionMs).toBeLessThanOrEqual(1);
+  expect(result.frameLightAnimation).toBe("none");
+});
+
+test("turning display motion off freezes declarative frame lights", async ({ page }) => {
+  await openHarness(page);
+  expect(await renderPoster(
+    page, "marquee", "classic", "cinematic", "portrait", {
+      enableMotion: false,
+      frameMotion: {
+        preset: "marquee_chase", light_count: 18, speed: 1, intensity: 0.8,
+      },
+    },
+  )).toEqual([]);
+  const result = await page.evaluate(() => {
+    const root = document.querySelector("movie-poster-panel").shadowRoot;
+    return {
+      motionOff: root.querySelector(".theater").classList.contains("motion-off"),
+      animationName: getComputedStyle(
+        root.querySelector(".frame-motion-layer i"),
+      ).animationName,
+    };
+  });
+  expect(result).toEqual({ motionOff: true, animationName: "none" });
 });
 
 for (const viewport of VIEWPORTS) {

@@ -179,6 +179,8 @@ def test_catalogs_are_independent_objects() -> None:
         assert frame["safe_opening"] is not (
             BUILTIN_FRAMES["marquee"]["safe_opening"]
         ) or key == "marquee"
+        assert frame["motion"]["preset"] != "none"
+        assert frame["motion"]["light_count"] > 0
     marquee_bezel = next(
         layer
         for layer in BUILTIN_FRAMES["marquee"]["layers"]

@@ -47,6 +47,36 @@ ANIMATION_PRESETS: Final = (
     "shimmer",
 )
 
+FRAME_MOTION_PRESETS: Final = (
+    "none",
+    "marquee_chase",
+    "cyber_scan",
+    "comic_energy",
+    "theater_sconce",
+    "nature_dapple",
+    "golden_footlights",
+    "steampunk_mechanical",
+)
+
+FRAME_MOTION_SCHEMA = vol.Schema(
+    {
+        vol.Required("preset"): vol.In(FRAME_MOTION_PRESETS),
+        vol.Required("speed"): vol.All(
+            vol.Coerce(float),
+            vol.Range(min=0.1, max=5),
+        ),
+        vol.Required("intensity"): vol.All(
+            vol.Coerce(float),
+            vol.Range(min=0, max=1),
+        ),
+        vol.Required("light_count"): vol.All(
+            int,
+            vol.Range(min=0, max=24),
+        ),
+    },
+    extra=vol.PREVENT_EXTRA,
+)
+
 THEME_TOKEN_KEYS: Final = (
     "light_primary",
     "light_secondary",
@@ -237,6 +267,7 @@ DESIGN_SCHEMA = vol.Schema(
             },
             extra=vol.PREVENT_EXTRA,
         ),
+        vol.Optional("frame_motion"): FRAME_MOTION_SCHEMA,
     },
     extra=vol.PREVENT_EXTRA,
 )
@@ -339,6 +370,7 @@ FRAME_RESOURCE_SCHEMA = vol.Schema(
             },
             extra=vol.PREVENT_EXTRA,
         ),
+        vol.Required("motion"): FRAME_MOTION_SCHEMA,
     },
     extra=vol.PREVENT_EXTRA,
 )
@@ -559,6 +591,7 @@ def _frame_resource(  # noqa: PLR0913 - declarative resource builder
     assets: dict[str, Any] | None = None,
     bindings: dict[str, str] | None = None,
     tuning: dict[str, float] | None = None,
+    motion: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Create one explicit built-in Frame resource."""
     assets = assets or {}
@@ -609,6 +642,12 @@ def _frame_resource(  # noqa: PLR0913 - declarative resource builder
             "gap": 1.35,
             "details_padding": 0.7,
         },
+        "motion": motion or {
+            "preset": "none",
+            "speed": 1,
+            "intensity": 0,
+            "light_count": 0,
+        },
     }
 
 
@@ -639,6 +678,10 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
             "inner_border": "border",
         },
         tuning={"poster_share": 45, "gap": 1.35, "details_padding": 0.7},
+        motion={
+            "preset": "marquee_chase", "speed": 1, "intensity": 0.8,
+            "light_count": 18,
+        },
     ),
     "cyber_noir": _frame_resource(
         "cyber_noir",
@@ -664,6 +707,10 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
             "screen_border": "border",
         },
         tuning={"poster_share": 43, "gap": 1.6, "details_padding": 0.7},
+        motion={
+            "preset": "cyber_scan", "speed": 0.8, "intensity": 0.85,
+            "light_count": 8,
+        },
     ),
     "comic_hero": _frame_resource(
         "comic_hero",
@@ -688,6 +735,10 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
             "caption": "surface_elevated",
         },
         tuning={"poster_share": 42, "gap": 1.35, "details_padding": 0.9},
+        motion={
+            "preset": "comic_energy", "speed": 0.65, "intensity": 0.55,
+            "light_count": 6,
+        },
     ),
     "theater_classic": _frame_resource(
         "theater_classic",
@@ -714,6 +765,10 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
             "proscenium": "border",
         },
         tuning={"poster_share": 44, "gap": 1.35, "details_padding": 0.7},
+        motion={
+            "preset": "theater_sconce", "speed": 0.55, "intensity": 0.65,
+            "light_count": 4,
+        },
     ),
     "indie_nature": _frame_resource(
         "indie_nature",
@@ -738,6 +793,10 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
             "edge": "border",
         },
         tuning={"poster_share": 46, "gap": 1.8, "details_padding": 0.7},
+        motion={
+            "preset": "nature_dapple", "speed": 0.35, "intensity": 0.4,
+            "light_count": 5,
+        },
     ),
     "golden_age": _frame_resource(
         "golden_age",
@@ -762,6 +821,10 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
             "ornament": "border",
         },
         tuning={"poster_share": 42, "gap": 1.35, "details_padding": 1},
+        motion={
+            "preset": "golden_footlights", "speed": 0.7, "intensity": 0.75,
+            "light_count": 12,
+        },
     ),
     "steampunk": _frame_resource(
         "steampunk",
@@ -786,6 +849,10 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
             "rivets": "border",
         },
         tuning={"poster_share": 43, "gap": 1.5, "details_padding": 0.7},
+        motion={
+            "preset": "steampunk_mechanical", "speed": 0.4,
+            "intensity": 0.65, "light_count": 6,
+        },
     ),
 }
 
@@ -1082,6 +1149,7 @@ def frame_geometry_for_presentation(
         "layers": deepcopy(frame["layers"]),
         "safe_opening": deepcopy(frame["safe_opening"]),
         "layout_tuning": deepcopy(frame["layout_tuning"]),
+        "motion": deepcopy(frame["motion"]),
     }
 
 

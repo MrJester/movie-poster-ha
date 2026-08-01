@@ -74,6 +74,11 @@ const componentFontFamily = (value) => ({
 })[COMPONENT_FONTS.has(value) ? value : "theme_body"];
 const normalizeColor = (value, fallback) => /^#[0-9a-f]{6}$/i.test(value ?? "")
   ? value : fallback;
+const FRAME_MOTION_PRESETS = new Set([
+  "none", "marquee_chase", "cyber_scan", "comic_energy",
+  "theater_sconce", "nature_dapple", "golden_footlights",
+  "steampunk_mechanical",
+]);
 const colorContrastRatio = (foreground, background) => {
   const luminance = (color) => {
     const channels = color.slice(1).match(/.{2}/g).map(
@@ -585,6 +590,20 @@ class MoviePosterPanel extends HTMLElement {
     const bodyFont = normalizeFont(presentation.body_font);
     const accentColor = normalizeColor(presentation.accent_color, "#f6cf70");
     const backgroundColor = normalizeColor(presentation.background_color, "#090706");
+    const frameMotion = this._editorDocument
+      ? this._resolvedFrameMotion()
+      : state.design?.frame_motion || state.design_frame?.motion || {};
+    const frameMotionPreset = FRAME_MOTION_PRESETS.has(frameMotion.preset)
+      ? frameMotion.preset : "none";
+    const frameMotionSpeed = Math.min(
+      5, Math.max(0.1, Number(frameMotion.speed || 1)),
+    );
+    const frameMotionIntensity = Math.min(
+      1, Math.max(0, Number(frameMotion.intensity || 0)),
+    );
+    const frameLightCount = Math.min(
+      24, Math.max(0, Number(frameMotion.light_count || 0)),
+    );
     const logoUrl = String(presentation.logo_url || "").trim();
     const logoPosition = normalizeLogoPosition(presentation.logo_position);
     const backdrop = media.backdrop_url
@@ -600,7 +619,7 @@ class MoviePosterPanel extends HTMLElement {
         titleLayer?.constraints?.min_font_size || 0.8,
       )),
     );
-    const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};--title-max-lines:${titleMaxLines};--title-design-min:${titleMinimum}cqw;${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)};${safeOpeningStyle(state.design_frame?.safe_opening)};${frameLayoutStyle(state.design_frame?.layout_tuning)}"`;
+    const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};--title-max-lines:${titleMaxLines};--title-design-min:${titleMinimum}cqw;--frame-motion-duration:${4 / frameMotionSpeed}s;--frame-motion-intensity:${frameMotionIntensity};${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)};${safeOpeningStyle(state.design_frame?.safe_opening)};${frameLayoutStyle(state.design_frame?.layout_tuning)}"`;
 
     const hasDetails = presentation.show_title !== false
       || (presentation.show_subtitle !== false && Boolean(media.subtitle))
@@ -617,7 +636,7 @@ class MoviePosterPanel extends HTMLElement {
     const summaryClass = presentation.show_summary !== false ? " show-summary" : "";
     const progressClass = presentation.show_progress !== false ? " show-progress" : "";
     this.shadowRoot.innerHTML = `${this._styles()}${this._studioControls()}
-      <main class="theater${studioClass}${rendererClass}${authoredClass}${editorClass}${detailsClass}${detailsDensityClass} theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}${transitionClass}${summaryClass}${progressClass} orientation-${orientation} layout-${layout} frame-${frame} font-heading-${headingFont} font-body-${bodyFont}"
+      <main class="theater${studioClass}${rendererClass}${authoredClass}${editorClass}${detailsClass}${detailsDensityClass} theme-${theme} mode-${escapeHtml(state.mode)}${motionClass}${transitionClass}${summaryClass}${progressClass} orientation-${orientation} layout-${layout} frame-${frame} frame-motion-${frameMotionPreset} font-heading-${headingFont} font-body-${bodyFont}"
         ${presentationStyle} aria-label="Movie Poster display">
         <div class="ambient"></div>
         ${this._displayControls()}
@@ -626,6 +645,11 @@ class MoviePosterPanel extends HTMLElement {
           ${escapeHtml(state.health?.message)}</p>
         ${this._editorCanvas()}
         <section class="marquee-frame${logoUrl ? ` has-logo logo-at-${logoPosition}` : ""}">
+          <div class="frame-motion-layer" aria-hidden="true">
+            ${Array.from({ length: frameLightCount }, (_, index) =>
+              `<i style="--frame-light-index:${index};--frame-light-count:${frameLightCount}"></i>`
+            ).join("")}
+          </div>
           <div class="cyber-frame-lights" aria-hidden="true">
             <i class="cyber-light-group cyber-light-group-a"></i>
             <i class="cyber-light-group cyber-light-group-b"></i>
@@ -1231,6 +1255,20 @@ class MoviePosterPanel extends HTMLElement {
     return catalogFrame?.layers || this._state?.design_frame?.layers || [];
   }
 
+  _resolvedFrameMotion() {
+    if (this._editorDocument?.design?.frame_motion) {
+      return this._editorDocument.design.frame_motion;
+    }
+    const frameId = this._editorDocument?.design?.resources?.frame?.id
+      || this._state?.design_frame?.id;
+    const catalogFrame = Object.values(
+      this._presentationCatalog?.frames || {},
+    ).find((frame) => frame.id === frameId);
+    return catalogFrame?.motion || this._state?.design_frame?.motion || {
+      preset: "none", speed: 1, intensity: 0, light_count: 0,
+    };
+  }
+
   _frameCompositeMarkup(scope = "display") {
     return this._resolvedFrameLayers()
       .filter((layer) => layer.asset)
@@ -1262,6 +1300,8 @@ class MoviePosterPanel extends HTMLElement {
     const editorComponents = this._editorDocument?.design?.components || [];
     const editorFrameLayers = this._editorDocument
       ? this._resolvedFrameLayers() : [];
+    const editorFrameMotion = this._editorDocument
+      ? this._resolvedFrameMotion() : null;
     const selectedComponent = editorComponents.find(
       (component) => component.id === this._editorSelectedId,
     );
@@ -1428,6 +1468,33 @@ class MoviePosterPanel extends HTMLElement {
           <label>Layer stagger<input type="number" min="0" max="5" step=".05"
             data-editor-motion="stagger"
             value="${Number(this._editorDocument.design.motion?.stagger ?? 0)}"></label>
+        </fieldset>
+        <fieldset class="editor-motion studio-wide">
+          <legend>Frame practical lights</legend>
+          <label>Character<select data-editor-frame-motion="preset">
+            ${[
+              ["none", "None"],
+              ["marquee_chase", "Marquee chase"],
+              ["cyber_scan", "Cyber scan"],
+              ["comic_energy", "Comic energy"],
+              ["theater_sconce", "Theater sconces"],
+              ["nature_dapple", "Natural light"],
+              ["golden_footlights", "Golden footlights"],
+              ["steampunk_mechanical", "Steampunk mechanics"],
+            ].map(([value, label]) => `<option value="${value}"
+              ${(editorFrameMotion?.preset || "none") === value
+                ? "selected" : ""}>${label}</option>`).join("")}
+          </select></label>
+          <label>Speed<input type="number" min=".1" max="5" step=".1"
+            data-editor-frame-motion="speed"
+            value="${Number(editorFrameMotion?.speed ?? 1)}"></label>
+          <label>Intensity<input type="range" min="0" max="1" step=".05"
+            data-editor-frame-motion="intensity"
+            value="${Number(editorFrameMotion?.intensity ?? 0)}"></label>
+          <label>Light count<input type="number" min="0" max="24" step="1"
+            data-editor-frame-motion="light_count"
+            value="${Number(editorFrameMotion?.light_count ?? 0)}"></label>
+          <small>Theme colors power these lights. Reduced Motion freezes them automatically.</small>
         </fieldset>
         <fieldset class="editor-assets studio-wide">
           <legend>Assets</legend>
@@ -1860,6 +1927,43 @@ class MoviePosterPanel extends HTMLElement {
         this._scheduleEditorSave();
       });
     });
+    this.shadowRoot.querySelectorAll("[data-editor-frame-motion]")
+      .forEach((control) => {
+        control.addEventListener("change", () => {
+          if (!this._editorDocument) return;
+          this._recordEditorHistory();
+          const field = control.dataset.editorFrameMotion;
+          const current = this._resolvedFrameMotion();
+          this._editorDocument.design.frame_motion = {
+            preset: FRAME_MOTION_PRESETS.has(current.preset)
+              ? current.preset : "none",
+            speed: Math.min(5, Math.max(0.1, Number(current.speed || 1))),
+            intensity: Math.min(
+              1, Math.max(0, Number(current.intensity || 0)),
+            ),
+            light_count: Math.round(Math.min(
+              24, Math.max(0, Number(current.light_count || 0)),
+            )),
+          };
+          const motion = this._editorDocument.design.frame_motion;
+          if (field === "preset") motion.preset = control.value;
+          if (field === "speed") {
+            motion.speed = Math.min(5, Math.max(0.1, Number(control.value)));
+          }
+          if (field === "intensity") {
+            motion.intensity = Math.min(
+              1, Math.max(0, Number(control.value)),
+            );
+          }
+          if (field === "light_count") {
+            motion.light_count = Math.round(Math.min(
+              24, Math.max(0, Number(control.value)),
+            ));
+          }
+          this._render();
+          this._scheduleEditorSave();
+        });
+      });
     this.shadowRoot.querySelectorAll("[data-editor-align]").forEach((button) => {
       button.addEventListener("click", () =>
         this._alignEditorComponent(button.dataset.editorAlign));
@@ -6952,6 +7056,167 @@ class MoviePosterPanel extends HTMLElement {
           aspect-ratio: 4 / 3;
         }
       }
+      /* Declarative frame-owned practical lighting. Themes supply the light
+         colors; Frames supply placement and animation character. The layer is
+         paint-contained so glow can never bleed beyond the frame canvas. */
+      .frame-motion-layer {
+        position: absolute;
+        z-index: 3;
+        inset: 0;
+        overflow: hidden;
+        border-radius: inherit;
+        pointer-events: none;
+        contain: paint;
+        opacity: calc(.25 + var(--frame-motion-intensity, 0) * .75);
+      }
+      .frame-motion-layer i {
+        position: absolute;
+        display: block;
+        animation-duration: var(--frame-motion-duration, 4s);
+        animation-iteration-count: infinite;
+        animation-timing-function: ease-in-out;
+        animation-delay: calc(var(--frame-light-index, 0) * -.16s);
+      }
+      .frame-motion-none .frame-motion-layer { display: none; }
+      .frame-motion-marquee_chase .frame-motion-layer i,
+      .frame-motion-golden_footlights .frame-motion-layer i {
+        left: calc(4% + var(--frame-light-index) * 5.4%);
+        bottom: 3.2%;
+        width: clamp(4px, .7cqw, 11px);
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background: radial-gradient(circle at 38% 32%, #fff 0 9%,
+          var(--mp-light-primary, #ffe6a1) 22% 45%,
+          color-mix(in srgb, var(--mp-light-secondary, #ff9f38) 55%, #000)
+          70% 100%);
+        box-shadow: 0 0 calc(4px + 10px * var(--frame-motion-intensity))
+          var(--mp-light-primary, #ffe6a1);
+        transform: translateX(-50%);
+        animation-name: framePracticalChase;
+        animation-timing-function: steps(2, end);
+      }
+      .frame-motion-golden_footlights .frame-motion-layer i {
+        left: calc(4% + var(--frame-light-index) * 8.3%);
+        bottom: 5.5%;
+        animation-name: frameFootlightWave;
+        animation-timing-function: ease-in-out;
+      }
+      .frame-motion-cyber_scan .frame-motion-layer i:first-child {
+        inset: 4% auto 4% -12%;
+        width: 9%;
+        background: linear-gradient(90deg, transparent,
+          color-mix(in srgb, var(--mp-light-primary, #31dcff) 78%, transparent),
+          transparent);
+        filter: blur(3px);
+        animation-name: frameCyberScan;
+        animation-timing-function: linear;
+      }
+      .frame-motion-cyber_scan .frame-motion-layer i:not(:first-child) {
+        top: calc(3% + var(--frame-light-index) * 11%);
+        width: clamp(4px, .55cqw, 9px);
+        height: clamp(12px, 2.4cqw, 34px);
+        border-radius: 999px;
+        background: var(--mp-light-secondary, #ff36d1);
+        box-shadow: 0 0 12px var(--mp-light-secondary, #ff36d1);
+        animation-name: frameCyberNode;
+      }
+      .frame-motion-cyber_scan .frame-motion-layer i:nth-child(even) {
+        left: 2.5%;
+      }
+      .frame-motion-cyber_scan .frame-motion-layer i:nth-child(odd) {
+        right: 2.5%;
+      }
+      .frame-motion-comic_energy .frame-motion-layer i {
+        inset: 50% auto auto 50%;
+        width: calc(18% + var(--frame-light-index) * 7%);
+        aspect-ratio: 1;
+        border: clamp(1px, .25cqw, 4px) solid
+          color-mix(in srgb, var(--mp-light-primary, #fff36a) 60%, transparent);
+        border-radius: 50%;
+        transform: translate(-50%, -50%) scale(.7);
+        animation-name: frameComicEnergy;
+        animation-timing-function: steps(4, end);
+      }
+      .frame-motion-theater_sconce .frame-motion-layer i {
+        top: 20%;
+        width: 14%;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background: radial-gradient(circle,
+          color-mix(in srgb, var(--mp-light-primary, #ffd98c) 85%, transparent),
+          transparent 68%);
+        filter: blur(5px);
+        animation-name: frameSconceBreathe;
+      }
+      .frame-motion-theater_sconce .frame-motion-layer i:nth-child(odd) {
+        left: -3%;
+      }
+      .frame-motion-theater_sconce .frame-motion-layer i:nth-child(even) {
+        right: -3%;
+        top: 68%;
+      }
+      .frame-motion-nature_dapple .frame-motion-layer i {
+        width: 24%;
+        aspect-ratio: 1.8;
+        border-radius: 50%;
+        background: radial-gradient(ellipse,
+          color-mix(in srgb, var(--mp-light-primary, #fff4c7) 40%, transparent),
+          transparent 72%);
+        filter: blur(8px);
+        animation-name: frameDappleDrift;
+        animation-direction: alternate;
+      }
+      .frame-motion-nature_dapple .frame-motion-layer i:nth-child(1) { left: 4%; top: 9%; }
+      .frame-motion-nature_dapple .frame-motion-layer i:nth-child(2) { left: 56%; top: 18%; }
+      .frame-motion-nature_dapple .frame-motion-layer i:nth-child(3) { left: 20%; top: 48%; }
+      .frame-motion-nature_dapple .frame-motion-layer i:nth-child(4) { left: 68%; top: 63%; }
+      .frame-motion-nature_dapple .frame-motion-layer i:nth-child(5) { left: 38%; top: 79%; }
+      .frame-motion-steampunk_mechanical .frame-motion-layer i {
+        width: clamp(22px, 6cqw, 82px);
+        aspect-ratio: 1;
+        border: clamp(2px, .6cqw, 8px) dotted
+          color-mix(in srgb, var(--mp-light-primary, #ff9d48) 68%, transparent);
+        border-radius: 50%;
+        box-shadow: inset 0 0 10px var(--mp-light-secondary, #ffd074),
+          0 0 10px color-mix(in srgb,
+            var(--mp-light-primary, #ff9d48) 45%, transparent);
+        animation-name: frameGearTurn;
+        animation-timing-function: linear;
+      }
+      .frame-motion-steampunk_mechanical .frame-motion-layer i:nth-child(3n+1) { left: 2%; top: 5%; }
+      .frame-motion-steampunk_mechanical .frame-motion-layer i:nth-child(3n+2) { right: 2%; top: 16%; }
+      .frame-motion-steampunk_mechanical .frame-motion-layer i:nth-child(3n) { right: 4%; bottom: 5%; }
+      @keyframes framePracticalChase {
+        0%, 55%, 100% { opacity: .28; filter: brightness(.65); }
+        12%, 38% { opacity: 1; filter: brightness(1.5); }
+      }
+      @keyframes frameFootlightWave {
+        0%, 100% { opacity: .45; transform: translateX(-50%) scale(.88); }
+        50% { opacity: 1; transform: translateX(-50%) scale(1.12); }
+      }
+      @keyframes frameCyberScan {
+        from { transform: translateX(0); opacity: 0; }
+        12%, 82% { opacity: .9; }
+        to { transform: translateX(1250%); opacity: 0; }
+      }
+      @keyframes frameCyberNode {
+        0%, 70%, 100% { opacity: .18; filter: brightness(.7); }
+        78%, 92% { opacity: 1; filter: brightness(1.6); }
+      }
+      @keyframes frameComicEnergy {
+        0% { opacity: 0; transform: translate(-50%, -50%) scale(.65); }
+        45% { opacity: .6; }
+        100% { opacity: 0; transform: translate(-50%, -50%) scale(1.25); }
+      }
+      @keyframes frameSconceBreathe {
+        from { opacity: .42; transform: scale(.88); }
+        to { opacity: .95; transform: scale(1.12); }
+      }
+      @keyframes frameDappleDrift {
+        from { opacity: .2; transform: translate(-6%, -4%) rotate(-4deg); }
+        to { opacity: .7; transform: translate(8%, 5%) rotate(5deg); }
+      }
+      @keyframes frameGearTurn { to { transform: rotate(1turn); } }
       .theater:not(.motion-off) .content,
       .theater:not(.motion-off) .ambient {
         transition: opacity .24s ease, transform .24s ease;
@@ -6979,12 +7244,21 @@ class MoviePosterPanel extends HTMLElement {
           transition-duration: .001ms !important;
         }
         .marquee-frame, .marquee-frame::before { animation: none; }
+        .frame-motion-layer i { animation: none !important; }
         .marquee-frame::before { opacity: .8; }
       }
+      .motion-off .frame-motion-layer i { animation: none !important; }
     </style>`;
   }
 }
 
+// Home Assistant can retain older panel module URLs across integration reloads.
+// A versioned primary element prevents the first historical module from
+// permanently claiming the live panel. Keep the stable alias for standalone
+// harnesses and third-party embeds.
+if (!customElements.get("movie-poster-panel-v18")) {
+  customElements.define("movie-poster-panel-v18", MoviePosterPanel);
+}
 if (!customElements.get("movie-poster-panel")) {
-  customElements.define("movie-poster-panel", MoviePosterPanel);
+  customElements.define("movie-poster-panel", class extends MoviePosterPanel {});
 }

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.0-beta.50
+
+- Give every built-in Frame a declarative practical-light and motion character,
+  with editor controls for effect, speed, intensity, and light count.
+- Respect both the display Motion switch and reduced-motion preferences for all
+  Frame animation, while keeping effects clipped inside the Frame.
+- Add a developer-only promotion tool that turns a reviewed `.movieposter`
+  export into reproducible built-in Frame, Theme, Layout, Profile, and asset
+  candidates without granting the browser filesystem or source-code access.
+- Register a versioned Home Assistant custom element so cached historical panel
+  modules cannot claim the current Display Studio after an upgrade.
+
 ## 0.1.0-beta.49
 
 - Prevent portrait movie metadata from flex-collapsing under Linux font

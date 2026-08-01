@@ -198,6 +198,12 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
             "gap": 1.6,
             "details_padding": 0.7,
         },
+        "motion": {
+            "preset": "cyber_scan",
+            "speed": 0.8,
+            "intensity": 0.85,
+            "light_count": 8,
+        },
     }
     bezel = next(
         layer
