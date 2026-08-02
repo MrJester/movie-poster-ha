@@ -650,11 +650,7 @@ class MoviePosterPanel extends HTMLElement {
           ${escapeHtml(state.health?.message)}</p>
         ${this._editorCanvas()}
         <section class="marquee-frame${logoUrl ? ` has-logo logo-at-${logoPosition}` : ""}">
-          <div class="frame-motion-layer" aria-hidden="true">
-            ${Array.from({ length: frameLightCount }, (_, index) =>
-              `<i style="--frame-light-index:${index};--frame-light-count:${frameLightCount}"></i>`
-            ).join("")}
-          </div>
+          ${this._frameMotionMarkup(frameMotionPreset, frameLightCount)}
           <div class="cyber-frame-lights" aria-hidden="true">
             <i class="cyber-light-group cyber-light-group-a"></i>
             <i class="cyber-light-group cyber-light-group-b"></i>
@@ -1272,6 +1268,55 @@ class MoviePosterPanel extends HTMLElement {
     return catalogFrame?.motion || this._state?.design_frame?.motion || {
       preset: "none", speed: 1, intensity: 0, light_count: 0,
     };
+  }
+
+  _frameMotionMarkup(preset, count) {
+    const pieces = (className, amount = count) => Array.from(
+      { length: amount },
+      (_, index) => {
+        const position = amount <= 1 ? 50 : 6 + (88 * index / (amount - 1));
+        return `<i class="${className}" style="--frame-light-index:${index};--frame-light-count:${amount};--frame-light-position:${position}%"></i>`;
+      },
+    ).join("");
+    switch (preset) {
+      case "cyber_scan":
+        return `<div class="frame-motion-scene cyber-motion" aria-hidden="true">
+          <i class="cyber-scan-beam"></i>${pieces("cyber-powered-node", Math.max(2, count))}
+        </div>`;
+      case "comic_energy":
+        return `<div class="frame-motion-scene comic-motion" aria-hidden="true">
+          ${pieces("comic-panel-pulse", Math.max(4, count))}
+          <i class="comic-ink-flash"></i>
+        </div>`;
+      case "theater_sconce":
+        return `<div class="frame-motion-scene theater-motion" aria-hidden="true">
+          ${pieces("theater-sconce", Math.max(2, count))}
+          <i class="curtain-shimmer"></i>
+        </div>`;
+      case "nature_dapple":
+        return `<div class="frame-motion-scene nature-motion" aria-hidden="true">
+          ${pieces("leaf-shadow", Math.max(3, count))}
+          ${pieces("firefly", Math.max(3, count))}
+        </div>`;
+      case "golden_footlights":
+        return `<div class="frame-motion-scene golden-motion" aria-hidden="true">
+          ${pieces("golden-footlight", Math.max(4, count))}
+          <i class="golden-shimmer"></i>
+        </div>`;
+      case "steampunk_mechanical":
+        return `<div class="frame-motion-scene steampunk-motion" aria-hidden="true">
+          ${pieces("steam-gear", 3)}
+          <i class="steam-lamp steam-lamp-left"></i>
+          <i class="steam-lamp steam-lamp-right"></i>
+          <i class="steam-plume steam-plume-left"></i>
+          <i class="steam-plume steam-plume-right"></i>
+          <i class="pressure-glow"></i>
+        </div>`;
+      default:
+        // Marquee uses bulbs registered to the photographed sockets instead of
+        // an interchangeable overlay. "none" intentionally renders nothing.
+        return "";
+    }
   }
 
   _frameCompositeMarkup(scope = "display") {
@@ -7061,10 +7106,9 @@ class MoviePosterPanel extends HTMLElement {
           aspect-ratio: 4 / 3;
         }
       }
-      /* Declarative frame-owned practical lighting. Themes supply the light
-         colors; Frames supply placement and animation character. The layer is
-         paint-contained so glow can never bleed beyond the frame canvas. */
-      .frame-motion-layer {
+      /* Frame-native motion scenes. Themes supply semantic colors, while each
+         Frame owns unique physical elements, placement, and movement. */
+      .frame-motion-scene {
         position: absolute;
         z-index: 3;
         inset: 0;
@@ -7074,7 +7118,7 @@ class MoviePosterPanel extends HTMLElement {
         contain: paint;
         opacity: calc(.25 + var(--frame-motion-intensity, 0) * .75);
       }
-      .frame-motion-layer i {
+      .frame-motion-scene i {
         position: absolute;
         display: block;
         animation-duration: var(--frame-motion-duration, 4s);
@@ -7082,118 +7126,179 @@ class MoviePosterPanel extends HTMLElement {
         animation-timing-function: ease-in-out;
         animation-delay: calc(var(--frame-light-index, 0) * -.16s);
       }
-      .frame-motion-none .frame-motion-layer { display: none; }
-      .frame-motion-marquee_chase .frame-motion-layer i,
-      .frame-motion-golden_footlights .frame-motion-layer i {
-        left: calc(4% + var(--frame-light-index) * 5.4%);
-        bottom: 3.2%;
-        width: clamp(4px, .7cqw, 11px);
-        aspect-ratio: 1;
-        border-radius: 50%;
-        background: radial-gradient(circle at 38% 32%, #fff 0 9%,
-          var(--mp-light-primary, #ffe6a1) 22% 45%,
-          color-mix(in srgb, var(--mp-light-secondary, #ff9f38) 55%, #000)
-          70% 100%);
-        box-shadow: 0 0 calc(4px + 10px * var(--frame-motion-intensity))
-          var(--mp-light-primary, #ffe6a1);
-        transform: translateX(-50%);
-        animation-name: framePracticalChase;
-        animation-timing-function: steps(2, end);
-      }
-      .frame-motion-golden_footlights .frame-motion-layer i {
-        left: calc(4% + var(--frame-light-index) * 8.3%);
-        bottom: 5.5%;
-        animation-name: frameFootlightWave;
-        animation-timing-function: ease-in-out;
-      }
-      .frame-motion-cyber_scan .frame-motion-layer i:first-child {
-        inset: 4% auto 4% -12%;
-        width: 9%;
+      .cyber-scan-beam {
+        inset: 8% auto 8% -14%;
+        width: 11%;
         background: linear-gradient(90deg, transparent,
           color-mix(in srgb, var(--mp-light-primary, #31dcff) 78%, transparent),
           transparent);
-        filter: blur(3px);
+        border-inline: 1px solid var(--mp-light-primary, #31dcff);
+        filter: blur(2px) drop-shadow(0 0 9px var(--mp-light-primary, #31dcff));
         animation-name: frameCyberScan;
         animation-timing-function: linear;
       }
-      .frame-motion-cyber_scan .frame-motion-layer i:not(:first-child) {
-        top: calc(3% + var(--frame-light-index) * 11%);
-        width: clamp(4px, .55cqw, 9px);
-        height: clamp(12px, 2.4cqw, 34px);
-        border-radius: 999px;
+      .cyber-powered-node {
+        top: calc(9% + var(--frame-light-index) * 10%);
+        width: clamp(5px, .65cqw, 10px);
+        aspect-ratio: 1;
+        border: 1px solid var(--mp-light-primary, #31dcff);
+        transform: rotate(45deg);
         background: var(--mp-light-secondary, #ff36d1);
-        box-shadow: 0 0 12px var(--mp-light-secondary, #ff36d1);
+        box-shadow: 0 0 3px #fff, 0 0 14px var(--mp-light-secondary, #ff36d1);
         animation-name: frameCyberNode;
+        animation-timing-function: steps(2, end);
       }
-      .frame-motion-cyber_scan .frame-motion-layer i:nth-child(even) {
+      .cyber-powered-node:nth-child(even) {
         left: 2.5%;
       }
-      .frame-motion-cyber_scan .frame-motion-layer i:nth-child(odd) {
+      .cyber-powered-node:nth-child(odd) {
         right: 2.5%;
       }
-      .frame-motion-comic_energy .frame-motion-layer i {
-        inset: 50% auto auto 50%;
-        width: calc(18% + var(--frame-light-index) * 7%);
-        aspect-ratio: 1;
-        border: clamp(1px, .25cqw, 4px) solid
-          color-mix(in srgb, var(--mp-light-primary, #fff36a) 60%, transparent);
-        border-radius: 50%;
-        transform: translate(-50%, -50%) scale(.7);
-        animation-name: frameComicEnergy;
-        animation-timing-function: steps(4, end);
+      .comic-panel-pulse {
+        width: 24%;
+        height: 15%;
+        background: radial-gradient(ellipse,
+          color-mix(in srgb, var(--mp-light-primary, #fff36a) 62%, transparent),
+          transparent 70%);
+        mix-blend-mode: screen;
+        filter: blur(8px);
+        animation-name: frameComicPanelPulse;
+        animation-timing-function: steps(3, end);
       }
-      .frame-motion-theater_sconce .frame-motion-layer i {
-        top: 20%;
-        width: 14%;
-        aspect-ratio: 1;
+      .comic-panel-pulse:nth-child(4n+1) { left: 4%; top: 3%; }
+      .comic-panel-pulse:nth-child(4n+2) { right: 4%; top: 3%; }
+      .comic-panel-pulse:nth-child(4n+3) { left: 5%; bottom: 3%; }
+      .comic-panel-pulse:nth-child(4n) { right: 5%; bottom: 3%; }
+      .comic-ink-flash {
+        inset: 2%;
+        border: clamp(2px, .35cqw, 5px) solid transparent;
+        border-image: linear-gradient(115deg, transparent 12%,
+          var(--mp-light-secondary, #ff4060) 34%, transparent 52%) 1;
+        animation-name: frameComicInkFlash;
+        animation-timing-function: steps(2, end);
+      }
+      .theater-sconce {
+        top: 24%;
+        width: clamp(12px, 2.2cqw, 34px);
+        aspect-ratio: .72;
         border-radius: 50%;
-        background: radial-gradient(circle,
-          color-mix(in srgb, var(--mp-light-primary, #ffd98c) 85%, transparent),
-          transparent 68%);
-        filter: blur(5px);
+        background: radial-gradient(ellipse, #fff 0 4%,
+          var(--mp-light-primary, #ffd98c) 12% 28%, transparent 68%);
+        filter: blur(1px);
         animation-name: frameSconceBreathe;
       }
-      .frame-motion-theater_sconce .frame-motion-layer i:nth-child(odd) {
-        left: -3%;
+      .theater-sconce:nth-child(odd) {
+        left: 10.7%;
       }
-      .frame-motion-theater_sconce .frame-motion-layer i:nth-child(even) {
-        right: -3%;
-        top: 68%;
+      .theater-sconce:nth-child(even) {
+        right: 10.7%;
       }
-      .frame-motion-nature_dapple .frame-motion-layer i {
-        width: 24%;
+      .theater-sconce:nth-child(n+3) { top: 66%; }
+      .curtain-shimmer {
+        inset: 0;
+        background: linear-gradient(108deg, transparent 15%,
+          color-mix(in srgb, var(--mp-light-primary, #ffd98c) 18%, transparent) 36%,
+          transparent 55%);
+        mix-blend-mode: screen;
+        animation-name: frameCurtainShimmer;
+      }
+      .leaf-shadow {
+        width: 22%;
         aspect-ratio: 1.8;
-        border-radius: 50%;
-        background: radial-gradient(ellipse,
-          color-mix(in srgb, var(--mp-light-primary, #fff4c7) 40%, transparent),
-          transparent 72%);
-        filter: blur(8px);
+        border-radius: 90% 0 90% 0;
+        background: color-mix(in srgb, var(--mp-light-secondary, #315a35) 38%, transparent);
+        filter: blur(5px);
         animation-name: frameDappleDrift;
         animation-direction: alternate;
       }
-      .frame-motion-nature_dapple .frame-motion-layer i:nth-child(1) { left: 4%; top: 9%; }
-      .frame-motion-nature_dapple .frame-motion-layer i:nth-child(2) { left: 56%; top: 18%; }
-      .frame-motion-nature_dapple .frame-motion-layer i:nth-child(3) { left: 20%; top: 48%; }
-      .frame-motion-nature_dapple .frame-motion-layer i:nth-child(4) { left: 68%; top: 63%; }
-      .frame-motion-nature_dapple .frame-motion-layer i:nth-child(5) { left: 38%; top: 79%; }
-      .frame-motion-steampunk_mechanical .frame-motion-layer i {
+      .nature-motion { inset: 15% 13%; }
+      .leaf-shadow:nth-child(1) { left: 2%; top: 7%; }
+      .leaf-shadow:nth-child(2) { right: 3%; top: 22%; }
+      .leaf-shadow:nth-child(3) { left: 13%; top: 57%; }
+      .leaf-shadow:nth-child(4) { right: 9%; top: 69%; }
+      .leaf-shadow:nth-child(5) { left: 38%; top: 83%; }
+      .firefly {
+        left: calc(10% + var(--frame-light-index) * 17%);
+        top: calc(18% + (var(--frame-light-index) % 3) * 27%);
+        width: clamp(3px, .35cqw, 6px);
+        aspect-ratio: 1;
+        border-radius: 50%;
+        background: var(--mp-light-primary, #fff4a0);
+        box-shadow: 0 0 12px var(--mp-light-primary, #fff4a0);
+        animation-name: frameFirefly;
+      }
+      .golden-footlight {
+        left: var(--frame-light-position);
+        bottom: 10.5%;
+        width: clamp(6px, .85cqw, 13px);
+        aspect-ratio: .72;
+        border-radius: 50% 50% 30% 30%;
+        border: 1px solid var(--mp-border, #b98b3f);
+        background: radial-gradient(circle at 50% 25%, #fff 0 8%,
+          var(--mp-light-primary, #ffd875) 22% 50%, #6c3c12 78%);
+        box-shadow: 0 0 14px var(--mp-light-primary, #ffd875);
+        animation-name: frameFootlightWave;
+      }
+      .golden-shimmer {
+        inset: 3%;
+        border: 2px solid transparent;
+        border-image: linear-gradient(115deg, transparent 20%,
+          var(--mp-light-primary, #ffd875), transparent 60%) 1;
+        animation-name: frameGoldenShimmer;
+        animation-timing-function: linear;
+      }
+      .steam-gear {
         width: clamp(22px, 6cqw, 82px);
         aspect-ratio: 1;
-        border: clamp(2px, .6cqw, 8px) dotted
-          color-mix(in srgb, var(--mp-light-primary, #ff9d48) 68%, transparent);
+        border: clamp(3px, .6cqw, 8px) dashed var(--mp-border, #9b6332);
         border-radius: 50%;
-        box-shadow: inset 0 0 10px var(--mp-light-secondary, #ffd074),
-          0 0 10px color-mix(in srgb,
-            var(--mp-light-primary, #ff9d48) 45%, transparent);
+        background: radial-gradient(circle, transparent 0 27%,
+          var(--mp-light-secondary, #693f25) 30% 42%, transparent 45%);
+        box-shadow: inset 0 0 10px var(--mp-light-primary, #ff9d48),
+          0 0 7px color-mix(in srgb, var(--mp-light-primary, #ff9d48) 40%, transparent);
         animation-name: frameGearTurn;
         animation-timing-function: linear;
       }
-      .frame-motion-steampunk_mechanical .frame-motion-layer i:nth-child(3n+1) { left: 2%; top: 5%; }
-      .frame-motion-steampunk_mechanical .frame-motion-layer i:nth-child(3n+2) { right: 2%; top: 16%; }
-      .frame-motion-steampunk_mechanical .frame-motion-layer i:nth-child(3n) { right: 4%; bottom: 5%; }
-      @keyframes framePracticalChase {
-        0%, 55%, 100% { opacity: .28; filter: brightness(.65); }
-        12%, 38% { opacity: 1; filter: brightness(1.5); }
+      .steam-gear:nth-child(3n+1) { left: 2%; top: 6%; }
+      .steam-gear:nth-child(3n+2) { right: 2%; top: 18%; animation-direction: reverse; }
+      .steam-gear:nth-child(3n) { right: 4%; bottom: 6%; }
+      .steam-lamp {
+        top: 8.3%;
+        width: 8.5%;
+        height: 8%;
+        border-radius: 50%;
+        background: radial-gradient(ellipse,
+          color-mix(in srgb, #fff 70%, var(--mp-light-primary, #ff9d48)) 0 7%,
+          var(--mp-light-primary, #ff9d48) 18%, transparent 66%);
+        mix-blend-mode: screen;
+        filter: blur(2px);
+        animation-name: framePressurePulse;
+      }
+      .steam-lamp-left { left: 8.5%; }
+      .steam-lamp-right { right: 8.5%; animation-delay: -1.1s; }
+      .steam-plume {
+        bottom: 3%;
+        width: 11%;
+        height: 28%;
+        border-radius: 50%;
+        background: radial-gradient(ellipse at 50% 100%,
+          color-mix(in srgb, #fff 30%, transparent), transparent 70%);
+        filter: blur(7px);
+        animation-name: frameSteamRise;
+      }
+      .steam-plume-left { left: 5%; }
+      .steam-plume-right { right: 5%; animation-delay: -1.2s; }
+      .pressure-glow {
+        right: 3%;
+        top: 46%;
+        width: 7%;
+        aspect-ratio: 1;
+        border: 2px solid var(--mp-border, #9b6332);
+        border-radius: 50%;
+        background: radial-gradient(circle, #fff 0 5%,
+          var(--mp-light-primary, #ff6a32) 20% 52%, #38150b 75%);
+        box-shadow: 0 0 18px var(--mp-light-primary, #ff6a32);
+        animation-name: framePressurePulse;
       }
       @keyframes frameFootlightWave {
         0%, 100% { opacity: .45; transform: translateX(-50%) scale(.88); }
@@ -7208,20 +7313,45 @@ class MoviePosterPanel extends HTMLElement {
         0%, 70%, 100% { opacity: .18; filter: brightness(.7); }
         78%, 92% { opacity: 1; filter: brightness(1.6); }
       }
-      @keyframes frameComicEnergy {
-        0% { opacity: 0; transform: translate(-50%, -50%) scale(.65); }
-        45% { opacity: .6; }
-        100% { opacity: 0; transform: translate(-50%, -50%) scale(1.25); }
+      @keyframes frameComicPanelPulse {
+        0%, 100% { opacity: .08; transform: scale(.92); }
+        45%, 65% { opacity: .58; transform: scale(1.04); }
+      }
+      @keyframes frameComicInkFlash {
+        0%, 75%, 100% { opacity: .05; filter: brightness(.8); }
+        82%, 92% { opacity: .72; filter: brightness(1.5); }
       }
       @keyframes frameSconceBreathe {
         from { opacity: .42; transform: scale(.88); }
         to { opacity: .95; transform: scale(1.12); }
       }
+      @keyframes frameCurtainShimmer {
+        from { opacity: .12; transform: translateX(-35%); }
+        to { opacity: .5; transform: translateX(35%); }
+      }
       @keyframes frameDappleDrift {
         from { opacity: .2; transform: translate(-6%, -4%) rotate(-4deg); }
         to { opacity: .7; transform: translate(8%, 5%) rotate(5deg); }
       }
+      @keyframes frameFirefly {
+        0%, 100% { opacity: .12; transform: translate(-8px, 5px); }
+        45% { opacity: 1; transform: translate(7px, -9px); }
+      }
+      @keyframes frameGoldenShimmer {
+        from { filter: brightness(.65); opacity: .2; }
+        50% { filter: brightness(1.5); opacity: .9; }
+        to { filter: brightness(.65); opacity: .2; }
+      }
       @keyframes frameGearTurn { to { transform: rotate(1turn); } }
+      @keyframes frameSteamRise {
+        from { opacity: 0; transform: translateY(20%) scale(.7); }
+        45% { opacity: .5; }
+        to { opacity: 0; transform: translateY(-55%) scale(1.25); }
+      }
+      @keyframes framePressurePulse {
+        from { filter: brightness(.65); transform: scale(.92); }
+        to { filter: brightness(1.5); transform: scale(1.08); }
+      }
       .theater:not(.motion-off) .content,
       .theater:not(.motion-off) .ambient {
         transition: opacity .24s ease, transform .24s ease;
@@ -7249,10 +7379,12 @@ class MoviePosterPanel extends HTMLElement {
           transition-duration: .001ms !important;
         }
         .marquee-frame, .marquee-frame::before { animation: none; }
-        .frame-motion-layer i { animation: none !important; }
+        .frame-motion-scene i,
+        .marquee-bulbs i,
+        .marquee-bulbs::before { animation: none !important; }
         .marquee-frame::before { opacity: .8; }
       }
-      .motion-off .frame-motion-layer i { animation: none !important; }
+      .motion-off .frame-motion-scene i { animation: none !important; }
     </style>`;
   }
 }
@@ -7261,8 +7393,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v18")) {
-  customElements.define("movie-poster-panel-v18", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v19")) {
+  customElements.define("movie-poster-panel-v19", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});

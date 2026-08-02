@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.0-beta.52
+
+- Replace the shared generic Frame-light overlay with distinct frame-native
+  motion structures for Marquee, Cyber Noir, Comic Hero, Theater Classic,
+  Indie Nature, Golden Age, and Steampunk.
+- Align generated light and motion effects with each Frame's photographed
+  fixtures and artwork, preventing floating bulbs, leaking glow, and unrelated
+  effects across Frames.
+- Preserve motion-off and reduced-motion behavior, and verify every built-in
+  Frame exposes its own animated scene in Chromium and WebKit.
+
 ## 0.1.0-beta.51
 
 - Preserve declarative Frame motion when Display Studio merges live Home
