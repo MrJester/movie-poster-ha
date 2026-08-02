@@ -25,6 +25,11 @@ jobs:
 
   frontend:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -32,10 +37,13 @@ jobs:
           node-version: 24
       - name: Install frontend test environment
         run: npm install
-      - name: Install Chromium and WebKit
-        run: npx playwright install --with-deps chromium webkit
+      - name: Install ${{ matrix.browser }}
+        run: npx playwright install --with-deps ${{ matrix.browser }}
       - name: Test responsive renderer
-        run: ./scripts/validate frontend
+        run: >-
+          npx playwright test
+          --project=${{ matrix.browser }}
+          --shard=${{ matrix.shard }}/2
 
   test:
     runs-on: ubuntu-latest

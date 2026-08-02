@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.0-beta.54
+
+- Preserve Frame artwork proportions with centered cropping instead of
+  stretching source images to the responsive presentation canvas.
+- Select portrait or landscape Frame artwork from the presentation itself,
+  rather than accidentally using the browser window's orientation.
+- Resolve artwork, motion, safe opening, and layout tuning from the same Frame
+  resource so unsaved Studio selections preview atomically.
+- Add Chromium and WebKit regression coverage for Frame aspect handling and
+  resource switching.
+- Shard Chromium and WebKit validation across isolated GitHub jobs with bounded
+  worker counts, preventing hosted-runner contention from producing false
+  browser timeouts.
+
 ## 0.1.0-beta.53
 
 - Resolve unsaved Display Studio Frame selections against their matching

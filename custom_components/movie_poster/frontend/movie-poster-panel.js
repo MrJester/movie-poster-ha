@@ -581,6 +581,7 @@ class MoviePosterPanel extends HTMLElement {
     const orientation = normalizeOrientation(presentation.orientation);
     const layout = normalizeLayout(presentation.layout);
     const frame = normalizeFrame(presentation.frame_theme);
+    const resolvedFrame = this._resolvedFrameResource();
     // Every built-in combination now shares the declarative containment and
     // semantic-token renderer. Frame, Theme, and Layout remain independent;
     // the legacy selector name is retained as an internal CSS hook while
@@ -595,9 +596,7 @@ class MoviePosterPanel extends HTMLElement {
     const bodyFont = normalizeFont(presentation.body_font);
     const accentColor = normalizeColor(presentation.accent_color, "#f6cf70");
     const backgroundColor = normalizeColor(presentation.background_color, "#090706");
-    const frameMotion = this._editorDocument
-      ? this._resolvedFrameMotion()
-      : state.design?.frame_motion || state.design_frame?.motion || {};
+    const frameMotion = this._resolvedFrameMotion();
     const frameMotionPreset = FRAME_MOTION_PRESETS.has(frameMotion.preset)
       ? frameMotion.preset : "none";
     const frameMotionSpeed = Math.min(
@@ -624,7 +623,7 @@ class MoviePosterPanel extends HTMLElement {
         titleLayer?.constraints?.min_font_size || 0.8,
       )),
     );
-    const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};--title-max-lines:${titleMaxLines};--title-design-min:${titleMinimum}cqw;--frame-motion-duration:${4 / frameMotionSpeed}s;--frame-motion-intensity:${frameMotionIntensity};${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)};${safeOpeningStyle(state.design_frame?.safe_opening)};${frameLayoutStyle(state.design_frame?.layout_tuning)}"`;
+    const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};--title-max-lines:${titleMaxLines};--title-design-min:${titleMinimum}cqw;--frame-motion-duration:${4 / frameMotionSpeed}s;--frame-motion-intensity:${frameMotionIntensity};${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)};${safeOpeningStyle(resolvedFrame?.safe_opening)};${frameLayoutStyle(resolvedFrame?.layout_tuning)}"`;
 
     const hasDetails = presentation.show_title !== false
       || (presentation.show_subtitle !== false && Boolean(media.subtitle))
@@ -1331,6 +1330,18 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   _frameCompositeMarkup(scope = "display") {
+    const configuredOrientation = normalizeOrientation(
+      this._state?.presentation?.orientation,
+    );
+    let assetOrientation = configuredOrientation === "auto"
+      ? (window.matchMedia("(orientation: landscape)").matches
+        ? "landscape" : "portrait")
+      : configuredOrientation;
+    if (scope === "editor" && this._editorDevicePreset !== "responsive") {
+      assetOrientation = ["television", "ultrawide"].includes(
+        this._editorDevicePreset,
+      ) ? "landscape" : "portrait";
+    }
     return this._resolvedFrameLayers()
       .filter((layer) => layer.asset)
       .sort((a, b) => Number(a.z_index) - Number(b.z_index))
@@ -1341,6 +1352,8 @@ class MoviePosterPanel extends HTMLElement {
         const portrait = escapeHtml(asset?.portrait || asset?.landscape || "");
         const landscape = escapeHtml(asset?.landscape || asset?.portrait || "");
         if (!portrait || !landscape) return "";
+        const selectedAsset = assetOrientation === "landscape"
+          ? landscape : portrait;
         const opacity = Math.min(1, Math.max(0, Number(layer.opacity ?? 1)));
         const blend = [
           "normal", "multiply", "screen", "overlay", "soft-light",
@@ -1348,8 +1361,7 @@ class MoviePosterPanel extends HTMLElement {
         return `<picture class="design-frame-layer frame-slot-${escapeHtml(layer.slot)}"
           data-frame-layer="${escapeHtml(layer.id)}" data-frame-scope="${scope}"
           style="z-index:${Number(layer.z_index) || 0};opacity:${opacity};mix-blend-mode:${blend}">
-          <source media="(orientation: landscape)" srcset="${landscape}">
-          <img src="${portrait}" alt="" aria-hidden="true">
+          <img src="${selectedAsset}" alt="" aria-hidden="true">
         </picture>`;
       }).join("");
   }
@@ -6714,7 +6726,11 @@ class MoviePosterPanel extends HTMLElement {
         display: block;
         width: 100%;
         height: 100%;
-        object-fit: fill;
+        /* Frame art may have a different source ratio than the responsive
+           canvas. Cover crops the decorative outer edge without deforming
+           fixtures, typography, or material textures. */
+        object-fit: cover;
+        object-position: center;
       }
       .renderer-authored .frame-stage {
         display: none !important;
@@ -7404,8 +7420,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v20")) {
-  customElements.define("movie-poster-panel-v20", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v21")) {
+  customElements.define("movie-poster-panel-v21", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});

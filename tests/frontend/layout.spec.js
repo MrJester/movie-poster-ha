@@ -65,7 +65,7 @@ const VIEWPORTS = [
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
   await openHarness(page);
   const result = await page.evaluate(() => {
-    const current = document.createElement("movie-poster-panel-v20");
+    const current = document.createElement("movie-poster-panel-v21");
     document.body.append(current);
     return {
       registered: current.localName,
@@ -74,7 +74,7 @@ test("versioned Home Assistant element cannot be claimed by an older module", as
     };
   });
   expect(result).toEqual({
-    registered: "movie-poster-panel-v20",
+    registered: "movie-poster-panel-v21",
     hasCurrentEditor: true,
     stableAlias: true,
   });
@@ -867,6 +867,7 @@ test("frame assets are locked structural layers above live and editor content", 
     const liveLayer = panel.shadowRoot.querySelector(
       ".marquee-frame > .design-frame-layer.frame-slot-bezel",
     );
+    const liveImage = liveLayer.querySelector("img");
     const liveStage = panel.shadowRoot.querySelector(".frame-stage");
     const live = {
       followsStage: liveStage.compareDocumentPosition(liveLayer)
@@ -874,6 +875,7 @@ test("frame assets are locked structural layers above live and editor content", 
       zIndex: liveLayer.style.zIndex,
       opacity: liveLayer.style.opacity,
       pointerEvents: getComputedStyle(liveLayer).pointerEvents,
+      imageObjectFit: getComputedStyle(liveImage).objectFit,
     };
 
     panel._editorProfileId = "layered";
@@ -914,6 +916,7 @@ test("frame assets are locked structural layers above live and editor content", 
       zIndex: "80",
       opacity: "0.9",
       pointerEvents: "none",
+      imageObjectFit: "cover",
     },
     editorLayer: true,
     editorZIndex: "80",
@@ -2191,6 +2194,7 @@ test("Display Studio preserves subscribed Frame motion in its sample preview", a
       presentation: {
         ...window.studioStateForTest().presentation,
         frame_theme: "theater_classic",
+        orientation: "portrait",
         enable_motion: true,
       },
       design_frame: {
@@ -2226,14 +2230,17 @@ test("Display Studio previews the selected Frame artwork and motion before savin
       id,
       name: id,
       slot: "bezel",
-      asset: { portrait: asset, landscape: asset },
+      asset: {
+        portrait: `${asset}-portrait.png`,
+        landscape: `${asset}-landscape.png`,
+      },
       z_index: 80,
       locked: true,
       opacity: 1,
       blend_mode: "normal",
     });
-    const theaterLayer = layer("theater_bezel", "/theater-frame.png");
-    const cyberLayer = layer("cyber_bezel", "/cyber-frame.png");
+    const theaterLayer = layer("theater_bezel", "/theater-frame");
+    const cyberLayer = layer("cyber_bezel", "/cyber-frame");
     const panel = document.createElement("movie-poster-panel");
     document.body.append(panel);
     panel._state = {
@@ -2241,6 +2248,7 @@ test("Display Studio previews the selected Frame artwork and motion before savin
       presentation: {
         ...window.studioStateForTest().presentation,
         frame_theme: "theater_classic",
+        orientation: "portrait",
         enable_motion: true,
       },
       design_frame: {
@@ -2258,6 +2266,10 @@ test("Display Studio previews the selected Frame artwork and motion before savin
         theater_classic: {
           id: "builtin.frame.theater_classic",
           layers: [theaterLayer],
+          safe_opening: {
+            portrait: { x: 18, y: 15, width: 64, height: 70 },
+          },
+          layout_tuning: { poster_share: 44, gap: 1.2 },
           motion: {
             preset: "theater_sconce", speed: 0.55,
             intensity: 0.65, light_count: 4,
@@ -2266,6 +2278,10 @@ test("Display Studio previews the selected Frame artwork and motion before savin
         cyber_noir: {
           id: "builtin.frame.cyber_noir",
           layers: [cyberLayer],
+          safe_opening: {
+            portrait: { x: 20, y: 17, width: 60, height: 66 },
+          },
+          layout_tuning: { poster_share: 41, gap: 1.6 },
           motion: {
             preset: "cyber_scan", speed: 0.9,
             intensity: 0.8, light_count: 3,
@@ -2285,6 +2301,9 @@ test("Display Studio previews the selected Frame artwork and motion before savin
       selectedId: selected.id,
       selectedAsset: panel._resolvedFrameLayers()[0].asset.portrait,
       selectedMotion: selectedMotion.preset,
+      selectedSafeOpening: selected.safe_opening.portrait,
+      selectedLayoutTuning: selected.layout_tuning,
+      selectedMarkup: panel._frameCompositeMarkup(),
       cyberMotion: panel._frameMotionMarkup(
         selectedMotion.preset,
         selectedMotion.light_count,
@@ -2293,12 +2312,19 @@ test("Display Studio previews the selected Frame artwork and motion before savin
   });
   expect(result).toEqual({
     initialId: "builtin.frame.theater_classic",
-    initialAsset: "/theater-frame.png",
+    initialAsset: "/theater-frame-portrait.png",
     selectedId: "builtin.frame.cyber_noir",
-    selectedAsset: "/cyber-frame.png",
+    selectedAsset: "/cyber-frame-portrait.png",
     selectedMotion: "cyber_scan",
+    selectedSafeOpening: { x: 20, y: 17, width: 60, height: 66 },
+    selectedLayoutTuning: { poster_share: 41, gap: 1.6 },
     cyberMotion: true,
+    selectedMarkup: expect.stringContaining(
+      'src="/cyber-frame-portrait.png"',
+    ),
   });
+  expect(result.selectedMarkup).not.toContain("cyber-frame-landscape.png");
+  expect(result.selectedMarkup).not.toContain("<source");
 });
 
 test("Display Studio saves edited behavior and presentation settings", async ({ page }) => {

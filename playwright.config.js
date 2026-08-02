@@ -10,11 +10,12 @@ const webkitExecutable = process.env.PLAYWRIGHT_WEBKIT_EXECUTABLE_PATH;
 
 module.exports = defineConfig({
   testDir: "tests/frontend",
-  // Every test creates its own page and panel state. Running this single large
-  // spec serially kept one WebKit process alive for more than 20 minutes in CI,
-  // eventually causing an otherwise fast Frame-motion test to time out.
+  // Tests are isolated and can run in parallel, but hosted CI runners have
+  // fewer cores and less memory than development machines. Limit contention
+  // there and let workflow shards provide the broader parallelism.
   fullyParallel: true,
-  timeout: 30_000,
+  workers: process.env.CI ? 2 : undefined,
+  timeout: process.env.CI ? 90_000 : 30_000,
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR || "test-results",
   use: {
     baseURL: "http://127.0.0.1:4173",
