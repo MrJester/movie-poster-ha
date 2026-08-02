@@ -94,8 +94,8 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-beta.52-presentation.20"
-_FRONTEND_ELEMENT = "movie-poster-panel-v19"
+_FRONTEND_VERSION = "0.1.0-beta.53-presentation.21"
+_FRONTEND_ELEMENT = "movie-poster-panel-v20"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:

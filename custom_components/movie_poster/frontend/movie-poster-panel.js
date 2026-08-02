@@ -1247,25 +1247,36 @@ class MoviePosterPanel extends HTMLElement {
       || component.bounds;
   }
 
+  _resolvedFrameResource() {
+    const frames = this._presentationCatalog?.frames || {};
+    const editorFrameId = this._editorDocument?.design?.resources?.frame?.id;
+    if (editorFrameId) {
+      return Object.values(frames).find((frame) => frame.id === editorFrameId)
+        || this._state?.design_frame;
+    }
+    // Display Studio mutates presentation.frame_theme locally before saving.
+    // Resolve that preview selection from the catalog instead of continuing to
+    // render the design_frame snapshot supplied for the previously saved Frame.
+    if (this._studio) {
+      const selected = frames[normalizeFrame(
+        this._state?.presentation?.frame_theme,
+      )];
+      if (selected) return selected;
+    }
+    const stateFrame = this._state?.design_frame;
+    return Object.values(frames).find((frame) => frame.id === stateFrame?.id)
+      || stateFrame;
+  }
+
   _resolvedFrameLayers() {
-    const frameId = this._editorDocument?.design?.resources?.frame?.id
-      || this._state?.design_frame?.id;
-    const catalogFrame = Object.values(
-      this._presentationCatalog?.frames || {},
-    ).find((frame) => frame.id === frameId);
-    return catalogFrame?.layers || this._state?.design_frame?.layers || [];
+    return this._resolvedFrameResource()?.layers || [];
   }
 
   _resolvedFrameMotion() {
     if (this._editorDocument?.design?.frame_motion) {
       return this._editorDocument.design.frame_motion;
     }
-    const frameId = this._editorDocument?.design?.resources?.frame?.id
-      || this._state?.design_frame?.id;
-    const catalogFrame = Object.values(
-      this._presentationCatalog?.frames || {},
-    ).find((frame) => frame.id === frameId);
-    return catalogFrame?.motion || this._state?.design_frame?.motion || {
+    return this._resolvedFrameResource()?.motion || {
       preset: "none", speed: 1, intensity: 0, light_count: 0,
     };
   }
@@ -7393,8 +7404,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v19")) {
-  customElements.define("movie-poster-panel-v19", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v20")) {
+  customElements.define("movie-poster-panel-v20", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});

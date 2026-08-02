@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.0-beta.53
+
+- Resolve unsaved Display Studio Frame selections against their matching
+  built-in resources so each Frame immediately shows its own artwork, layers,
+  and motion instead of retaining the previously saved Frame image.
+- Add cross-browser regression coverage for switching Frame artwork and motion
+  while the saved presentation snapshot still references another Frame.
+- Run independent browser tests in parallel and avoid duplicate full
+  validation runs on release-tag pushes, reducing WebKit CI timeouts.
+
 ## 0.1.0-beta.52
 
 - Replace the shared generic Frame-light overlay with distinct frame-native

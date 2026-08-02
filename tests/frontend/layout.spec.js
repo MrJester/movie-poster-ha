@@ -65,7 +65,7 @@ const VIEWPORTS = [
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
   await openHarness(page);
   const result = await page.evaluate(() => {
-    const current = document.createElement("movie-poster-panel-v19");
+    const current = document.createElement("movie-poster-panel-v20");
     document.body.append(current);
     return {
       registered: current.localName,
@@ -74,7 +74,7 @@ test("versioned Home Assistant element cannot be claimed by an older module", as
     };
   });
   expect(result).toEqual({
-    registered: "movie-poster-panel-v19",
+    registered: "movie-poster-panel-v20",
     hasCurrentEditor: true,
     stableAlias: true,
   });
@@ -2216,6 +2216,88 @@ test("Display Studio preserves subscribed Frame motion in its sample preview", a
   expect(result).toEqual({
     motionClass: "frame-motion-theater_sconce",
     lightCount: 4,
+  });
+});
+
+test("Display Studio previews the selected Frame artwork and motion before saving", async ({ page }) => {
+  await openHarness(page, "?studio=1");
+  const result = await page.evaluate(async () => {
+    const layer = (id, asset) => ({
+      id,
+      name: id,
+      slot: "bezel",
+      asset: { portrait: asset, landscape: asset },
+      z_index: 80,
+      locked: true,
+      opacity: 1,
+      blend_mode: "normal",
+    });
+    const theaterLayer = layer("theater_bezel", "/theater-frame.png");
+    const cyberLayer = layer("cyber_bezel", "/cyber-frame.png");
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    panel._state = {
+      ...window.studioStateForTest(),
+      presentation: {
+        ...window.studioStateForTest().presentation,
+        frame_theme: "theater_classic",
+        enable_motion: true,
+      },
+      design_frame: {
+        id: "builtin.frame.theater_classic",
+        version: 1,
+        layers: [theaterLayer],
+        motion: {
+          preset: "theater_sconce", speed: 0.55,
+          intensity: 0.65, light_count: 4,
+        },
+      },
+    };
+    panel._presentationCatalog = {
+      frames: {
+        theater_classic: {
+          id: "builtin.frame.theater_classic",
+          layers: [theaterLayer],
+          motion: {
+            preset: "theater_sconce", speed: 0.55,
+            intensity: 0.65, light_count: 4,
+          },
+        },
+        cyber_noir: {
+          id: "builtin.frame.cyber_noir",
+          layers: [cyberLayer],
+          motion: {
+            preset: "cyber_scan", speed: 0.9,
+            intensity: 0.8, light_count: 3,
+          },
+        },
+      },
+    };
+    const initial = panel._resolvedFrameResource();
+    // This is the local state mutation performed by the Studio Frame select;
+    // design_frame intentionally remains the last server-saved snapshot.
+    panel._state.presentation.frame_theme = "cyber_noir";
+    const selected = panel._resolvedFrameResource();
+    const selectedMotion = panel._resolvedFrameMotion();
+    return {
+      initialId: initial.id,
+      initialAsset: initial.layers[0].asset.portrait,
+      selectedId: selected.id,
+      selectedAsset: panel._resolvedFrameLayers()[0].asset.portrait,
+      selectedMotion: selectedMotion.preset,
+      cyberMotion: panel._frameMotionMarkup(
+        selectedMotion.preset,
+        selectedMotion.light_count,
+      ).includes("cyber-motion"),
+    };
+  });
+  expect(result).toEqual({
+    initialId: "builtin.frame.theater_classic",
+    initialAsset: "/theater-frame.png",
+    selectedId: "builtin.frame.cyber_noir",
+    selectedAsset: "/cyber-frame.png",
+    selectedMotion: "cyber_scan",
+    cyberMotion: true,
   });
 });
 
