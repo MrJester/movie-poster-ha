@@ -62,19 +62,31 @@ const VIEWPORTS = [
   { name: "rotated-4k-tv", width: 2160, height: 3840, orientation: "portrait" },
 ];
 
+// Keep the high-resolution cases on separate hosted runners. These groups are
+// balanced from measured WebKit timings rather than viewport count alone.
+const RESPONSIVE_VIEWPORT_PARTITIONS = [
+  ["rotated-4k-tv", "small-phone", "tablet", "phone-compact", "phone"],
+  ["4k-tv", "phone-large", "ipad-mini", "ipad-landscape", "hd-laptop"],
+  ["ultrawide-4k", "macbook", "theater", "laptop-tall", "laptop"],
+  ["digital-signage", "tall-portrait", "ultrawide", "tablet-large", "hd-portrait"],
+];
+
 const responsiveViewportShard = Number.parseInt(
   process.env.RESPONSIVE_VIEWPORT_SHARD ?? "", 10,
 );
 const responsiveViewportShardCount = Number.parseInt(
   process.env.RESPONSIVE_VIEWPORT_SHARD_COUNT ?? "", 10,
 );
-const responsiveViewports = Number.isInteger(responsiveViewportShard)
+const configuredResponsivePartition = Number.isInteger(responsiveViewportShard)
   && Number.isInteger(responsiveViewportShardCount)
-  && responsiveViewportShardCount > 0
+  && responsiveViewportShardCount === RESPONSIVE_VIEWPORT_PARTITIONS.length
   && responsiveViewportShard >= 0
   && responsiveViewportShard < responsiveViewportShardCount
-  ? VIEWPORTS.filter((_, index) =>
-    index % responsiveViewportShardCount === responsiveViewportShard)
+  ? new Set(RESPONSIVE_VIEWPORT_PARTITIONS[responsiveViewportShard])
+  : null;
+const responsiveViewports = configuredResponsivePartition
+  ? VIEWPORTS.filter((viewport) =>
+    configuredResponsivePartition.has(viewport.name))
   : VIEWPORTS;
 
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
@@ -305,7 +317,10 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
 
 for (const viewport of responsiveViewports) {
   test(`all renderer combinations stay contained on ${viewport.name} @responsive-matrix`, async ({ page }) => {
-    test.setTimeout(180_000);
+    // Hosted WebKit can take slightly over three minutes to render the full
+    // three-orientation matrix at rotated 4K. Keep this exception local to the
+    // exhaustive visual matrix; normal acceptance tests retain tighter limits.
+    test.setTimeout(300_000);
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await openHarness(page);
     const failures = [];

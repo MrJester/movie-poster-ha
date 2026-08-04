@@ -24,6 +24,7 @@ jobs:
       - uses: home-assistant/actions/hassfest@master
 
   frontend:
+    name: frontend (${{ matrix.browser }}, ${{ matrix.suite.name }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -32,7 +33,13 @@ jobs:
         # Automatic test-count sharding grouped every expensive viewport test
         # into one runner. Partition that matrix explicitly, then shard the
         # remaining acceptance tests independently.
-        suite: [responsive-0, responsive-1, acceptance-1, acceptance-2]
+        suite:
+          - {name: responsive-0, kind: responsive, partition: 0, total: 4}
+          - {name: responsive-1, kind: responsive, partition: 1, total: 4}
+          - {name: responsive-2, kind: responsive, partition: 2, total: 4}
+          - {name: responsive-3, kind: responsive, partition: 3, total: 4}
+          - {name: acceptance-1, kind: acceptance, partition: 1, total: 2}
+          - {name: acceptance-2, kind: acceptance, partition: 2, total: 2}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -43,23 +50,23 @@ jobs:
       - name: Install ${{ matrix.browser }}
         run: npx playwright install --with-deps ${{ matrix.browser }}
       - name: Test responsive matrix
-        if: startsWith(matrix.suite, 'responsive-')
+        if: matrix.suite.kind == 'responsive'
         env:
-          RESPONSIVE_VIEWPORT_SHARD_COUNT: "2"
-          RESPONSIVE_VIEWPORT_SHARD: ${{ endsWith(matrix.suite, '-0') && '0' || '1' }}
+          RESPONSIVE_VIEWPORT_SHARD_COUNT: ${{ matrix.suite.total }}
+          RESPONSIVE_VIEWPORT_SHARD: ${{ matrix.suite.partition }}
         run: >-
           npx playwright test
           --project=${{ matrix.browser }}
           --workers=1
           --grep=@responsive-matrix
       - name: Test renderer acceptance
-        if: startsWith(matrix.suite, 'acceptance-')
+        if: matrix.suite.kind == 'acceptance'
         run: >-
           npx playwright test
           --project=${{ matrix.browser }}
           --workers=1
           --grep-invert=@responsive-matrix
-          --shard=${{ endsWith(matrix.suite, '-1') && '1' || '2' }}/2
+          --shard=${{ matrix.suite.partition }}/${{ matrix.suite.total }}
 
   test:
     runs-on: ubuntu-latest
