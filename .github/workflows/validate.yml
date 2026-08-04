@@ -29,9 +29,10 @@ jobs:
       fail-fast: false
       matrix:
         browser: [chromium, webkit]
-        # Keep each browser process small enough that WebKit cannot exhaust a
-        # hosted runner during the large responsive/Studio matrix.
-        shard: [1, 2, 3, 4]
+        # Automatic test-count sharding grouped every expensive viewport test
+        # into one runner. Partition that matrix explicitly, then shard the
+        # remaining acceptance tests independently.
+        suite: [responsive-0, responsive-1, acceptance-1, acceptance-2]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -41,12 +42,24 @@ jobs:
         run: npm install
       - name: Install ${{ matrix.browser }}
         run: npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Test responsive renderer
+      - name: Test responsive matrix
+        if: startsWith(matrix.suite, 'responsive-')
+        env:
+          RESPONSIVE_VIEWPORT_SHARD_COUNT: "2"
+          RESPONSIVE_VIEWPORT_SHARD: ${{ endsWith(matrix.suite, '-0') && '0' || '1' }}
         run: >-
           npx playwright test
           --project=${{ matrix.browser }}
           --workers=1
-          --shard=${{ matrix.shard }}/4
+          --grep=@responsive-matrix
+      - name: Test renderer acceptance
+        if: startsWith(matrix.suite, 'acceptance-')
+        run: >-
+          npx playwright test
+          --project=${{ matrix.browser }}
+          --workers=1
+          --grep-invert=@responsive-matrix
+          --shard=${{ endsWith(matrix.suite, '-1') && '1' || '2' }}/2
 
   test:
     runs-on: ubuntu-latest

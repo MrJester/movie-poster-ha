@@ -62,6 +62,21 @@ const VIEWPORTS = [
   { name: "rotated-4k-tv", width: 2160, height: 3840, orientation: "portrait" },
 ];
 
+const responsiveViewportShard = Number.parseInt(
+  process.env.RESPONSIVE_VIEWPORT_SHARD ?? "", 10,
+);
+const responsiveViewportShardCount = Number.parseInt(
+  process.env.RESPONSIVE_VIEWPORT_SHARD_COUNT ?? "", 10,
+);
+const responsiveViewports = Number.isInteger(responsiveViewportShard)
+  && Number.isInteger(responsiveViewportShardCount)
+  && responsiveViewportShardCount > 0
+  && responsiveViewportShard >= 0
+  && responsiveViewportShard < responsiveViewportShardCount
+  ? VIEWPORTS.filter((_, index) =>
+    index % responsiveViewportShardCount === responsiveViewportShard)
+  : VIEWPORTS;
+
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
   await openHarness(page);
   const result = await page.evaluate(() => {
@@ -288,8 +303,8 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
   }, { frame, theme, layout, orientation, variant });
 }
 
-for (const viewport of VIEWPORTS) {
-  test(`all renderer combinations stay contained on ${viewport.name}`, async ({ page }) => {
+for (const viewport of responsiveViewports) {
+  test(`all renderer combinations stay contained on ${viewport.name} @responsive-matrix`, async ({ page }) => {
     test.setTimeout(180_000);
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await openHarness(page);

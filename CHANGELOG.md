@@ -16,8 +16,9 @@
   legacy/declarative visual isolation.
 - Verify every built-in Frame in portrait and landscape against the approved
   beta.45 baseline: all 14 decoded screenshots are pixel-identical.
-- Split each browser's GitHub Actions suite into four single-worker shards so
-  long WebKit runs remain within hosted-runner resource limits.
+- Split each browser's responsive device matrix into two balanced partitions
+  and its remaining acceptance tests into two single-worker shards so long
+  WebKit runs remain within hosted-runner resource limits.
 
 ## 0.1.0-beta.54
 
