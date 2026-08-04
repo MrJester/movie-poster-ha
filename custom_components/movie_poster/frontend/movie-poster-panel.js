@@ -221,9 +221,16 @@ class MoviePosterPanel extends HTMLElement {
     };
     this._bulbObserver = null;
     this._externalBusId = Date.now();
-    this._studio = new URLSearchParams(window.location.search).get("studio") === "1";
-    this._requestedEntryId = new URLSearchParams(window.location.search).get("entry_id");
-    this._requestedProfileId = new URLSearchParams(window.location.search).get("profile") || "default";
+    const searchParams = new URLSearchParams(window.location.search);
+    this._studio = searchParams.get("studio") === "1";
+    this._requestedEntryId = searchParams.get("entry_id");
+    this._requestedProfileId = searchParams.get("profile") || "default";
+    // The approved display remains the production renderer while the
+    // declarative canvas is rebuilt behind an explicit development switch.
+    // Never infer this mode from a profile: doing so previously allowed the
+    // legacy and declarative renderers to overlap on live installations.
+    this._rendererMode = searchParams.get("renderer") === "declarative"
+      ? "declarative" : "compatibility";
     this._studioLoaded = false;
     this._settings = null;
     this._choices = {
@@ -582,13 +589,16 @@ class MoviePosterPanel extends HTMLElement {
     const layout = normalizeLayout(presentation.layout);
     const frame = normalizeFrame(presentation.frame_theme);
     const resolvedFrame = this._resolvedFrameResource();
-    // Every built-in combination now shares the declarative containment and
-    // semantic-token renderer. Frame, Theme, and Layout remain independent;
-    // the legacy selector name is retained as an internal CSS hook while
-    // existing installations migrate.
-    const declarativeRenderer = true;
-    const rendererClass = declarativeRenderer ? " renderer-reference" : "";
-    const authoredRenderer = state.profile_id !== "default"
+    const declarativeRenderer = this._rendererMode === "declarative";
+    // Marquee / Classic / Cinematic is the single approved reference preset.
+    // Other built-ins keep their frame-specific compatibility styling until
+    // they are deliberately migrated and visually approved one at a time.
+    const referenceRenderer = frame === "marquee"
+      && theme === "classic"
+      && layout === "cinematic";
+    const rendererClass = `${referenceRenderer ? " renderer-reference" : ""}`
+      + ` renderer-${declarativeRenderer ? "declarative" : "compatibility"}`;
+    const authoredRenderer = declarativeRenderer
       && Number(state.design?.schema_version) >= 2;
     const authoredClass = authoredRenderer ? " renderer-authored" : "";
     const editorClass = this._editorDocument ? " visual-editor-active" : "";
@@ -649,16 +659,17 @@ class MoviePosterPanel extends HTMLElement {
           ${escapeHtml(state.health?.message)}</p>
         ${this._editorCanvas()}
         <section class="marquee-frame${logoUrl ? ` has-logo logo-at-${logoPosition}` : ""}">
-          ${this._frameMotionMarkup(frameMotionPreset, frameLightCount)}
-          <div class="cyber-frame-lights" aria-hidden="true">
+          ${declarativeRenderer
+            ? this._frameMotionMarkup(frameMotionPreset, frameLightCount) : ""}
+          <div class="cyber-frame-lights${declarativeRenderer ? " renderer-inactive" : ""}" aria-hidden="true">
             <i class="cyber-light-group cyber-light-group-a"></i>
             <i class="cyber-light-group cyber-light-group-b"></i>
             <i class="cyber-light-group cyber-light-group-c"></i>
           </div>
-          <div class="marquee-bulbs" aria-hidden="true">
+          <div class="marquee-bulbs${declarativeRenderer && frame !== "marquee" ? " renderer-inactive" : ""}" aria-hidden="true">
           </div>
           ${authoredRenderer ? this._authoredCanvas() : ""}
-          <div class="frame-stage">
+          <div class="frame-stage${declarativeRenderer ? " renderer-inactive" : ""}">
           ${logoUrl ? `<div class="brand-row logo-${logoPosition}">
             <div class="brand-logo logo-${logoPosition}">
               <img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(presentation.eyebrow_text || "Theater")} logo">
@@ -709,7 +720,7 @@ class MoviePosterPanel extends HTMLElement {
             </article>
           </div>
           </div>
-          ${this._frameCompositeMarkup()}
+          ${declarativeRenderer ? this._frameCompositeMarkup() : ""}
         </section>
       </main>`;
     this._bindStudioControls();
@@ -6743,8 +6754,10 @@ class MoviePosterPanel extends HTMLElement {
       }
       .authored-component-surface {
         position: absolute;
-        inset:
-          var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+        /* Component bounds are percentages of the complete presentation
+           canvas. The safe opening is a guide/clip contract, not a second
+           coordinate system around authored content. */
+        inset: 0;
         overflow: visible;
       }
       .authored-component {
@@ -7133,6 +7146,26 @@ class MoviePosterPanel extends HTMLElement {
           aspect-ratio: 4 / 3;
         }
       }
+      /* The development renderer must never expose the legacy physical frame
+         or content stage beneath its structural layers. Keeping the dormant
+         nodes for now limits recovery risk; these rules make the active
+         rendering paths mutually exclusive until the markup is fully split. */
+      .renderer-declarative .renderer-inactive {
+        display: none !important;
+      }
+      main.theater.renderer-declarative .marquee-frame {
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        clip-path: none !important;
+      }
+      main.theater.renderer-declarative .marquee-frame::before,
+      main.theater.renderer-declarative .marquee-frame::after {
+        content: none !important;
+        display: none !important;
+      }
       /* Frame-native motion scenes. Themes supply semantic colors, while each
          Frame owns unique physical elements, placement, and movement. */
       .frame-motion-scene {
@@ -7420,8 +7453,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v21")) {
-  customElements.define("movie-poster-panel-v21", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v22")) {
+  customElements.define("movie-poster-panel-v22", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});

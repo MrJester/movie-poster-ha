@@ -1,12 +1,13 @@
 # Presentation System and Visual Editor Plan
 
 Status: Product specification
-Implementation status: Layered schema, shared renderer for every built-in and
-custom Profile, semantic Theme mappings, high-resolution portrait/landscape
-Frame assets, Presentation Library publication, packaged assets, and precision
-editor controls implemented through 0.1.0-beta.47. Automated acceptance covers
-every built-in Frame/Theme/Layout combination in both browser engines. Final
-visual acceptance on the deployed Home Assistant build remains a release gate.
+Implementation status: Layered schema, semantic Theme mappings,
+portrait/landscape Frame assets, Presentation Library publication, packaged
+assets, and precision editor controls are implemented. As of 0.1.0-beta.55,
+the approved beta.45-compatible renderer is the production default while the
+declarative renderer is isolated behind an explicit development switch. Frame
+conversion now proceeds one preset at a time and requires automated, local,
+and deployed Home Assistant visual acceptance before promotion.
 Scope: Presentation design only; Plex and playback behavior are explicitly out
 of scope.
 
@@ -403,6 +404,36 @@ The migration must be incremental:
 Existing users must keep a functional presentation throughout migration. No
 release should simultaneously redesign all presets and replace the rendering
 engine.
+
+### 15.1 Renderer recovery boundary
+
+The production display and Display Studio preview use the compatibility
+renderer unless a developer explicitly adds `renderer=declarative` to the page
+query. A saved Profile, schema version, Frame selection, or editor state must
+never activate the development renderer implicitly.
+
+Only one visual path may be active at a time:
+
+- compatibility mode owns the legacy Frame, content, and practical-light DOM;
+- declarative mode owns structural Frame layers, authored components, and
+  Frame-native motion;
+- neither mode may display the other mode's physical artwork, pseudo-elements,
+  content stage, glow layers, or motion scene underneath its own output.
+
+Presentation Library documents and custom assets remain stored while this
+boundary is in place. Published schema-two geometry is previewed through the
+development renderer until that renderer passes the promotion gates below.
+
+A Frame may move from compatibility to production declarative rendering only
+after all of the following pass:
+
+1. structural tests prove there is exactly one active renderer;
+2. portrait and landscape screenshots pass the approved visual baseline;
+3. long-title, missing-artwork, metadata, summary, progress, and motion states
+   remain inside the Frame's safe opening;
+4. Chromium and WebKit acceptance suites pass without resource failures;
+5. the deployed Home Assistant build is reviewed at representative desktop,
+   tablet, and wall-display sizes.
 
 ## 16. Delivery phases
 

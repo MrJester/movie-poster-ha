@@ -65,7 +65,7 @@ const VIEWPORTS = [
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
   await openHarness(page);
   const result = await page.evaluate(() => {
-    const current = document.createElement("movie-poster-panel-v21");
+    const current = document.createElement("movie-poster-panel-v22");
     document.body.append(current);
     return {
       registered: current.localName,
@@ -74,7 +74,7 @@ test("versioned Home Assistant element cannot be claimed by an older module", as
     };
   });
   expect(result).toEqual({
-    registered: "movie-poster-panel-v21",
+    registered: "movie-poster-panel-v22",
     hasCurrentEditor: true,
     stableAlias: true,
   });
@@ -566,7 +566,7 @@ test("portrait metadata uses compact and expanded density states", async ({ page
   expect(expanded.detailsShare).toBeGreaterThan(compact.detailsShare);
 });
 
-test("declarative renderer contains every built-in frame canvas", async ({ page }) => {
+test("production uses compatibility rendering and only the approved reference preset", async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1280, height: 720 });
   await openHarness(page);
@@ -580,13 +580,17 @@ test("declarative renderer contains every built-in frame canvas", async ({ page 
     const frame = root.querySelector(".marquee-frame");
     const box = frame.getBoundingClientRect();
     return {
-      enabled: theater.classList.contains("renderer-reference"),
+      reference: theater.classList.contains("renderer-reference"),
+      compatibility: theater.classList.contains("renderer-compatibility"),
+      declarative: theater.classList.contains("renderer-declarative"),
       contained: box.left >= 0 && box.top >= 0
         && box.right <= innerWidth && box.bottom <= innerHeight,
       ratio: box.width / box.height,
     };
   });
-  expect(result.enabled).toBe(true);
+  expect(result.reference).toBe(true);
+  expect(result.compatibility).toBe(true);
+  expect(result.declarative).toBe(false);
   expect(result.contained).toBe(true);
   expect(result.ratio).toBeCloseTo(4 / 3, 2);
 
@@ -596,13 +600,135 @@ test("declarative renderer contains every built-in frame canvas", async ({ page 
         expect(await renderPoster(
           page, frame, theme, layout, "landscape",
         )).toEqual([]);
-        expect(await page.evaluate(() => document
-          .querySelector("movie-poster-panel").shadowRoot
-          .querySelector(".theater").classList.contains("renderer-reference")))
-          .toBe(true);
+        const renderer = await page.evaluate(() => {
+          const theater = document.querySelector("movie-poster-panel")
+            .shadowRoot.querySelector(".theater");
+          return {
+            compatibility: theater.classList.contains("renderer-compatibility"),
+            declarative: theater.classList.contains("renderer-declarative"),
+            reference: theater.classList.contains("renderer-reference"),
+          };
+        });
+        expect(renderer).toEqual({
+          compatibility: true,
+          declarative: false,
+          reference: frame === "marquee"
+            && theme === "classic" && layout === "cinematic",
+        });
       }
     }
   }
+});
+
+test("production display has exactly one active rendering path", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openHarness(page);
+  expect(await renderPoster(
+    page, "cyber_noir", "neon", "cinematic", "landscape",
+    {
+      design: {
+        schema_version: 2,
+        components: [{
+          id: "title", type: "title", visible: true, z_index: 20,
+          bounds: { x: 20, y: 20, width: 60, height: 12 },
+        }],
+      },
+      frameLayers: [{
+        id: "bezel", slot: "bezel", z_index: 80,
+        asset: {
+          portrait: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E",
+          landscape: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E",
+        },
+      }],
+      frameMotion: {
+        preset: "cyber_scan", light_count: 8, speed: 1, intensity: 0.8,
+      },
+    },
+  )).toEqual([]);
+  const result = await page.evaluate(() => {
+    const root = document.querySelector("movie-poster-panel").shadowRoot;
+    const frame = root.querySelector(".marquee-frame");
+    return {
+      stageVisible: getComputedStyle(root.querySelector(".frame-stage")).display !== "none",
+      declarativeFrameLayers: root.querySelectorAll(
+        ".marquee-frame > .design-frame-layer",
+      ).length,
+      authoredCanvases: root.querySelectorAll(
+        ".marquee-frame > .authored-presentation-canvas",
+      ).length,
+      nativeMotionScenes: root.querySelectorAll(".frame-motion-scene").length,
+      legacyCyberVisible: getComputedStyle(
+        root.querySelector(".cyber-frame-lights"),
+      ).display !== "none",
+      legacyFrameImage: getComputedStyle(frame, "::after").backgroundImage,
+    };
+  });
+  expect(result.stageVisible).toBe(true);
+  expect(result.declarativeFrameLayers).toBe(0);
+  expect(result.authoredCanvases).toBe(0);
+  expect(result.nativeMotionScenes).toBe(0);
+  expect(result.legacyCyberVisible).toBe(true);
+  expect(result.legacyFrameImage).not.toBe("none");
+});
+
+test("declarative development mode disables every legacy visual path", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openHarness(page, "?renderer=declarative");
+  await renderPoster(
+    page, "cyber_noir", "neon", "cinematic", "landscape",
+    {
+      design: {
+        schema_version: 2,
+        components: [{
+          id: "title", type: "title", visible: true, z_index: 20,
+          bounds: { x: 20, y: 20, width: 60, height: 12 },
+        }],
+      },
+      frameLayers: [{
+        id: "bezel", slot: "bezel", z_index: 80,
+        asset: {
+          portrait: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E",
+          landscape: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E",
+        },
+      }],
+      frameMotion: {
+        preset: "cyber_scan", light_count: 8, speed: 1, intensity: 0.8,
+      },
+    },
+  );
+  const result = await page.evaluate(() => {
+    const root = document.querySelector("movie-poster-panel").shadowRoot;
+    const theater = root.querySelector(".theater");
+    const frame = root.querySelector(".marquee-frame");
+    return {
+      declarative: theater.classList.contains("renderer-declarative"),
+      compatibility: theater.classList.contains("renderer-compatibility"),
+      stageDisplay: getComputedStyle(root.querySelector(".frame-stage")).display,
+      legacyCyberDisplay: getComputedStyle(
+        root.querySelector(".cyber-frame-lights"),
+      ).display,
+      frameLayers: root.querySelectorAll(
+        ".marquee-frame > .design-frame-layer",
+      ).length,
+      authoredCanvases: root.querySelectorAll(
+        ".marquee-frame > .authored-presentation-canvas",
+      ).length,
+      motionScenes: root.querySelectorAll(".frame-motion-scene").length,
+      legacyBefore: getComputedStyle(frame, "::before").content,
+      legacyAfter: getComputedStyle(frame, "::after").content,
+    };
+  });
+  expect(result).toEqual({
+    declarative: true,
+    compatibility: false,
+    stageDisplay: "none",
+    legacyCyberDisplay: "none",
+    frameLayers: 1,
+    authoredCanvases: 1,
+    motionScenes: 1,
+    legacyBefore: "none",
+    legacyAfter: "none",
+  });
 });
 
 test("Marquee keeps registered glow and individual chasing bulbs", async ({ page }) => {
@@ -849,6 +975,7 @@ test("frame assets are locked structural layers above live and editor content", 
     ];
     const panel = document.createElement("movie-poster-panel");
     document.body.append(panel);
+    panel._rendererMode = "declarative";
     panel._state.design_frame = {
       id: "builtin.frame.theater_classic",
       version: 1,
@@ -985,7 +1112,7 @@ test("locked editor components resist changes and can be unlocked", async ({ pag
 test("published custom profiles render authored geometry instead of legacy layout", async ({
   page,
 }) => {
-  await openHarness(page, "?studio=1");
+  await openHarness(page, "?studio=1&renderer=declarative");
   const result = await page.evaluate(async () => {
     const panel = document.createElement("movie-poster-panel");
     document.body.append(panel);
@@ -1176,7 +1303,7 @@ test("packaged image assets become movable canvas layers", async ({ page }) => {
 });
 
 test("editor clip policies control authored layer overflow", async ({ page }) => {
-  await openHarness(page, "?studio=1");
+  await openHarness(page, "?studio=1&renderer=declarative");
   const result = await page.evaluate(() => {
     const panel = document.createElement("movie-poster-panel");
     document.body.append(panel);
@@ -1253,7 +1380,7 @@ test("editor clip policies control authored layer overflow", async ({ page }) =>
 });
 
 test("Profile motion controls animate authored layers with stagger", async ({ page }) => {
-  await openHarness(page, "?studio=1");
+  await openHarness(page, "?studio=1&renderer=declarative");
   const result = await page.evaluate(() => {
     const panel = document.createElement("movie-poster-panel");
     document.body.append(panel);
@@ -1329,7 +1456,7 @@ test("Profile motion controls animate authored layers with stagger", async ({ pa
 });
 
 test("editor authors Frame practical-light motion independently", async ({ page }) => {
-  await openHarness(page, "?studio=1");
+  await openHarness(page, "?studio=1&renderer=declarative");
   const result = await page.evaluate(() => {
     const panel = document.createElement("movie-poster-panel");
     document.body.append(panel);
@@ -2168,7 +2295,7 @@ test("display resubscribes after a presentation revision changes", async ({ page
 });
 
 test("Display Studio preserves subscribed Frame motion in its sample preview", async ({ page }) => {
-  await openHarness(page, "?studio=1");
+  await openHarness(page, "?studio=1&renderer=declarative");
   const result = await page.evaluate(async () => {
     const subscriptions = [];
     const panel = document.createElement("movie-poster-panel");
@@ -2471,8 +2598,8 @@ for (const frame of FRAMES) {
   test(`${frame} renders its declarative practical-light motion`, async ({ page }) => {
     const [preset, lightCount, lightSelector, sceneClass] = FRAME_MOTIONS[frame];
     await page.setViewportSize({ width: 1280, height: 720 });
-    await openHarness(page);
-    expect(await renderPoster(
+    await openHarness(page, "?renderer=declarative");
+    await renderPoster(
       page, frame, "neon", "cinematic", "landscape",
       {
         enableMotion: true,
@@ -2480,7 +2607,7 @@ for (const frame of FRAMES) {
           preset, light_count: lightCount, speed: 1, intensity: 0.8,
         },
       },
-    )).toEqual([]);
+    );
     const result = await page.evaluate(({ selector, expectedScene }) => {
       const root = document.querySelector("movie-poster-panel").shadowRoot;
       const theater = root.querySelector(".theater");

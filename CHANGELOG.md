@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.0-beta.55
+
+- Restore the approved beta.45-compatible renderer as the default live and
+  Display Studio presentation path, removing the stretched, duplicated, and
+  overlaid visuals introduced by activating two rendering systems together.
+- Keep the declarative renderer available only through the explicit
+  `?renderer=declarative` development switch while its Frames are rebuilt and
+  visually approved one at a time; saved Presentation Library and editor data
+  remain intact.
+- Enforce mutually exclusive active rendering paths and use full-canvas
+  normalized coordinates for declarative components instead of nesting their
+  percentages inside the Frame safe opening.
+- Add browser regressions for renderer selection, single-path activation, and
+  legacy/declarative visual isolation.
+- Verify every built-in Frame in portrait and landscape against the approved
+  beta.45 baseline: all 14 decoded screenshots are pixel-identical.
+- Split each browser's GitHub Actions suite into four single-worker shards so
+  long WebKit runs remain within hosted-runner resource limits.
+
 ## 0.1.0-beta.54
 
 - Preserve Frame artwork proportions with centered cropping instead of

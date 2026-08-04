@@ -29,7 +29,9 @@ jobs:
       fail-fast: false
       matrix:
         browser: [chromium, webkit]
-        shard: [1, 2]
+        # Keep each browser process small enough that WebKit cannot exhaust a
+        # hosted runner during the large responsive/Studio matrix.
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -43,7 +45,8 @@ jobs:
         run: >-
           npx playwright test
           --project=${{ matrix.browser }}
-          --shard=${{ matrix.shard }}/2
+          --workers=1
+          --shard=${{ matrix.shard }}/4
 
   test:
     runs-on: ubuntu-latest
