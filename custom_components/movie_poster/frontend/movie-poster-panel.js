@@ -758,6 +758,7 @@ class MoviePosterPanel extends HTMLElement {
     this._fitMovieTitleToFrame(frame);
     this._fitPosterToFrame(frame);
     this._fitMovieTitleToFrame(frame);
+    this._fitAuthoredTitles(frame);
     if (!frame.closest(".frame-marquee")) return;
     const container = frame.querySelector(".marquee-bulbs");
     if (!container) return;
@@ -792,12 +793,27 @@ class MoviePosterPanel extends HTMLElement {
     const vertical = distribute(
       rail.sideTop, rail.sideBottom, rail.verticalCount,
     );
-    const points = [
+    const sourcePoints = [
       ...horizontal.map((x) => ({ x, y: rail.top })),
       ...vertical.map((y) => ({ x: rail.right, y })),
       ...[...horizontal].reverse().map((x) => ({ x, y: rail.bottom })),
       ...[...vertical].reverse().map((y) => ({ x: rail.left, y })),
     ];
+    // The portrait photograph is 2:3 while the presentation canvas is 9:16.
+    // Frame art uses object-fit: cover, so its sides are cropped. Map source
+    // socket centers through the same cover transform instead of placing glow
+    // dots at the uncropped source percentages.
+    const sourceAspect = portrait ? 2 / 3 : 4 / 3;
+    const canvasAspect = frame.clientWidth / frame.clientHeight;
+    const croppedFrameAsset = theater?.classList.contains("renderer-declarative");
+    const displayedWidth = croppedFrameAsset && sourceAspect > canvasAspect
+      ? sourceAspect / canvasAspect : 1;
+    const displayedHeight = croppedFrameAsset && sourceAspect < canvasAspect
+      ? canvasAspect / sourceAspect : 1;
+    const points = sourcePoints.map(({ x, y }) => ({
+      x: x * displayedWidth - (displayedWidth - 1) / 2,
+      y: y * displayedHeight - (displayedHeight - 1) / 2,
+    }));
     const count = points.length;
     if (Number(container.dataset.count) !== count) {
       container.replaceChildren(...Array.from({ length: count }, () =>
@@ -824,6 +840,46 @@ class MoviePosterPanel extends HTMLElement {
     const fittedSize = baseSize * (available / required) * 0.98;
     if (fittedSize < 12) heading.classList.add("heading-wrap");
     heading.style.fontSize = `${fittedSize}px`;
+  }
+
+  _fitAuthoredTitles(frame) {
+    const frameWidth = frame.clientWidth;
+    if (!frameWidth) return;
+    frame.querySelectorAll(
+      ".authored-component.component-title.constrained-lines",
+    ).forEach((title) => {
+      const content = title.querySelector(".authored-component-content");
+      const preferred = Number(
+        title.style.getPropertyValue("--component-preferred-font"),
+      ) * frameWidth / 100;
+      const minimum = Number(
+        title.style.getPropertyValue("--component-min-font"),
+      ) * frameWidth / 100;
+      if (!content || !Number.isFinite(preferred) || !Number.isFinite(minimum)) {
+        return;
+      }
+      const overflows = () => content.scrollHeight > content.clientHeight + 1;
+      title.style.fontSize = `${preferred}px`;
+      if (!overflows()) {
+        title.classList.remove("title-truncated");
+        return;
+      }
+      let low = Math.min(preferred, minimum);
+      let high = preferred;
+      title.style.fontSize = `${low}px`;
+      if (overflows()) {
+        title.classList.add("title-truncated");
+        return;
+      }
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const candidate = (low + high) / 2;
+        title.style.fontSize = `${candidate}px`;
+        if (overflows()) high = candidate;
+        else low = candidate;
+      }
+      title.style.fontSize = `${low}px`;
+      title.classList.remove("title-truncated");
+    });
   }
 
   _fitMovieTitleToFrame(frame) {
@@ -1147,6 +1203,7 @@ class MoviePosterPanel extends HTMLElement {
   _componentContent(component) {
     const media = this._state?.media || {};
     switch (component.type) {
+      case "surface": return "";
       case "poster":
         return media.poster_url
           ? `<img src="${escapeHtml(media.poster_url)}" alt="">`
@@ -1154,7 +1211,7 @@ class MoviePosterPanel extends HTMLElement {
       case "backdrop":
         return media.backdrop_url
           ? `<img src="${escapeHtml(media.backdrop_url)}" alt="">`
-          : "Backdrop";
+          : "";
       case "logo":
         return this._state.presentation?.logo_url
           ? `<img src="${escapeHtml(this._state.presentation.logo_url)}" alt="">`
@@ -1395,8 +1452,10 @@ class MoviePosterPanel extends HTMLElement {
     const selectedIsImage = [
       "poster", "backdrop", "logo", "custom_image",
     ].includes(selectedComponent?.type);
+    const selectedIsSurface = selectedComponent?.type === "surface";
     const selectedIsText = Boolean(selectedComponent)
-      && !selectedIsImage && selectedComponent.type !== "progress";
+      && !selectedIsImage
+      && !["progress", "surface"].includes(selectedComponent.type);
     const editorWarnings = this._editorWarnings();
     const editorOrientation = this._editorOrientation();
     const hasOrientationOverride = Boolean(
@@ -1410,7 +1469,7 @@ class MoviePosterPanel extends HTMLElement {
     const editorRevisions = editorLibraryItem?.published || [];
     const editorAssets = Object.keys(editorLibraryItem?.assets || {}).sort();
     const componentTypes = [
-      "poster", "backdrop", "logo", "custom_image", "mode_heading", "title", "subtitle",
+      "surface", "poster", "backdrop", "logo", "custom_image", "mode_heading", "title", "subtitle",
       "year", "content_rating", "runtime", "summary", "progress",
       "active_user", "player_name", "playback_state", "static_text",
     ];
@@ -1752,6 +1811,13 @@ class MoviePosterPanel extends HTMLElement {
               data-editor-min-font
               value="${Number(selectedComponent.constraints?.min_font_size ?? 0.8)}"></label>`
               : ""}
+            ${selectedIsSurface ? `<label>Theme surface<select data-editor-style-ref>
+              ${["surface", "surface_elevated", "backdrop"].map((value) =>
+                `<option value="${value}"
+                  ${(selectedComponent.style_ref || "surface_elevated") === value
+                    ? "selected" : ""}>${value.replaceAll("_", " ")}</option>`
+              ).join("")}
+            </select></label>` : ""}
             <label>Background<input type="color" data-editor-style="background_color"
               value="${normalizeColor(selectedComponent.style?.background_color, "#10151b")}"></label>
             <label>Opacity<input type="number" min="0" max="1" step=".05"
@@ -2448,6 +2514,7 @@ class MoviePosterPanel extends HTMLElement {
 
   _defaultEditorComponent(type, identifier) {
     const boundsByType = {
+      surface: { x: 20, y: 20, width: 60, height: 40 },
       backdrop: { x: 0, y: 0, width: 100, height: 100 },
       poster: { x: 8, y: 12, width: 40, height: 60 },
       logo: { x: 35, y: 4, width: 30, height: 10 },
@@ -2463,12 +2530,13 @@ class MoviePosterPanel extends HTMLElement {
       bounds: structuredClone(
         boundsByType[type] || { x: 30, y: 30, width: 40, height: 12 },
       ),
-      z_index: type === "backdrop" ? 0 : 10,
+      z_index: type === "backdrop" ? 0 : type === "surface" ? 4 : 10,
       visible: true,
       locked: false,
       blend_mode: "normal",
       clip: "safe_opening",
-      style_ref: type === "progress" ? "progress_fill" : "text_heading",
+      style_ref: type === "progress"
+        ? "progress_fill" : type === "surface" ? "surface_elevated" : "text_heading",
       style: {},
       constraints: {
         max_lines: type === "title" ? 2 : type === "summary" ? 4 : 0,
@@ -2759,7 +2827,8 @@ class MoviePosterPanel extends HTMLElement {
     const textColor = normalizeColor(style.text_color, "")
       || `var(--mp-${semanticToken},#ffffff)`;
     const backgroundColor = normalizeColor(style.background_color, "")
-      || "transparent";
+      || (component.type === "surface"
+        ? `var(--mp-${semanticToken},#32110d)` : "transparent");
     const fontSize = Math.min(20, Math.max(0.1, Number(style.font_size ?? 3)));
     const minFontSize = Math.min(
       20, Math.max(0.1, Number(component.constraints?.min_font_size ?? 0.8)),
@@ -2797,6 +2866,8 @@ class MoviePosterPanel extends HTMLElement {
       `background-color:${backgroundColor}`,
       `font-family:${fontFamily}`,
       `font-size:clamp(${minFontSize}cqw,${fontSize}cqw,20cqw)`,
+      `--component-preferred-font:${fontSize}`,
+      `--component-min-font:${minFontSize}`,
       `opacity:${opacity}`, `text-align:${alignment}`,
       `--component-image-fit:${imageFit}`,
       `--component-rotation:${rotation}deg`,
@@ -5386,6 +5457,53 @@ class MoviePosterPanel extends HTMLElement {
               86% center / 10% 78% no-repeat;
         }
       }
+      .renderer-declarative.frame-marquee .marquee-bulbs::before {
+        background-size: cover;
+      }
+      .renderer-declarative.frame-marquee.orientation-portrait
+        .marquee-bulbs::before {
+        -webkit-mask:
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            center 14% / 88% 9% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            center 91% / 88% 9% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            7.5% center / 10% 78% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            92.5% center / 10% 78% no-repeat;
+        mask:
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            center 14% / 88% 9% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            center 91% / 88% 9% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            7.5% center / 10% 78% no-repeat,
+          radial-gradient(ellipse, #000 0 58%, transparent 78%)
+            92.5% center / 10% 78% no-repeat;
+      }
+      @media (max-width: 720px), (orientation: portrait) {
+        .renderer-declarative.frame-marquee.orientation-auto
+          .marquee-bulbs::before {
+          -webkit-mask:
+            radial-gradient(ellipse, #000 0 58%, transparent 78%)
+              center 14% / 88% 9% no-repeat,
+            radial-gradient(ellipse, #000 0 58%, transparent 78%)
+              center 91% / 88% 9% no-repeat,
+            radial-gradient(ellipse, #000 0 58%, transparent 78%)
+              7.5% center / 10% 78% no-repeat,
+            radial-gradient(ellipse, #000 0 58%, transparent 78%)
+              92.5% center / 10% 78% no-repeat;
+          mask:
+            radial-gradient(ellipse, #000 0 58%, transparent 78%)
+              center 14% / 88% 9% no-repeat,
+            radial-gradient(ellipse, #000 0 58%, transparent 78%)
+              center 91% / 88% 9% no-repeat,
+            radial-gradient(ellipse, #000 0 58%, transparent 78%)
+              7.5% center / 10% 78% no-repeat,
+            radial-gradient(ellipse, #000 0 58%, transparent 78%)
+              92.5% center / 10% 78% no-repeat;
+        }
+      }
       .motion-off .marquee-frame,
       .motion-off .marquee-frame::before { animation: none; }
       .motion-off .marquee-frame::before { opacity: .8; }
@@ -6813,6 +6931,91 @@ class MoviePosterPanel extends HTMLElement {
         display: block;
         height: 100%;
         background: var(--mp-progress-fill, #f6cf70);
+      }
+      .renderer-declarative.frame-marquee
+        :is(.authored-component, .editor-component).component-surface {
+        box-sizing: border-box;
+        border: 1px solid color-mix(
+          in srgb,
+          var(--mp-border, #b77a24) 86%,
+          white 14%
+        );
+        border-radius: clamp(3px, .45cqw, 8px);
+        box-shadow:
+          inset 0 0 0 1px color-mix(
+            in srgb,
+            var(--mp-accent-primary, #f6cf70) 22%,
+            transparent
+          ),
+          inset 0 0 clamp(8px, 1.8cqw, 24px) #0008,
+          0 0 clamp(4px, .8cqw, 14px) color-mix(
+            in srgb,
+            var(--mp-light-primary, #f6cf70) 24%,
+            transparent
+          );
+        backdrop-filter: blur(2px);
+      }
+      .renderer-declarative.frame-marquee
+        :is(.authored-component, .editor-component).component-poster {
+        box-sizing: border-box;
+        padding: clamp(2px, .3cqw, 5px);
+        border: 1px solid color-mix(
+          in srgb,
+          var(--mp-border, #b77a24) 78%,
+          white 22%
+        );
+        border-radius: clamp(2px, .25cqw, 5px);
+        background: var(--mp-surface, #32110d);
+        box-shadow:
+          inset 0 0 0 1px #000b,
+          0 0 clamp(5px, 1cqw, 16px) #000c;
+      }
+      .renderer-declarative.frame-marquee
+        :is(.authored-component, .editor-component).component-mode_heading {
+        letter-spacing: var(--mp-heading-tracking, .08em);
+        text-transform: uppercase;
+      }
+      .renderer-declarative.frame-marquee
+        :is(.authored-component, .editor-component).component-title {
+        letter-spacing: calc(var(--mp-heading-tracking, .08em) * .35);
+        line-height: 1.02;
+      }
+      .renderer-declarative.frame-marquee
+        :is(.authored-component, .editor-component).component-subtitle {
+        font-style: italic;
+        line-height: 1.12;
+      }
+      .renderer-declarative.frame-marquee
+        :is(.authored-component, .editor-component).component-summary {
+        line-height: 1.22;
+      }
+      .renderer-declarative.frame-marquee
+        :is(.authored-component, .editor-component).component-content_rating
+        :is(.authored-component-content, .editor-component-content) {
+        box-sizing: border-box;
+        width: fit-content;
+        height: auto;
+        min-height: 68%;
+        padding: 0 .3em;
+        border: 1px solid currentColor;
+        border-radius: 2px;
+      }
+      .renderer-declarative.frame-marquee
+        :is(.authored-component, .editor-component).component-progress
+        :is(.authored-component-content, .editor-component-content) {
+        height: 100%;
+        margin-top: 0;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--mp-progress-track, #3b2118);
+        box-shadow: inset 0 0 2px #000c;
+      }
+      .renderer-declarative.frame-marquee
+        :is(.authored-component, .editor-component).component-progress
+        :is(.authored-component-content, .editor-component-content) i {
+        background: var(--mp-progress-fill, #f6cf70);
+        box-shadow: 0 0 clamp(3px, .8cqw, 10px)
+          var(--mp-light-primary, #f6cf70);
       }
       :is(.authored-presentation-canvas, .visual-editor-canvas)
         :is(.authored-component, .editor-component) {

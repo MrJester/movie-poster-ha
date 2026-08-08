@@ -79,6 +79,110 @@ def test_legacy_presentation_becomes_linked_contained_design() -> None:
     assert DESIGN_SCHEMA(design) == design
 
 
+def test_marquee_cinematic_profile_owns_complete_bounded_component_tree() -> None:
+    """The reference preset models its plaque and every movie detail layer."""
+    design = design_from_legacy_presentation(
+        {
+            "frame_theme": "marquee",
+            "theme": "classic",
+            "layout": "cinematic",
+            "show_title": True,
+            "show_subtitle": True,
+            "show_year": True,
+            "show_rating": True,
+            "show_runtime": True,
+            "show_summary": True,
+            "show_progress": True,
+            "show_session": True,
+            "logo_url": "/local/theater-logo.png",
+        }
+    )
+    components = {component["id"]: component for component in design["components"]}
+
+    assert {
+        "heading_surface",
+        "mode_heading",
+        "poster",
+        "metadata_surface",
+        "title",
+        "subtitle",
+        "year",
+        "content_rating",
+        "runtime",
+        "summary",
+        "active_user",
+        "session_separator",
+        "player_name",
+        "progress",
+        "logo",
+    } <= components.keys()
+    assert components["heading_surface"]["type"] == "surface"
+    assert components["metadata_surface"]["type"] == "surface"
+    assert components["metadata_surface"]["locked"] is True
+    expected_title_lines = 2
+    assert components["title"]["constraints"]["max_lines"] == expected_title_lines
+    assert components["session_separator"]["text"] == "·"
+    assert design["motion"]["preset"] == "none"
+
+    for orientation, safe in FRAME_SAFE_OPENING.items():
+        safe_right = safe["x"] + safe["width"]
+        safe_bottom = safe["y"] + safe["height"]
+        for identifier, component in components.items():
+            if identifier == "backdrop":
+                continue
+            bounds = component["orientation_overrides"].get(
+                orientation, {}
+            ).get("bounds", component["bounds"])
+            assert bounds["x"] >= safe["x"], (orientation, identifier)
+            assert bounds["y"] >= safe["y"], (orientation, identifier)
+            assert bounds["x"] + bounds["width"] <= safe_right, (
+                orientation,
+                identifier,
+            )
+            assert bounds["y"] + bounds["height"] <= safe_bottom, (
+                orientation,
+                identifier,
+            )
+
+
+def test_marquee_component_visibility_tracks_every_presentation_toggle() -> None:
+    """Legacy visibility settings map to their authored Marquee layers."""
+    design = design_from_legacy_presentation(
+        {
+            "frame_theme": "marquee",
+            "layout": "cinematic",
+            "show_title": False,
+            "show_subtitle": False,
+            "show_year": False,
+            "show_rating": False,
+            "show_runtime": False,
+            "show_summary": False,
+            "show_progress": False,
+            "show_session": False,
+            "logo_url": "",
+        }
+    )
+    visibility = {
+        component["id"]: component["visible"] for component in design["components"]
+    }
+
+    assert visibility["metadata_surface"] is False
+    assert visibility["logo"] is False
+    for identifier in (
+        "title",
+        "subtitle",
+        "year",
+        "content_rating",
+        "runtime",
+        "summary",
+        "progress",
+        "active_user",
+        "session_separator",
+        "player_name",
+    ):
+        assert visibility[identifier] is False
+
+
 def test_invalid_geometry_and_executable_fields_are_rejected() -> None:
     """Design documents fail closed on bad geometry and unknown fields."""
     design = design_from_legacy_presentation({})

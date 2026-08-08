@@ -776,6 +776,7 @@ test("Marquee keeps registered glow and individual chasing bulbs", async ({ page
       count: bulbs.length,
       railAnimation: getComputedStyle(rail).animationName,
       glowAnimation: getComputedStyle(rail, "::before").animationName,
+      glowBackgroundSize: getComputedStyle(rail, "::before").backgroundSize,
       bulbAnimations: [...new Set(bulbs.map((bulb) =>
         getComputedStyle(bulb).animationName))],
       positioned: bulbs.every((bulb) =>
@@ -789,9 +790,129 @@ test("Marquee keeps registered glow and individual chasing bulbs", async ({ page
   expect(lighting.count).toBe(58);
   expect(lighting.railAnimation).toBe("none");
   expect(lighting.glowAnimation).toBe("marqueeRegisteredPulse");
+  expect(lighting.glowBackgroundSize).toBe("100% 100%");
   expect(lighting.bulbAnimations).toEqual(["bulbChase"]);
   expect(lighting.positioned).toBe(true);
   expect(lighting.firstCenter).toEqual([140, 142]);
+});
+
+test("declarative Marquee registers bulbs to its cropped portrait asset", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 720, height: 1280 });
+  await openHarness(page, "?renderer=declarative");
+  await renderPoster(
+    page, "marquee", "classic", "cinematic", "portrait",
+    {
+      enableMotion: true,
+      design: {
+        schema_version: 2,
+        components: [],
+        motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+      },
+      frameLayers: [{
+        id: "frame_bezel",
+        slot: "bezel",
+        z_index: 80,
+        opacity: 1,
+        blend_mode: "normal",
+        asset: {
+          portrait: "/movie_poster_static/assets/marquee-frame-portrait.png",
+          landscape: "/movie_poster_static/assets/marquee-frame-landscape.png",
+        },
+      }],
+      frameMotion: {
+        preset: "marquee_chase",
+        light_count: 18,
+        speed: 1,
+        intensity: 0.8,
+      },
+    },
+  );
+  const lighting = await page.evaluate(() => {
+    const root = document.querySelector("movie-poster-panel").shadowRoot;
+    const rail = root.querySelector(".marquee-bulbs");
+    const first = rail.querySelector("i");
+    return {
+      backgroundSize: getComputedStyle(rail, "::before").backgroundSize,
+      firstCenter: [
+        Math.round(parseFloat(first.style.left) / rail.clientWidth * 1000),
+        Math.round(parseFloat(first.style.top) / rail.clientHeight * 1000),
+      ],
+    };
+  });
+  expect(lighting).toEqual({
+    backgroundSize: "cover",
+    firstCenter: [73, 142],
+  });
+});
+
+test("authored titles shrink to two lines before minimum-size truncation", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await openHarness(page, "?renderer=declarative");
+  const design = {
+    schema_version: 2,
+    components: [{
+      id: "title",
+      name: "Title",
+      type: "title",
+      bounds: { x: 49.5, y: 35, width: 29, height: 10.5 },
+      z_index: 10,
+      visible: true,
+      locked: false,
+      blend_mode: "normal",
+      clip: "safe_opening",
+      style_ref: "text_heading",
+      style: { font_size: 3.3, text_align: "left" },
+      constraints: {
+        max_lines: 2,
+        min_font_size: 2.2,
+        preserve_aspect: false,
+      },
+      text: "",
+      asset_ref: "",
+      orientation_overrides: {},
+    }],
+    motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+  };
+  const measure = () => page.evaluate(() => {
+    const root = document.querySelector("movie-poster-panel").shadowRoot;
+    const frame = root.querySelector(".marquee-frame");
+    const title = root.querySelector('[data-authored-component="title"]');
+    const content = title.querySelector(".authored-component-content");
+    return {
+      fontSize: parseFloat(getComputedStyle(title).fontSize),
+      preferred: frame.clientWidth * 0.033,
+      minimum: frame.clientWidth * 0.022,
+      overflow: content.scrollHeight > content.clientHeight + 1,
+      truncated: title.classList.contains("title-truncated"),
+      lines: getComputedStyle(content).webkitLineClamp,
+    };
+  });
+
+  await renderPoster(
+    page, "marquee", "classic", "cinematic", "landscape", { design },
+  );
+  const fitted = await measure();
+  expect(fitted.fontSize).toBeLessThan(fitted.preferred);
+  expect(fitted.fontSize + 0.1).toBeGreaterThanOrEqual(fitted.minimum);
+  expect(fitted.overflow).toBe(false);
+  expect(fitted.truncated).toBe(false);
+  expect(fitted.lines).toBe("2");
+
+  await renderPoster(
+    page, "marquee", "classic", "cinematic", "landscape", {
+      design,
+      title: "The Impossibly Long Motion Picture Title ".repeat(12),
+    },
+  );
+  const truncated = await measure();
+  expect(truncated.fontSize).toBeCloseTo(truncated.minimum, 1);
+  expect(truncated.overflow).toBe(true);
+  expect(truncated.truncated).toBe(true);
+  expect(truncated.lines).toBe("2");
 });
 
 test("visible stacked summaries fill the metadata panel and center their text", async ({ page }) => {
@@ -1252,6 +1373,69 @@ test("published custom profiles render authored geometry instead of legacy layou
     titleLines: "2",
     overlayUrl: "/api/signed-overlay.png",
     posterGeometry: { x: 5, y: 10, width: 40, height: 80 },
+  });
+});
+
+test("surface layers provide semantic bounded panels without text controls", async ({
+  page,
+}) => {
+  await openHarness(page, "?studio=1&renderer=declarative");
+  const result = await page.evaluate(() => {
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    const surface = panel._defaultEditorComponent("surface", "metadata-surface");
+    surface.bounds = { x: 47, y: 32, width: 34, height: 46 };
+    surface.locked = true;
+    panel._editorProfileId = "surface-test";
+    panel._editorSelectedId = surface.id;
+    panel._editorSelectedIds = [surface.id];
+    panel._editorSettingsOpenId = surface.id;
+    panel._editorDocument = {
+      version: 2,
+      name: "Surface test",
+      description: "",
+      author: "",
+      presentation: { ...panel._state.presentation },
+      design: {
+        schema_version: 2,
+        resources: {
+          frame: { id: "builtin.frame.marquee", version: 1 },
+          theme: { id: "builtin.theme.classic", version: 1 },
+          layout: { id: "builtin.layout.cinematic", version: 1 },
+        },
+        viewport: { fit: "contain", link_orientations: true },
+        components: [surface],
+        motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+      },
+    };
+    panel._render();
+    const root = panel.shadowRoot;
+    const rendered = root.querySelector(
+      '[data-editor-component="metadata-surface"]',
+    );
+    const palette = [...root.querySelectorAll("[data-editor-add-type] option")]
+      .map((option) => option.value);
+    return {
+      paletteIncludesSurface: palette.includes("surface"),
+      type: surface.type,
+      styleRef: surface.style_ref,
+      zIndex: surface.z_index,
+      content: rendered.querySelector(".editor-component-content").textContent,
+      background: getComputedStyle(rendered).backgroundColor,
+      hasFontControl: Boolean(root.querySelector('[data-editor-style="font_family"]')),
+      surfaceTokens: [...root.querySelectorAll("[data-editor-style-ref] option")]
+        .map((option) => option.value),
+    };
+  });
+  expect(result).toEqual({
+    paletteIncludesSurface: true,
+    type: "surface",
+    styleRef: "surface_elevated",
+    zIndex: 4,
+    content: "",
+    background: "rgb(74, 23, 17)",
+    hasFontControl: false,
+    surfaceTokens: ["surface", "surface_elevated", "backdrop"],
   });
 });
 

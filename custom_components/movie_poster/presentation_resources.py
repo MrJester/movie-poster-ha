@@ -21,6 +21,7 @@ FRAME_SAFE_OPENING: Final[dict[str, dict[str, float]]] = {
 }
 
 COMPONENT_TYPES: Final = (
+    "surface",
     "poster",
     "backdrop",
     "logo",
@@ -402,7 +403,11 @@ def _component(  # noqa: PLR0913 - concise built-in resource declarations
     portrait: dict[str, float] | None = None,
     landscape: dict[str, float] | None = None,
     max_lines: int = 0,
+    min_font_size: float = 0.8,
     locked: bool = False,
+    clip: str = "safe_opening",
+    style: dict[str, Any] | None = None,
+    text: str = "",
 ) -> dict[str, Any]:
     """Create a built-in component declaration."""
     return {
@@ -414,9 +419,9 @@ def _component(  # noqa: PLR0913 - concise built-in resource declarations
         "visible": visible,
         "locked": locked,
         "blend_mode": "normal",
-        "clip": "safe_opening",
+        "clip": clip,
         "style_ref": style_ref,
-        "style": {},
+        "style": deepcopy(style) if style is not None else {},
         "constraints": {
             "max_lines": (
                 max_lines
@@ -428,10 +433,10 @@ def _component(  # noqa: PLR0913 - concise built-in resource declarations
                     else 0
                 )
             ),
-            "min_font_size": 0.8,
+            "min_font_size": min_font_size,
             "preserve_aspect": component_type in {"poster", "logo", "custom_image"},
         },
-        "text": "",
+        "text": text,
         "asset_ref": "",
         "orientation_overrides": {
             key: {"bounds": value}
@@ -888,6 +893,194 @@ _CINEMATIC_COMPONENTS: Final = [
     ),
 ]
 
+
+# Marquee is the declarative reference preset. Its Profile keeps the generic
+# Cinematic Layout reference while embedding frame-specific component
+# overrides. This allows Layouts to remain reusable and gives the editor an
+# honest, bounded model of the complete display instead of relying on legacy
+# CSS to invent a metadata region around a partial component tree.
+_MARQUEE_CINEMATIC_COMPONENTS: Final = [
+    _component(
+        "backdrop",
+        "backdrop",
+        _bounds(0, 0, 100, 100),
+        -10,
+        "backdrop",
+        locked=True,
+        clip="canvas",
+        style={"image_fit": "cover", "opacity": 0.42},
+    ),
+    _component(
+        "heading_surface",
+        "surface",
+        _bounds(24, 22, 52, 8),
+        4,
+        "surface_elevated",
+        portrait=_bounds(25, 18.5, 50, 6),
+        locked=True,
+        style={"opacity": 0.96},
+    ),
+    _component(
+        "mode_heading",
+        "mode_heading",
+        _bounds(26, 23.2, 48, 5.6),
+        10,
+        "text_heading",
+        portrait=_bounds(27, 19.3, 46, 4.3),
+        max_lines=1,
+        min_font_size=2.2,
+        style={
+            "font_size": 3.4,
+            "font_family": "theme_heading",
+            "text_align": "center",
+            "glow": 0.22,
+        },
+    ),
+    _component(
+        "poster",
+        "poster",
+        _bounds(20, 32, 24, 46),
+        5,
+        "border",
+        portrait=_bounds(29, 26, 42, 35),
+        style={"image_fit": "cover"},
+    ),
+    _component(
+        "metadata_surface",
+        "surface",
+        _bounds(47, 32, 34, 46),
+        4,
+        "surface_elevated",
+        portrait=_bounds(23, 63, 54, 21.5),
+        locked=True,
+        style={"opacity": 0.96},
+    ),
+    _component(
+        "title",
+        "title",
+        _bounds(49.5, 35, 29, 10.5),
+        10,
+        "text_heading",
+        portrait=_bounds(25, 64.5, 50, 5.8),
+        max_lines=2,
+        min_font_size=2.2,
+        style={
+            "font_size": 3.3,
+            "font_family": "theme_heading",
+            "text_align": "left",
+            "glow": 0.12,
+        },
+    ),
+    _component(
+        "subtitle",
+        "subtitle",
+        _bounds(49.5, 46, 29, 5.5),
+        10,
+        "text_body",
+        portrait=_bounds(25, 70.4, 50, 3.1),
+        max_lines=2,
+        min_font_size=1.1,
+        style={"font_size": 1.7, "text_align": "left"},
+    ),
+    _component(
+        "year",
+        "year",
+        _bounds(49.5, 52.5, 7, 3.5),
+        10,
+        "text_muted",
+        portrait=_bounds(25, 74, 9, 2.5),
+        max_lines=1,
+        min_font_size=0.8,
+        style={"font_size": 1.4, "text_align": "left"},
+    ),
+    _component(
+        "content_rating",
+        "content_rating",
+        _bounds(57.5, 52.5, 9, 3.5),
+        10,
+        "text_muted",
+        portrait=_bounds(35, 74, 12, 2.5),
+        max_lines=1,
+        min_font_size=0.8,
+        style={"font_size": 1.4, "text_align": "center"},
+    ),
+    _component(
+        "runtime",
+        "runtime",
+        _bounds(67.5, 52.5, 11, 3.5),
+        10,
+        "text_muted",
+        portrait=_bounds(48, 74, 15, 2.5),
+        max_lines=1,
+        min_font_size=0.8,
+        style={"font_size": 1.4, "text_align": "right"},
+    ),
+    _component(
+        "summary",
+        "summary",
+        _bounds(49.5, 57, 29, 10.5),
+        10,
+        "text_body",
+        portrait=_bounds(25, 76.8, 50, 4),
+        max_lines=4,
+        min_font_size=0.9,
+        style={"font_size": 1.55, "text_align": "left"},
+    ),
+    _component(
+        "active_user",
+        "active_user",
+        _bounds(49.5, 69, 13, 3.5),
+        10,
+        "text_muted",
+        portrait=_bounds(25, 81.2, 22, 2.4),
+        max_lines=1,
+        min_font_size=0.8,
+        style={"font_size": 1.25, "text_align": "left"},
+    ),
+    _component(
+        "session_separator",
+        "static_text",
+        _bounds(62.5, 69, 2, 3.5),
+        10,
+        "text_muted",
+        portrait=_bounds(47.2, 81.2, 3, 2.4),
+        max_lines=1,
+        min_font_size=0.8,
+        locked=True,
+        style={"font_size": 1.25, "text_align": "center"},
+        text="·",
+    ),
+    _component(
+        "player_name",
+        "player_name",
+        _bounds(64.5, 69, 14, 3.5),
+        10,
+        "text_muted",
+        portrait=_bounds(50.5, 81.2, 24.5, 2.4),
+        max_lines=1,
+        min_font_size=0.8,
+        style={"font_size": 1.25, "text_align": "right"},
+    ),
+    _component(
+        "progress",
+        "progress",
+        _bounds(49.5, 74.5, 29, 1.5),
+        10,
+        "progress_fill",
+        portrait=_bounds(25, 83.8, 50, 0.8),
+    ),
+    _component(
+        "logo",
+        "logo",
+        _bounds(46, 19.5, 8, 2.2),
+        12,
+        "accent_primary",
+        portrait=_bounds(46, 16.2, 8, 1.8),
+        visible=False,
+        style={"image_fit": "contain"},
+    ),
+]
+
 BUILTIN_LAYOUTS: Final[dict[str, dict[str, Any]]] = {
     "blank": {
         "id": "builtin.layout.blank",
@@ -1033,12 +1226,38 @@ def design_from_legacy_presentation(
     if layout not in BUILTIN_LAYOUTS:
         layout = "cinematic"
 
-    components = deepcopy(BUILTIN_LAYOUTS[layout]["components"])
+    components = deepcopy(
+        _MARQUEE_CINEMATIC_COMPONENTS
+        if frame == "marquee" and layout == "cinematic"
+        else BUILTIN_LAYOUTS[layout]["components"]
+    )
+    show_session = bool(presentation.get("show_session", True))
+    show_details = any(
+        bool(presentation.get(key, True))
+        for key in (
+            "show_title",
+            "show_subtitle",
+            "show_year",
+            "show_rating",
+            "show_runtime",
+            "show_summary",
+            "show_progress",
+            "show_session",
+        )
+    )
     visibility = {
+        "logo": bool(str(presentation.get("logo_url", "")).strip()),
+        "metadata_surface": show_details,
         "title": bool(presentation.get("show_title", True)),
         "subtitle": bool(presentation.get("show_subtitle", True)),
+        "year": bool(presentation.get("show_year", True)),
+        "content_rating": bool(presentation.get("show_rating", True)),
+        "runtime": bool(presentation.get("show_runtime", True)),
         "summary": bool(presentation.get("show_summary", True)),
         "progress": bool(presentation.get("show_progress", True)),
+        "active_user": show_session,
+        "session_separator": show_session,
+        "player_name": show_session,
     }
     for component in components:
         if component["id"] in visibility:
@@ -1067,7 +1286,14 @@ def design_from_legacy_presentation(
             },
             "components": components,
             "motion": {
-                "preset": BUILTIN_THEMES[theme]["effects"]["animation"],
+                # The Marquee frame owns its chasing-bulb motion. Moving each
+                # content layer with the Theme's generic chase made the
+                # authored poster, plaque, and text drift independently.
+                "preset": (
+                    "none"
+                    if frame == "marquee" and layout == "cinematic"
+                    else BUILTIN_THEMES[theme]["effects"]["animation"]
+                ),
                 "speed": 1,
                 "intensity": BUILTIN_THEMES[theme]["effects"]["glow"],
                 "stagger": 0.15,
