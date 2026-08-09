@@ -44,10 +44,25 @@ def test_builtin_catalog_is_complete_and_defensive() -> None:
         "oled",
     }
     assert set(catalog["layouts"]) == {"blank", "cinematic", "poster", "split"}
+    marquee_override = catalog["frame_layout_overrides"]["marquee:cinematic"]
+    assert marquee_override["motion_preset"] == "none"
+    assert {component["id"] for component in marquee_override["components"]} >= {
+        "heading_surface",
+        "metadata_surface",
+        "title",
+        "year",
+        "content_rating",
+        "runtime",
+    }
     assert set(catalog["themes"]["classic"]["tokens"]) == set(THEME_TOKEN_KEYS)
 
     catalog["themes"]["classic"]["name"] = "Changed"
+    marquee_override["components"][0]["name"] = "Changed"
     assert BUILTIN_THEMES["classic"]["name"] == "Classic"
+    fresh_override = builtin_catalog()["frame_layout_overrides"][
+        "marquee:cinematic"
+    ]
+    assert fresh_override["components"][0]["name"] != "Changed"
 
 
 def test_legacy_presentation_becomes_linked_contained_design() -> None:

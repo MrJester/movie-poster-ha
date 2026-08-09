@@ -1081,6 +1081,18 @@ _MARQUEE_CINEMATIC_COMPONENTS: Final = [
     ),
 ]
 
+
+# Some Frames need an authored arrangement that is more specific than the
+# reusable Layout alone. Publish those narrow overrides in the catalog so the
+# Display Studio can resolve the same component tree as the backend while the
+# user previews a preset before saving it.
+FRAME_LAYOUT_OVERRIDES: Final[dict[str, dict[str, Any]]] = {
+    "marquee:cinematic": {
+        "components": _MARQUEE_CINEMATIC_COMPONENTS,
+        "motion_preset": "none",
+    },
+}
+
 BUILTIN_LAYOUTS: Final[dict[str, dict[str, Any]]] = {
     "blank": {
         "id": "builtin.layout.blank",
@@ -1177,6 +1189,12 @@ def validate_builtin_catalog() -> None:
         FRAME_RESOURCE_SCHEMA(frame)
     for layout in BUILTIN_LAYOUTS.values():
         LAYOUT_RESOURCE_SCHEMA(layout)
+    for override in FRAME_LAYOUT_OVERRIDES.values():
+        for component in override["components"]:
+            COMPONENT_SCHEMA(component)
+        if override["motion_preset"] not in ANIMATION_PRESETS:
+            msg = f"Unsupported Frame/Layout motion: {override['motion_preset']}"
+            raise vol.Invalid(msg)
 
 
 def validate_design_document(document: dict[str, Any]) -> dict[str, Any]:
@@ -1226,9 +1244,10 @@ def design_from_legacy_presentation(
     if layout not in BUILTIN_LAYOUTS:
         layout = "cinematic"
 
+    override = FRAME_LAYOUT_OVERRIDES.get(f"{frame}:{layout}")
     components = deepcopy(
-        _MARQUEE_CINEMATIC_COMPONENTS
-        if frame == "marquee" and layout == "cinematic"
+        override["components"]
+        if override is not None
         else BUILTIN_LAYOUTS[layout]["components"]
     )
     show_session = bool(presentation.get("show_session", True))
@@ -1290,8 +1309,8 @@ def design_from_legacy_presentation(
                 # content layer with the Theme's generic chase made the
                 # authored poster, plaque, and text drift independently.
                 "preset": (
-                    "none"
-                    if frame == "marquee" and layout == "cinematic"
+                    override["motion_preset"]
+                    if override is not None
                     else BUILTIN_THEMES[theme]["effects"]["animation"]
                 ),
                 "speed": 1,
@@ -1343,6 +1362,7 @@ def builtin_catalog() -> dict[str, Any]:
         "frames": deepcopy(BUILTIN_FRAMES),
         "themes": deepcopy(BUILTIN_THEMES),
         "layouts": deepcopy(BUILTIN_LAYOUTS),
+        "frame_layout_overrides": deepcopy(FRAME_LAYOUT_OVERRIDES),
         "component_types": list(COMPONENT_TYPES),
         "animation_presets": list(ANIMATION_PRESETS),
     }

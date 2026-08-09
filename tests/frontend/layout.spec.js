@@ -1023,6 +1023,157 @@ test("Display Studio presents Frame, Theme, then Layout", async ({ page }) => {
   ]);
 });
 
+test("Display Studio refreshes declarative preset resources before save", async ({
+  page,
+}) => {
+  await openHarness(page, "?studio=1&renderer=declarative");
+  const result = await page.evaluate(() => {
+    const component = (id, type, styleRef, zIndex = 10) => ({
+      id,
+      name: id.replaceAll("_", " "),
+      type,
+      bounds: { x: 20, y: 20, width: 60, height: 10 },
+      z_index: zIndex,
+      visible: true,
+      locked: type === "surface",
+      blend_mode: "normal",
+      clip: "safe_opening",
+      style_ref: styleRef,
+      style: {},
+      constraints: {
+        max_lines: type === "title" ? 2 : 0,
+        min_font_size: 0.8,
+        preserve_aspect: false,
+      },
+    });
+    const frame = (id, preset) => ({
+      id: `builtin.frame.${id}`,
+      version: 1,
+      name: id,
+      layers: [],
+      safe_opening: {
+        portrait: { x: 19, y: 16, width: 62, height: 70 },
+        landscape: { x: 15, y: 19, width: 70, height: 64 },
+      },
+      theme_bindings: {},
+      layout_tuning: { poster_share: 45, gap: 1.2, details_padding: 1 },
+      motion: { preset, speed: 1, intensity: 0.8, light_count: 18 },
+    });
+    const tokens = (surfaceElevated) => ({
+      light_primary: "#ffdd88",
+      light_secondary: "#cc8844",
+      accent_primary: "#f6cf70",
+      accent_secondary: "#9a5b24",
+      text_heading: "#fff7df",
+      text_body: "#f1dfc0",
+      text_muted: "#bca882",
+      text_inverse: "#090706",
+      surface: "#120807",
+      surface_elevated: surfaceElevated,
+      backdrop: "#090706",
+      border: "#f6cf70",
+      progress_track: "#3b2518",
+      progress_fill: "#f6cf70",
+    });
+    const theme = (id, surfaceElevated, animation) => ({
+      id: `builtin.theme.${id}`,
+      version: 1,
+      name: id,
+      tokens: tokens(surfaceElevated),
+      typography: {
+        heading: "Impact", body: "Arial", heading_tracking: 0.08,
+      },
+      effects: { glow: 0.7, animation },
+    });
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    panel._presentationCatalog = {
+      schema_version: 2,
+      frames: {
+        theater_classic: frame("theater_classic", "theater_sconce"),
+        marquee: frame("marquee", "marquee_chase"),
+      },
+      themes: {
+        classic: theme("classic", "#32110d", "breathe"),
+        neon: theme("neon", "#112244", "pulse"),
+      },
+      layouts: {
+        cinematic: {
+          id: "builtin.layout.cinematic",
+          version: 1,
+          name: "Cinematic",
+          components: [component("title", "title", "text_heading")],
+        },
+      },
+      frame_layout_overrides: {
+        "marquee:cinematic": {
+          motion_preset: "none",
+          components: [
+            component("heading_surface", "surface", "surface_elevated", 4),
+            component("metadata_surface", "surface", "surface_elevated", 4),
+            component("title", "title", "text_heading"),
+            component("summary", "summary", "text_body"),
+            component("logo", "logo", "accent_primary"),
+          ],
+        },
+      },
+    };
+    panel._state.presentation = {
+      ...panel._state.presentation,
+      frame_theme: "theater_classic",
+      theme: "classic",
+      layout: "cinematic",
+      show_summary: false,
+      show_progress: false,
+      logo_url: "",
+    };
+    panel._render();
+
+    const frameControl = panel.shadowRoot.querySelector(
+      '[data-studio="frame_theme"]',
+    );
+    frameControl.value = "marquee";
+    frameControl.dispatchEvent(new Event("change", { bubbles: true }));
+    const frameDesign = panel._state.design;
+
+    const themeControl = panel.shadowRoot.querySelector('[data-studio="theme"]');
+    themeControl.value = "neon";
+    themeControl.dispatchEvent(new Event("change", { bubbles: true }));
+    const root = panel.shadowRoot;
+    const metadataSurface = root.querySelector(
+      '[data-authored-component="metadata_surface"]',
+    );
+    return {
+      componentIds: frameDesign.components.map(({ id }) => id),
+      motionPreset: frameDesign.motion.preset,
+      frameResource: panel._state.design.resources.frame.id,
+      themeResource: panel._state.design.resources.theme.id,
+      themeSurface: panel._state.design_style.colors.surface_elevated,
+      renderedSurface: Boolean(metadataSurface),
+      surfaceBackground: getComputedStyle(metadataSurface).backgroundColor,
+      summaryRendered: Boolean(root.querySelector(
+        '[data-authored-component="summary"]',
+      )),
+      logoRendered: Boolean(root.querySelector(
+        '[data-authored-component="logo"]',
+      )),
+    };
+  });
+  expect(result).toEqual({
+    componentIds: [
+      "heading_surface", "metadata_surface", "title", "summary", "logo",
+    ],
+    motionPreset: "none",
+    frameResource: "builtin.frame.marquee",
+    themeResource: "builtin.theme.neon",
+    themeSurface: "#112244",
+    renderedSurface: true,
+    surfaceBackground: "rgb(17, 34, 68)",
+    summaryRendered: false,
+    logoRendered: false,
+  });
+});
+
 test("Display Studio portrait preview shows enabled Summary and Progress", async ({ page }) => {
   await page.setViewportSize({ width: 720, height: 1280 });
   await openHarness(page, "?studio=1");

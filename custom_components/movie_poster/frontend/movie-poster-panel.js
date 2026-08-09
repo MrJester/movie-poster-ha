@@ -1314,6 +1314,74 @@ class MoviePosterPanel extends HTMLElement {
       || component.bounds;
   }
 
+  _syncStudioPreviewResources() {
+    const catalog = this._presentationCatalog;
+    const presentation = this._state?.presentation;
+    if (!catalog || !presentation) return;
+    const frameId = normalizeFrame(presentation.frame_theme);
+    const themeId = normalizeTheme(presentation.theme);
+    const layoutId = normalizeLayout(presentation.layout);
+    const frame = catalog.frames?.[frameId];
+    const theme = catalog.themes?.[themeId];
+    const layout = catalog.layouts?.[layoutId];
+    if (!frame || !theme || !layout) return;
+
+    const clone = (value) => JSON.parse(JSON.stringify(value));
+    const override = catalog.frame_layout_overrides?.[
+      `${frameId}:${layoutId}`
+    ];
+    const components = clone(override?.components || layout.components || []);
+    const showSession = presentation.show_session !== false;
+    const showDetails = [
+      "show_title", "show_subtitle", "show_year", "show_rating",
+      "show_runtime", "show_summary", "show_progress", "show_session",
+    ].some((field) => presentation[field] !== false);
+    const visibility = {
+      logo: Boolean(String(presentation.logo_url || "").trim()),
+      metadata_surface: showDetails,
+      title: presentation.show_title !== false,
+      subtitle: presentation.show_subtitle !== false,
+      year: presentation.show_year !== false,
+      content_rating: presentation.show_rating !== false,
+      runtime: presentation.show_runtime !== false,
+      summary: presentation.show_summary !== false,
+      progress: presentation.show_progress !== false,
+      active_user: showSession,
+      session_separator: showSession,
+      player_name: showSession,
+    };
+    components.forEach((component) => {
+      if (Object.hasOwn(visibility, component.id)) {
+        component.visible = visibility[component.id];
+      }
+    });
+
+    this._state.design = {
+      schema_version: Number(catalog.schema_version || 2),
+      resources: {
+        frame: { id: frame.id, version: Number(frame.version || 1) },
+        theme: { id: theme.id, version: Number(theme.version || 1) },
+        layout: { id: layout.id, version: Number(layout.version || 1) },
+      },
+      viewport: { fit: "contain", link_orientations: true },
+      components,
+      motion: {
+        preset: override?.motion_preset || theme.effects?.animation || "none",
+        speed: 1,
+        intensity: Number(theme.effects?.glow || 0),
+        stagger: 0.15,
+      },
+    };
+    this._state.design_frame = clone(frame);
+    this._state.design_style = {
+      id: theme.id,
+      version: Number(theme.version || 1),
+      colors: clone(theme.tokens || {}),
+      typography: clone(theme.typography || {}),
+      effects: clone(theme.effects || {}),
+    };
+  }
+
   _resolvedFrameResource() {
     const frames = this._presentationCatalog?.frames || {};
     const editorFrameId = this._editorDocument?.design?.resources?.frame?.id;
@@ -1933,6 +2001,7 @@ class MoviePosterPanel extends HTMLElement {
         this._state.presentation[field] = control.type === "checkbox"
           ? control.checked : control.value;
         if (field === "coming_soon_text") this._state.heading = control.value;
+        this._syncStudioPreviewResources();
         this._renderIdentity = null;
         this._render();
       });
