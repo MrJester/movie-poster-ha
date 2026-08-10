@@ -1,9 +1,15 @@
 """Tests for the versioned frontend state contract."""
 
+import hashlib
 from types import SimpleNamespace
 
 from custom_components.movie_poster.api import (
+    _FRONTEND_ELEMENT,
+    _FRONTEND_PATH,
+    _FRONTEND_VERSION,
+    STATIC_URL,
     _async_sync_library_assignment,
+    _frontend_module_url,
     _serialize_state,
     _signed_design_assets,
     _updated_presentation_options,
@@ -16,6 +22,17 @@ from custom_components.movie_poster.models import (
     SessionCandidate,
 )
 from custom_components.movie_poster.state_machine import ModeSnapshot, TransitionReason
+
+
+def test_frontend_registration_uses_the_asset_content_as_its_cache_key() -> None:
+    """Every JavaScript edit produces a new module URL automatically."""
+    source = _FRONTEND_PATH.read_bytes()
+    digest = hashlib.sha256(source, usedforsecurity=False).hexdigest()[:12]
+
+    assert _frontend_module_url() == (
+        f"{STATIC_URL}/movie-poster-panel.js?v={_FRONTEND_VERSION}-{digest}"
+    )
+    assert f'customElements.define("{_FRONTEND_ELEMENT}"' in source.decode()
 
 
 def test_design_assets_receive_scoped_signed_urls() -> None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import hashlib
 import mimetypes
 from copy import deepcopy
 from datetime import timedelta
@@ -94,15 +95,24 @@ if TYPE_CHECKING:
 PANEL_URL = "movie-poster"
 STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
-_FRONTEND_VERSION = "0.1.0-beta.55-presentation.23"
-_FRONTEND_ELEMENT = "movie-poster-panel-v22"
+_FRONTEND_DIR = Path(__file__).parent / "frontend"
+_FRONTEND_PATH = _FRONTEND_DIR / "movie-poster-panel.js"
+_FRONTEND_VERSION = "0.1.0-beta.56-presentation.24"
+_FRONTEND_ELEMENT = "movie-poster-panel-v23"
+
+
+def _frontend_module_url() -> str:
+    """Return a content-addressed panel URL that cannot reuse stale JavaScript."""
+    digest = hashlib.sha256(
+        _FRONTEND_PATH.read_bytes(), usedforsecurity=False
+    ).hexdigest()[:12]
+    return f"{STATIC_URL}/movie-poster-panel.js?v={_FRONTEND_VERSION}-{digest}"
 
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
     """Register static assets, panel, HTTP view, and WebSocket commands."""
-    frontend_dir = Path(__file__).parent / "frontend"
     await hass.http.async_register_static_paths(
-        [StaticPathConfig(STATIC_URL, str(frontend_dir), cache_headers=False)]
+        [StaticPathConfig(STATIC_URL, str(_FRONTEND_DIR), cache_headers=False)]
     )
     await panel_custom.async_register_panel(
         hass,
@@ -110,7 +120,7 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
         webcomponent_name=_FRONTEND_ELEMENT,
         sidebar_title="Movie Poster",
         sidebar_icon="mdi:movie-open-star",
-        module_url=f"{STATIC_URL}/movie-poster-panel.js?v={_FRONTEND_VERSION}",
+        module_url=_frontend_module_url(),
         require_admin=False,
     )
     hass.http.register_view(MoviePosterArtworkView())

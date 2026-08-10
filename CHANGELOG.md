@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.0-beta.56
+
+- Synchronize unsaved Display Studio Frame, Theme, and Layout selections with
+  the declarative component tree and semantic style resources shown in the
+  preview.
+- Publish Frame/Layout-specific component overrides through the presentation
+  catalog so the frontend and backend resolve the same authored preset.
+- Content-address the Home Assistant panel module and advance its versioned
+  custom element, preventing cached beta.55 JavaScript from surviving an
+  integration upgrade or hard refresh.
+- Add backend and cross-browser regressions for resource synchronization and
+  frontend cache registration.
+
 ## 0.1.0-beta.55
 
 - Restore the approved beta.45-compatible renderer as the default live and
