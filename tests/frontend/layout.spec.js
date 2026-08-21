@@ -126,6 +126,35 @@ async function rendererGeometry(page) {
   });
 }
 
+test("reference presentation fills the limiting dimension on large displays", async ({
+  page,
+}) => {
+  await openHarness(page);
+  for (const viewport of [
+    { width: 3840, height: 2160, orientation: "landscape" },
+    { width: 2160, height: 3840, orientation: "portrait" },
+  ]) {
+    await page.setViewportSize(viewport);
+    expect(await renderPoster(
+      page, "marquee", "classic", "cinematic", viewport.orientation,
+    )).toEqual([]);
+    const coverage = await page.evaluate(() => {
+      const frame = document.querySelector("movie-poster-panel").shadowRoot
+        .querySelector(".marquee-frame").getBoundingClientRect();
+      return {
+        width: frame.width / innerWidth,
+        height: frame.height / innerHeight,
+      };
+    });
+    const limitingCoverage = viewport.orientation === "landscape"
+      ? coverage.height : coverage.width;
+    expect(
+      limitingCoverage,
+      `${viewport.width}x${viewport.height}: ${JSON.stringify(coverage)}`,
+    ).toBeGreaterThanOrEqual(0.95);
+  }
+});
+
 async function renderPoster(page, frame, theme, layout, orientation, variant = {}) {
   return page.evaluate(async ({ frame, theme, layout, orientation, variant }) => {
     document.querySelector("movie-poster-panel")?.remove();

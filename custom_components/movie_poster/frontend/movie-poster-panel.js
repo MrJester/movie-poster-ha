@@ -6271,23 +6271,20 @@ class MoviePosterPanel extends HTMLElement {
         background: var(--mp-progress-fill, #f6cf70);
       }
       .renderer-reference.orientation-landscape .marquee-frame {
-        width: min(1500px,
-          calc(100vw - clamp(32px, 4.8vw, 80px)),
+        width: min(calc(100vw - clamp(32px, 4.8vw, 80px)),
           calc((100dvh - clamp(32px, 4.8vw, 80px)) * 4 / 3));
         min-height: 0;
         aspect-ratio: 4 / 3;
       }
       .renderer-reference.orientation-portrait .marquee-frame {
-        width: min(1080px,
-          calc(100vw - clamp(32px, 4.8vw, 80px)),
+        width: min(calc(100vw - clamp(32px, 4.8vw, 80px)),
           calc((100dvh - clamp(32px, 4.8vw, 80px)) * 9 / 16));
         min-height: 0;
         aspect-ratio: 9 / 16;
       }
       @media (orientation: landscape) {
         .renderer-reference.orientation-auto .marquee-frame {
-          width: min(1500px,
-            calc(100vw - clamp(32px, 4.8vw, 80px)),
+          width: min(calc(100vw - clamp(32px, 4.8vw, 80px)),
             calc((100dvh - clamp(32px, 4.8vw, 80px)) * 4 / 3));
           min-height: 0;
           aspect-ratio: 4 / 3;
@@ -6295,8 +6292,7 @@ class MoviePosterPanel extends HTMLElement {
       }
       @media (orientation: portrait) {
         .renderer-reference.orientation-auto .marquee-frame {
-          width: min(1080px,
-            calc(100vw - clamp(32px, 4.8vw, 80px)),
+          width: min(calc(100vw - clamp(32px, 4.8vw, 80px)),
             calc((100dvh - clamp(32px, 4.8vw, 80px)) * 9 / 16));
           min-height: 0;
           aspect-ratio: 9 / 16;
