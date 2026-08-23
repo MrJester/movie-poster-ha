@@ -673,15 +673,16 @@ test("production uses compatibility rendering and only the approved reference pr
       reference: theater.classList.contains("renderer-reference"),
       compatibility: theater.classList.contains("renderer-compatibility"),
       declarative: theater.classList.contains("renderer-declarative"),
-      contained: box.left >= 0 && box.top >= 0
-        && box.right <= innerWidth && box.bottom <= innerHeight,
+      crossAxisContained: box.left >= 0 && box.right <= innerWidth,
+      limitingAxisOverscanned: box.top < 0 && box.bottom > innerHeight,
       ratio: box.width / box.height,
     };
   });
   expect(result.reference).toBe(true);
   expect(result.compatibility).toBe(true);
   expect(result.declarative).toBe(false);
-  expect(result.contained).toBe(true);
+  expect(result.crossAxisContained).toBe(true);
+  expect(result.limitingAxisOverscanned).toBe(true);
   expect(result.ratio).toBeCloseTo(4 / 3, 2);
 
   for (const frame of FRAMES) {
