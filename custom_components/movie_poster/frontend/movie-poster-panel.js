@@ -6238,6 +6238,19 @@ class MoviePosterPanel extends HTMLElement {
             transparent 45%),
           var(--mp-backdrop, #090706);
       }
+      .renderer-reference:not(.studio-preview) {
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        min-height: 0;
+        padding: 0;
+      }
+      .renderer-reference:not(.studio-preview) .marquee-frame {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        translate: -50% -50%;
+      }
       .renderer-reference .marquee-frame {
         border-color: var(--mp-border, #b77a24);
         background: linear-gradient(145deg,
@@ -6271,29 +6284,29 @@ class MoviePosterPanel extends HTMLElement {
         background: var(--mp-progress-fill, #f6cf70);
       }
       .renderer-reference.orientation-landscape .marquee-frame {
-        width: min(calc(100vw - clamp(32px, 4.8vw, 80px)),
-          calc((100dvh - clamp(32px, 4.8vw, 80px)) * 4 / 3));
+        /* The source artwork includes transparent photographic padding around
+           its physical frame. Overscan the complete registered canvas so the
+           frame, authored layers, and safe opening stay aligned while that
+           empty padding is cropped by the viewport. */
+        width: min(113vw, calc(113dvh * 4 / 3));
         min-height: 0;
         aspect-ratio: 4 / 3;
       }
       .renderer-reference.orientation-portrait .marquee-frame {
-        width: min(calc(100vw - clamp(32px, 4.8vw, 80px)),
-          calc((100dvh - clamp(32px, 4.8vw, 80px)) * 9 / 16));
+        width: min(106vw, calc(106dvh * 9 / 16));
         min-height: 0;
         aspect-ratio: 9 / 16;
       }
       @media (orientation: landscape) {
         .renderer-reference.orientation-auto .marquee-frame {
-          width: min(calc(100vw - clamp(32px, 4.8vw, 80px)),
-            calc((100dvh - clamp(32px, 4.8vw, 80px)) * 4 / 3));
+          width: min(113vw, calc(113dvh * 4 / 3));
           min-height: 0;
           aspect-ratio: 4 / 3;
         }
       }
       @media (orientation: portrait) {
         .renderer-reference.orientation-auto .marquee-frame {
-          width: min(calc(100vw - clamp(32px, 4.8vw, 80px)),
-            calc((100dvh - clamp(32px, 4.8vw, 80px)) * 9 / 16));
+          width: min(106vw, calc(106dvh * 9 / 16));
           min-height: 0;
           aspect-ratio: 9 / 16;
         }
