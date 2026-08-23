@@ -126,49 +126,54 @@ async function rendererGeometry(page) {
   });
 }
 
-test("reference presentation overscans artwork past limiting viewport edges", async ({
+test("full-screen presentations overscan artwork past limiting viewport edges", async ({
   page,
 }) => {
   await openHarness(page);
-  for (const viewport of [
+  for (const configuration of [
     { width: 3840, height: 2160, orientation: "landscape", coverage: 1.12 },
     { width: 1080, height: 1920, orientation: "portrait", coverage: 1.05 },
     { width: 2160, height: 3840, orientation: "portrait", coverage: 1.05 },
   ]) {
-    await page.setViewportSize(viewport);
-    expect(await renderPoster(
-      page, "marquee", "classic", "cinematic", viewport.orientation,
-    )).toEqual([]);
-    const coverage = await page.evaluate(() => {
-      const frame = document.querySelector("movie-poster-panel").shadowRoot
-        .querySelector(".marquee-frame").getBoundingClientRect();
-      return {
-        left: frame.left / innerWidth,
-        top: frame.top / innerHeight,
-        right: frame.right / innerWidth,
-        bottom: frame.bottom / innerHeight,
-        width: frame.width / innerWidth,
-        height: frame.height / innerHeight,
-      };
-    });
-    const limitingCoverage = viewport.orientation === "landscape"
-      ? coverage.height : coverage.width;
-    expect(
-      limitingCoverage,
-      `${viewport.width}x${viewport.height}: ${JSON.stringify(coverage)}`,
-    ).toBeGreaterThanOrEqual(viewport.coverage);
-    const limitingStart = viewport.orientation === "landscape"
-      ? coverage.top : coverage.left;
-    const limitingEnd = viewport.orientation === "landscape"
-      ? coverage.bottom : coverage.right;
-    expect(
-      limitingStart,
-      `${viewport.width}x${viewport.height}: ${JSON.stringify(coverage)}`,
-    ).toBeLessThanOrEqual(-0.02);
-    expect(
-      limitingEnd,
-      `${viewport.width}x${viewport.height}: ${JSON.stringify(coverage)}`,
-    ).toBeGreaterThanOrEqual(1.02);
+    await page.setViewportSize(configuration);
+    for (const frameName of ["marquee", "theater_classic"]) {
+      expect(await renderPoster(
+        page, frameName, "classic", "cinematic", configuration.orientation,
+      )).toEqual([]);
+      const coverage = await page.evaluate(() => {
+        const frame = document.querySelector("movie-poster-panel").shadowRoot
+          .querySelector(".marquee-frame").getBoundingClientRect();
+        return {
+          left: frame.left / innerWidth,
+          top: frame.top / innerHeight,
+          right: frame.right / innerWidth,
+          bottom: frame.bottom / innerHeight,
+          width: frame.width / innerWidth,
+          height: frame.height / innerHeight,
+        };
+      });
+      const limitingCoverage = configuration.orientation === "landscape"
+        ? coverage.height : coverage.width;
+      expect(
+        limitingCoverage,
+        `${frameName} ${configuration.width}x${configuration.height}: `
+          + JSON.stringify(coverage),
+      ).toBeGreaterThanOrEqual(configuration.coverage);
+      const limitingStart = configuration.orientation === "landscape"
+        ? coverage.top : coverage.left;
+      const limitingEnd = configuration.orientation === "landscape"
+        ? coverage.bottom : coverage.right;
+      expect(
+        limitingStart,
+        `${frameName} ${configuration.width}x${configuration.height}: `
+          + JSON.stringify(coverage),
+      ).toBeLessThanOrEqual(-0.02);
+      expect(
+        limitingEnd,
+        `${frameName} ${configuration.width}x${configuration.height}: `
+          + JSON.stringify(coverage),
+      ).toBeGreaterThanOrEqual(1.02);
+    }
   }
 });
 
@@ -278,8 +283,6 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
     const visible = (value) => value && getComputedStyle(value).display !== "none";
     const frameElement = element(".marquee-frame");
     const frameBox = frameElement.getBoundingClientRect();
-    const referenceOverscan = frame === "marquee"
-      && theme === "classic" && layout === "cinematic";
     const stageElement = element(".frame-stage");
     const stageBox = stageElement.getBoundingClientRect();
     const violations = [];
@@ -295,10 +298,6 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
         violations.push(`${name} falls outside frame`);
       }
     };
-    if (!referenceOverscan && (frameBox.left < -1 || frameBox.top < -1
-      || frameBox.right > innerWidth + 1 || frameBox.bottom > innerHeight + 1)) {
-      violations.push("frame falls outside viewport");
-    }
     contained(".marquee", "marquee");
     contained(".poster", "poster");
     contained(".frame-plaque", "plaque");
@@ -307,16 +306,14 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
     contained("h1", "heading");
     contained(".brand-logo", "logo");
     contained(".brand-eyebrow", "brand label");
-    if (referenceOverscan) {
-      for (const name of [
-        "marquee", "poster", "plaque", "details", "divider bulbs",
-        "heading", "logo", "brand label",
-      ]) {
-        const box = boxes.get(name);
-        if (box && (box.left < -1 || box.top < -1
-          || box.right > innerWidth + 1 || box.bottom > innerHeight + 1)) {
-          violations.push(`${name} is clipped by frame overscan`);
-        }
+    for (const name of [
+      "marquee", "poster", "plaque", "details", "divider bulbs",
+      "heading", "logo", "brand label",
+    ]) {
+      const box = boxes.get(name);
+      if (box && (box.left < -1 || box.top < -1
+        || box.right > innerWidth + 1 || box.bottom > innerHeight + 1)) {
+        violations.push(`${name} is clipped by frame overscan`);
       }
     }
     const containedInStage = (selector, name) => {
@@ -376,7 +373,7 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
 }
 
 for (const viewport of responsiveViewports) {
-  test(`all renderer combinations stay contained on ${viewport.name} @responsive-matrix`, async ({ page }) => {
+  test(`all renderer combinations keep content visible on ${viewport.name} @responsive-matrix`, async ({ page }) => {
     // Hosted WebKit can take slightly over three minutes to render the full
     // three-orientation matrix at rotated 4K. Keep this exception local to the
     // exhaustive visual matrix; normal acceptance tests retain tighter limits.

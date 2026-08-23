@@ -6238,14 +6238,18 @@ class MoviePosterPanel extends HTMLElement {
             transparent 45%),
           var(--mp-backdrop, #090706);
       }
-      .renderer-reference:not(.studio-preview) {
+      /* Full-screen playback is a bleed canvas for every built-in frame. Keep
+         the Studio preview contained, but remove the legacy 940/1500px caps
+         from the deployed display so photographic frame art can reach past
+         the physical screen edge at any resolution. */
+      .theater:not(.studio-preview) {
         width: 100vw;
         height: 100vh;
         height: 100dvh;
         min-height: 0;
         padding: 0;
       }
-      .renderer-reference:not(.studio-preview) .marquee-frame {
+      .theater:not(.studio-preview) .marquee-frame {
         position: absolute;
         top: 50%;
         left: 50%;
@@ -6283,7 +6287,7 @@ class MoviePosterPanel extends HTMLElement {
       .renderer-reference .progress i {
         background: var(--mp-progress-fill, #f6cf70);
       }
-      .renderer-reference.orientation-landscape .marquee-frame {
+      .theater:not(.studio-preview).orientation-landscape .marquee-frame {
         /* The source artwork includes transparent photographic padding around
            its physical frame. Overscan the complete registered canvas so the
            frame, authored layers, and safe opening stay aligned while that
@@ -6292,20 +6296,20 @@ class MoviePosterPanel extends HTMLElement {
         min-height: 0;
         aspect-ratio: 4 / 3;
       }
-      .renderer-reference.orientation-portrait .marquee-frame {
+      .theater:not(.studio-preview).orientation-portrait .marquee-frame {
         width: min(106vw, calc(106dvh * 9 / 16));
         min-height: 0;
         aspect-ratio: 9 / 16;
       }
       @media (orientation: landscape) {
-        .renderer-reference.orientation-auto .marquee-frame {
+        .theater:not(.studio-preview).orientation-auto .marquee-frame {
           width: min(113vw, calc(113dvh * 4 / 3));
           min-height: 0;
           aspect-ratio: 4 / 3;
         }
       }
       @media (orientation: portrait) {
-        .renderer-reference.orientation-auto .marquee-frame {
+        .theater:not(.studio-preview).orientation-auto .marquee-frame {
           width: min(106vw, calc(106dvh * 9 / 16));
           min-height: 0;
           aspect-ratio: 9 / 16;
