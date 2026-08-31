@@ -6850,11 +6850,11 @@ class MoviePosterPanel extends HTMLElement {
         grid-template-columns: minmax(0, 1fr) !important;
         /* Keep the metadata panel compact enough for a 2:3 poster to use the
            frame opening's full width while preserving its native ratio. */
-        grid-template-rows: minmax(0, 75%) minmax(0, 1fr) !important;
+        grid-template-rows: minmax(0, 78%) minmax(0, 1fr) !important;
       }
       .theater:is(.orientation-portrait).details-expanded
         .frame-stage .content {
-        grid-template-rows: minmax(0, 64%) minmax(0, 1fr) !important;
+        grid-template-rows: minmax(0, 68%) minmax(0, 1fr) !important;
       }
       .theater:is(.orientation-portrait).has-details .frame-stage .details {
         display: flex !important;
@@ -6885,11 +6885,11 @@ class MoviePosterPanel extends HTMLElement {
       @media (max-width: 720px), (orientation: portrait) {
         .theater.orientation-auto .frame-stage .content {
           grid-template-columns: minmax(0, 1fr) !important;
-          grid-template-rows: minmax(0, 75%) minmax(0, 1fr) !important;
+          grid-template-rows: minmax(0, 78%) minmax(0, 1fr) !important;
         }
         .theater.orientation-auto.details-expanded
           .frame-stage .content {
-          grid-template-rows: minmax(0, 64%) minmax(0, 1fr) !important;
+          grid-template-rows: minmax(0, 68%) minmax(0, 1fr) !important;
         }
         .theater.orientation-auto.has-details .frame-stage .details {
           display: flex !important;

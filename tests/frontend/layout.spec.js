@@ -642,14 +642,14 @@ test("portrait metadata uses compact and expanded density states", async ({ page
 
   expect(compact.compact).toBe(true);
   expect(compact.expanded).toBe(false);
-  expect(compact.detailsShare).toBeGreaterThan(.22);
-  expect(compact.detailsShare).toBeLessThan(.28);
-  expect(compact.posterShare).toBeGreaterThan(.72);
+  expect(compact.detailsShare).toBeGreaterThan(.19);
+  expect(compact.detailsShare).toBeLessThan(.25);
+  expect(compact.posterShare).toBeGreaterThan(.75);
   expect(expanded.expanded).toBe(true);
   expect(expanded.compact).toBe(false);
-  expect(expanded.detailsShare).toBeGreaterThan(.33);
-  expect(expanded.detailsShare).toBeLessThan(.38);
-  expect(expanded.posterShare).toBeGreaterThan(.61);
+  expect(expanded.detailsShare).toBeGreaterThan(.28);
+  expect(expanded.detailsShare).toBeLessThan(.34);
+  expect(expanded.posterShare).toBeGreaterThan(.65);
   expect(expanded.detailsShare).toBeGreaterThan(compact.detailsShare);
 });
 
