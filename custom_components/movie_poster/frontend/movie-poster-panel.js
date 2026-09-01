@@ -6812,6 +6812,7 @@ class MoviePosterPanel extends HTMLElement {
         font-weight: 700;
         letter-spacing: var(--mp-heading-tracking, .025em);
         line-height: 1;
+        transform: translateY(clamp(-5px, -.4cqw, -2px));
         text-wrap: balance;
         text-shadow:
           0 .065em 0 color-mix(in srgb,
