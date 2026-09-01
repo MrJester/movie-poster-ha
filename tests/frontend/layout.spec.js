@@ -200,7 +200,7 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
         show_runtime: variant.showRuntime ?? true,
         show_summary: variant.showSummary ?? true,
         show_progress: variant.showProgress ?? true,
-        show_session: true,
+        show_session: variant.showSession ?? true,
         enable_motion: variant.enableMotion ?? false,
         kiosk_mode: false,
         accent_color: "#f6cf70",
@@ -609,7 +609,7 @@ test("movie metadata is a styled panel with a two-line title contract", async ({
   }
 });
 
-test("portrait metadata uses compact and expanded density states", async ({ page }) => {
+test("portrait metadata height follows its visible line budget", async ({ page }) => {
   await page.setViewportSize({ width: 720, height: 1280 });
   await openHarness(page);
   const measure = async (variant) => {
@@ -625,32 +625,69 @@ test("portrait metadata uses compact and expanded density states", async ({ page
       return {
         expanded: theater.classList.contains("details-expanded"),
         compact: theater.classList.contains("details-compact"),
+        detailLines: Number.parseInt(
+          getComputedStyle(theater).getPropertyValue("--portrait-detail-lines"), 10,
+        ),
+        configuredPosterShare: Number.parseFloat(
+          getComputedStyle(theater).getPropertyValue("--portrait-poster-share"),
+        ) / 100,
         detailsShare: details.height / content.height,
         posterShare: posterWrap.height / content.height,
       };
     });
   };
 
-  const compact = await measure({
+  const baseline = await measure({
+    title: "Bloodshot",
+    showSubtitle: false,
     showSummary: false,
     showProgress: false,
+    showSession: false,
   });
-  const expanded = await measure({
+  const tagline = await measure({
+    title: "Bloodshot",
+    showSubtitle: true,
+    showSummary: false,
+    showProgress: false,
+    showSession: false,
+  });
+  const summary = await measure({
+    title: "Bloodshot",
+    showSubtitle: true,
+    showSummary: true,
+    showProgress: false,
+    showSession: false,
+  });
+  const complete = await measure({
+    title: "Bloodshot",
+    showSubtitle: true,
     showSummary: true,
     showProgress: true,
+    showSession: true,
   });
 
-  expect(compact.compact).toBe(true);
-  expect(compact.expanded).toBe(false);
-  expect(compact.detailsShare).toBeGreaterThan(.11);
-  expect(compact.detailsShare).toBeLessThan(.17);
-  expect(compact.posterShare).toBeGreaterThan(.82);
-  expect(expanded.expanded).toBe(true);
-  expect(expanded.compact).toBe(false);
-  expect(expanded.detailsShare).toBeGreaterThan(.14);
-  expect(expanded.detailsShare).toBeLessThan(.20);
-  expect(expanded.posterShare).toBeGreaterThan(.80);
-  expect(expanded.detailsShare).toBeGreaterThan(compact.detailsShare);
+  expect(baseline.compact).toBe(true);
+  expect(baseline.expanded).toBe(false);
+  expect(baseline.detailLines).toBe(2);
+  expect(baseline.configuredPosterShare).toBeCloseTo(.85, 2);
+  expect(baseline.detailsShare).toBeGreaterThan(.11);
+  expect(baseline.detailsShare).toBeLessThan(.17);
+  expect(baseline.posterShare).toBeGreaterThan(.82);
+
+  expect(tagline.detailLines).toBe(3);
+  expect(tagline.configuredPosterShare).toBeCloseTo(.82, 2);
+  expect(tagline.detailsShare).toBeGreaterThan(baseline.detailsShare + .02);
+
+  expect(summary.expanded).toBe(true);
+  expect(summary.compact).toBe(false);
+  expect(summary.detailLines).toBe(5);
+  expect(summary.configuredPosterShare).toBeCloseTo(.76, 2);
+  expect(summary.detailsShare).toBeGreaterThan(tagline.detailsShare + .04);
+
+  expect(complete.detailLines).toBe(7);
+  expect(complete.configuredPosterShare).toBeCloseTo(.70, 2);
+  expect(complete.detailsShare).toBeGreaterThan(summary.detailsShare + .04);
+  expect(complete.posterShare).toBeLessThan(summary.posterShare);
 });
 
 test("production uses compatibility rendering and only the approved reference preset", async ({ page }) => {

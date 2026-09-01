@@ -633,14 +633,41 @@ class MoviePosterPanel extends HTMLElement {
         titleLayer?.constraints?.min_font_size || 0.8,
       )),
     );
-    const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};--title-max-lines:${titleMaxLines};--title-design-min:${titleMinimum}cqw;--frame-motion-duration:${4 / frameMotionSpeed}s;--frame-motion-intensity:${frameMotionIntensity};${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)};${safeOpeningStyle(resolvedFrame?.safe_opening)};${frameLayoutStyle(resolvedFrame?.layout_tuning)}"`;
+    const showTitleDetail = presentation.show_title !== false;
+    const showSubtitleDetail = presentation.show_subtitle !== false
+      && Boolean(media.subtitle);
+    const showMetaDetail = Boolean(meta);
+    const showSummaryDetail = presentation.show_summary !== false
+      && Boolean(media.summary);
+    const showSessionDetail = presentation.show_session !== false
+      && Boolean(state.session);
+    const showProgressDetail = presentation.show_progress !== false
+      && Boolean(hasProgress);
+    /* Portrait presentations use the screenshot-approved title + facts band
+       as a two-row floor. Every additional visible row grows the details band
+       by three percentage points, leaving all remaining height to the 2:3
+       poster. Summary is intentionally budgeted for its two-line clamp. */
+    const portraitDetailLines = Math.max(
+      2,
+      Number(showTitleDetail)
+        + Number(showSubtitleDetail)
+        + Number(showMetaDetail)
+        + (showSummaryDetail ? 2 : 0)
+        + Number(showSessionDetail)
+        + Number(showProgressDetail),
+    );
+    const portraitDetailsShare = Math.min(
+      36, 15 + Math.max(0, portraitDetailLines - 2) * 3,
+    );
+    const portraitPosterShare = 100 - portraitDetailsShare;
+    const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};--title-max-lines:${titleMaxLines};--title-design-min:${titleMinimum}cqw;--portrait-detail-lines:${portraitDetailLines};--portrait-details-share:${portraitDetailsShare}%;--portrait-poster-share:${portraitPosterShare}%;--frame-motion-duration:${4 / frameMotionSpeed}s;--frame-motion-intensity:${frameMotionIntensity};${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)};${safeOpeningStyle(resolvedFrame?.safe_opening)};${frameLayoutStyle(resolvedFrame?.layout_tuning)}"`;
 
-    const hasDetails = presentation.show_title !== false
-      || (presentation.show_subtitle !== false && Boolean(media.subtitle))
-      || Boolean(meta)
-      || (presentation.show_summary !== false && Boolean(media.summary))
-      || (presentation.show_session !== false && Boolean(state.session))
-      || (presentation.show_progress !== false && Boolean(hasProgress));
+    const hasDetails = showTitleDetail
+      || showSubtitleDetail
+      || showMetaDetail
+      || showSummaryDetail
+      || showSessionDetail
+      || showProgressDetail;
     const detailsClass = hasDetails ? " has-details" : "";
     const hasExpandedDetails =
       (presentation.show_summary !== false && Boolean(media.summary))
@@ -6848,13 +6875,11 @@ class MoviePosterPanel extends HTMLElement {
       }
       .theater:is(.orientation-portrait) .frame-stage .content {
         grid-template-columns: minmax(0, 1fr) !important;
-        /* Keep the metadata panel compact enough for a 2:3 poster to use the
-           frame opening's full width while preserving its native ratio. */
-        grid-template-rows: minmax(0, 85%) minmax(0, 1fr) !important;
-      }
-      .theater:is(.orientation-portrait).details-expanded
-        .frame-stage .content {
-        grid-template-rows: minmax(0, 83%) minmax(0, 1fr) !important;
+        /* The renderer budgets the lower band from the visible field rows.
+           Its 85% fallback is the approved title + facts baseline. */
+        grid-template-rows:
+          minmax(0, var(--portrait-poster-share, 85%))
+          minmax(0, 1fr) !important;
       }
       .theater:is(.orientation-portrait).has-details .frame-stage .details {
         display: flex !important;
@@ -6880,16 +6905,16 @@ class MoviePosterPanel extends HTMLElement {
       }
       .theater:is(.orientation-portrait).has-details .frame-stage
         .details .summary {
+        flex: 0 0 auto;
+        min-height: 1.22em;
         -webkit-line-clamp: 2;
       }
       @media (max-width: 720px), (orientation: portrait) {
         .theater.orientation-auto .frame-stage .content {
           grid-template-columns: minmax(0, 1fr) !important;
-          grid-template-rows: minmax(0, 85%) minmax(0, 1fr) !important;
-        }
-        .theater.orientation-auto.details-expanded
-          .frame-stage .content {
-          grid-template-rows: minmax(0, 83%) minmax(0, 1fr) !important;
+          grid-template-rows:
+            minmax(0, var(--portrait-poster-share, 85%))
+            minmax(0, 1fr) !important;
         }
         .theater.orientation-auto.has-details .frame-stage .details {
           display: flex !important;
@@ -6910,6 +6935,8 @@ class MoviePosterPanel extends HTMLElement {
         }
         .theater.orientation-auto.has-details .frame-stage .details
           .summary {
+          flex: 0 0 auto;
+          min-height: 1.22em;
           -webkit-line-clamp: 2;
         }
       }
