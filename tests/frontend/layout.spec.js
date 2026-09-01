@@ -602,7 +602,8 @@ test("movie metadata is a styled panel with a two-line title contract", async ({
         titleWeight: Number.parseInt(titleStyle.fontWeight, 10),
         titleSize: parseFloat(titleStyle.fontSize),
         metaSize: parseFloat(metaStyle.fontSize),
-        titleLift: new DOMMatrixReadOnly(titleStyle.transform).m42,
+        alignment: detailsStyle.justifyContent,
+        paddingTop: parseFloat(detailsStyle.paddingTop),
         titleTopGap: titleBox.top - detailsBox.top,
         titleShadow: titleStyle.textShadow,
         titleLines: Math.round(title.getBoundingClientRect().height / lineHeight),
@@ -616,8 +617,9 @@ test("movie metadata is a styled panel with a two-line title contract", async ({
     expect(panel.titleFamily.toLowerCase(), frame).toContain("impact");
     expect(panel.titleWeight, frame).toBeGreaterThanOrEqual(700);
     expect(panel.titleSize, frame).toBeGreaterThan(panel.metaSize * 1.6);
-    expect(panel.titleLift, frame).toBeLessThanOrEqual(-2);
+    expect(panel.alignment, frame).toBe("flex-start");
     expect(panel.titleTopGap, frame).toBeGreaterThanOrEqual(0);
+    expect(panel.titleTopGap, frame).toBeLessThanOrEqual(panel.paddingTop + 4);
     expect(panel.titleShadow, frame).not.toBe("none");
     expect(panel.titleLines, frame).toBeLessThanOrEqual(2);
     expect(panel.titleConstrained, frame).toBe(true);

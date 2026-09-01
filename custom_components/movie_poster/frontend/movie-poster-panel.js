@@ -6812,7 +6812,6 @@ class MoviePosterPanel extends HTMLElement {
         font-weight: 700;
         letter-spacing: var(--mp-heading-tracking, .025em);
         line-height: 1;
-        transform: translateY(clamp(-5px, -.4cqw, -2px));
         text-wrap: balance;
         text-shadow:
           0 .065em 0 color-mix(in srgb,
@@ -6896,6 +6895,8 @@ class MoviePosterPanel extends HTMLElement {
         max-width: 100%;
         max-height: 100%;
         padding: clamp(5px, 1.15cqw, 14px);
+        padding-top: clamp(10px, 1.5cqw, 18px);
+        justify-content: flex-start;
         text-align: center;
       }
       .theater:is(.orientation-portrait).has-details .frame-stage .details
@@ -6931,6 +6932,8 @@ class MoviePosterPanel extends HTMLElement {
           max-width: 100%;
           max-height: 100%;
           padding: clamp(5px, 1.15cqw, 14px);
+          padding-top: clamp(10px, 1.5cqw, 18px);
+          justify-content: flex-start;
           text-align: center;
         }
         .theater.orientation-auto.has-details .frame-stage .details
