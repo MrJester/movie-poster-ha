@@ -6807,9 +6807,17 @@ class MoviePosterPanel extends HTMLElement {
       }
       .theater.has-details .frame-stage .details h2 {
         flex: 0 0 auto;
-        font-size: clamp(var(--title-min-size, 12px), 3.1cqw, 42px);
-        line-height: 1.02;
+        font-family: var(--heading-font, Impact, "Arial Narrow", sans-serif);
+        font-size: clamp(var(--title-min-size, 14px), 3.7cqw, 50px);
+        font-weight: 700;
+        letter-spacing: var(--mp-heading-tracking, .025em);
+        line-height: 1;
         text-wrap: balance;
+        text-shadow:
+          0 .065em 0 color-mix(in srgb,
+            var(--mp-surface, #32110d) 76%, #000),
+          0 0 .5em color-mix(in srgb,
+            var(--mp-light-primary, #f6cf70) 28%, transparent);
       }
       .theater.has-details .frame-stage .details
         :is(.subtitle, .meta, .summary, .session) {

@@ -590,12 +590,18 @@ test("movie metadata is a styled panel with a two-line title contract", async ({
       const detailsStyle = getComputedStyle(details);
       const title = details.querySelector("h2");
       const titleStyle = getComputedStyle(title);
+      const metaStyle = getComputedStyle(details.querySelector(".meta"));
       const lineHeight = parseFloat(titleStyle.lineHeight)
         || parseFloat(titleStyle.fontSize) * 1.02;
       return {
         fillsPanel: detailsBox.width >= content.width * .95,
         borderWidth: parseFloat(detailsStyle.borderTopWidth),
         background: detailsStyle.backgroundImage,
+        titleFamily: titleStyle.fontFamily,
+        titleWeight: Number.parseInt(titleStyle.fontWeight, 10),
+        titleSize: parseFloat(titleStyle.fontSize),
+        metaSize: parseFloat(metaStyle.fontSize),
+        titleShadow: titleStyle.textShadow,
         titleLines: Math.round(title.getBoundingClientRect().height / lineHeight),
         titleConstrained: title.scrollHeight <= lineHeight * 2 + 1
           || title.classList.contains("title-truncated"),
@@ -604,6 +610,10 @@ test("movie metadata is a styled panel with a two-line title contract", async ({
     expect(panel.fillsPanel, frame).toBe(true);
     expect(panel.borderWidth, frame).toBeGreaterThanOrEqual(1);
     expect(panel.background, frame).not.toBe("none");
+    expect(panel.titleFamily.toLowerCase(), frame).toContain("impact");
+    expect(panel.titleWeight, frame).toBeGreaterThanOrEqual(700);
+    expect(panel.titleSize, frame).toBeGreaterThan(panel.metaSize * 1.6);
+    expect(panel.titleShadow, frame).not.toBe("none");
     expect(panel.titleLines, frame).toBeLessThanOrEqual(2);
     expect(panel.titleConstrained, frame).toBe(true);
   }
