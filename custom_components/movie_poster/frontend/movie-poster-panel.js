@@ -242,6 +242,7 @@ class MoviePosterPanel extends HTMLElement {
     this._presentationCatalog = null;
     this._editorProfileId = null;
     this._editorDocument = null;
+    this._editorLoading = null;
     this._editorSelectedId = null;
     this._editorSelectedIds = [];
     this._editorSettingsOpenId = null;
@@ -603,7 +604,8 @@ class MoviePosterPanel extends HTMLElement {
     const authoredRenderer = declarativeRenderer
       && Number(state.design?.schema_version) >= 2;
     const authoredClass = authoredRenderer ? " renderer-authored" : "";
-    const editorClass = this._editorDocument ? " visual-editor-active" : "";
+    const editorClass = this._editorDocument || this._editorLoading
+      ? " visual-editor-active" : "";
     const headingFont = normalizeFont(presentation.heading_font || "cinematic");
     const bodyFont = normalizeFont(presentation.body_font);
     const accentColor = normalizeColor(presentation.accent_color, "#f6cf70");
@@ -1556,6 +1558,10 @@ class MoviePosterPanel extends HTMLElement {
     const panelButton = (value, label) => `<button type="button"
       data-editor-panel="${value}" aria-pressed="${panel === value}">
       ${label}</button>`;
+    const inspectorButton = (value, label) => `<button type="button"
+      data-editor-panel="${value}"
+      aria-pressed="${value === "design" ? panel === "design" : panel !== "design"}">
+      ${label}</button>`;
     const layers = `${editorFrameLayers.length || editorComponents.length ? `
       <div class="editor-panel-heading">
         <div><span class="editor-panel-kicker">Structure</span><h2>Layers</h2></div>
@@ -1769,7 +1775,7 @@ class MoviePosterPanel extends HTMLElement {
         </div>
       </fieldset>` : `
       <div class="editor-empty-panel">
-        <span class="editor-panel-kicker">Properties</span>
+        <span class="editor-panel-kicker">Edit</span>
         <h2>${selectedComponent ? escapeHtml(selectedComponent.name) : "Select an item"}</h2>
         <p>${selectedComponent
           ? "Use the Settings button beside the selected item to edit it."
@@ -1794,6 +1800,12 @@ class MoviePosterPanel extends HTMLElement {
           data-editor-viewport="pan-y" value="${this._editorPanY}"></label>
         <button type="button" data-editor-action="reset-view">Fit canvas</button>
       </fieldset>
+      <div class="editor-workspace-options" aria-label="Canvas helpers">
+        <label class="studio-check"><input type="checkbox" data-editor-snap
+          ${this._editorSnapEnabled ? "checked" : ""}>Snap to grid</label>
+        <label class="studio-check"><input type="checkbox" data-editor-guides
+          ${this._editorGuidesEnabled ? "checked" : ""}>Show guides</label>
+      </div>
       <div class="editor-property-grid">
         <label>Preview state<select data-editor-preview>
           ${[
@@ -1901,7 +1913,7 @@ class MoviePosterPanel extends HTMLElement {
         </div>
         <nav class="editor-toolbar-panels" aria-label="Editor panels">
           ${panelButton("layers", "Layers")}
-          ${panelButton("properties", "Properties")}
+          ${panelButton("properties", "Edit")}
           ${panelButton("design", "Design")}
         </nav>
         <div class="editor-toolbar-actions">
@@ -1924,19 +1936,64 @@ class MoviePosterPanel extends HTMLElement {
         ${layers}
       </aside>
       <aside class="editor-panel editor-inspector-panel" aria-label="Editor inspector">
+        <nav class="editor-inspector-tabs" aria-label="Inspector mode">
+          ${inspectorButton("properties", "Edit")}
+          ${inspectorButton("design", "Design")}
+        </nav>
         <div class="editor-properties-view">${properties}</div>
         <div class="editor-design-view">${design}</div>
       </aside>
       <nav class="editor-mobile-dock" aria-label="Editor tools">
         ${panelButton("layers", "Layers")}
-        ${panelButton("properties", "Properties")}
+        ${panelButton("properties", "Edit")}
         ${panelButton("design", "Design")}
       </nav>
     </section>`;
   }
 
+  _designStudioLoadingControls() {
+    const name = escapeHtml(this._editorLoading?.name || "Presentation");
+    return `<section class="design-studio-shell editor-loading panel-none"
+      aria-label="Opening Presentation Design Mode" aria-busy="true">
+      <header class="editor-toolbar">
+        <div class="editor-toolbar-primary">
+          <button type="button" data-editor-action="cancel-loading"
+            title="Cancel opening Design Mode">←</button>
+          <div class="editor-document-title">
+            <span>Design Mode</span>
+            <strong>${name}</strong>
+          </div>
+          <span class="editor-autosave-state">Opening draft…</span>
+        </div>
+        <div class="editor-toolbar-actions" aria-hidden="true">
+          <span class="editor-loading-pill"></span>
+          <span class="editor-loading-pill short"></span>
+        </div>
+        <small class="studio-status" role="status">Preparing your workspace…</small>
+      </header>
+      <aside class="editor-panel editor-layers-panel editor-loading-rail"
+        aria-label="Loading layers">
+        <span class="editor-panel-kicker">Structure</span><h2>Layers</h2>
+        <div class="editor-loading-line wide"></div>
+        <div class="editor-loading-line"></div>
+        <div class="editor-loading-line medium"></div>
+      </aside>
+      <div class="editor-loading-stage" aria-hidden="true">
+        <div class="editor-loading-canvas"></div>
+      </div>
+      <aside class="editor-panel editor-inspector-panel editor-loading-rail"
+        aria-label="Loading inspector">
+        <span class="editor-panel-kicker">Inspector</span><h2>Edit</h2>
+        <div class="editor-loading-line wide"></div>
+        <div class="editor-loading-line medium"></div>
+        <div class="editor-loading-line"></div>
+      </aside>
+    </section>`;
+  }
+
   _studioControls() {
     if (!this._studio) return "";
+    if (this._editorLoading) return this._designStudioLoadingControls();
     const presentation = this._state?.presentation ?? {};
     const settings = this._settings ?? {};
     const editorComponents = this._editorDocument?.design?.components || [];
@@ -2518,6 +2575,9 @@ class MoviePosterPanel extends HTMLElement {
         }
         if (action === "close") {
           this._editorSettingsOpenId = null;
+          if (window.matchMedia("(max-width: 1100px)").matches) {
+            this._editorPanel = "none";
+          }
           this._render();
           return;
         }
@@ -2540,6 +2600,10 @@ class MoviePosterPanel extends HTMLElement {
     this.shadowRoot.querySelectorAll("[data-editor-select]").forEach((button) => {
       button.addEventListener("click", (event) => {
         this._selectEditorComponent(button.dataset.editorSelect, event.shiftKey);
+        if (!event.shiftKey && window.matchMedia("(max-width: 760px)").matches) {
+          this._editorSettingsOpenId = this._editorSelectedId;
+          this._editorPanel = "properties";
+        }
         this._render();
       });
     });
@@ -2564,16 +2628,18 @@ class MoviePosterPanel extends HTMLElement {
         this._scheduleEditorSave();
       });
     });
-    this.shadowRoot.querySelector("[data-editor-snap]")
-      ?.addEventListener("change", (event) => {
+    this.shadowRoot.querySelectorAll("[data-editor-snap]").forEach((control) => {
+      control.addEventListener("change", (event) => {
         this._editorSnapEnabled = event.target.checked;
         this._render();
       });
-    this.shadowRoot.querySelector("[data-editor-guides]")
-      ?.addEventListener("change", (event) => {
+    });
+    this.shadowRoot.querySelectorAll("[data-editor-guides]").forEach((control) => {
+      control.addEventListener("change", (event) => {
         this._editorGuidesEnabled = event.target.checked;
         this._render();
       });
+    });
     this.shadowRoot.querySelectorAll("[data-editor-viewport]")
       .forEach((control) => {
         control.addEventListener("input", () => {
@@ -2855,6 +2921,11 @@ class MoviePosterPanel extends HTMLElement {
 
   async _editorAction(action) {
     const status = this.shadowRoot.querySelector(".studio-status");
+    if (action === "cancel-loading") {
+      this._editorLoading = null;
+      this._render();
+      return;
+    }
     if (action === "focus") {
       this._editorFocusMode = !this._editorFocusMode;
       this._render();
@@ -2871,13 +2942,26 @@ class MoviePosterPanel extends HTMLElement {
       const name = window.prompt(action === "new-blank"
         ? "Name this blank presentation" : "Name this customized presentation");
       if (!name?.trim()) return;
+      const loading = {
+        action,
+        name: name.trim(),
+      };
+      this._editorLoading = loading;
+      this._render();
       try {
         const result = await this._callLibrary("create", {
           name: name.trim(), blank: action === "new-blank",
         });
+        if (this._editorLoading !== loading) return;
         this._openEditor(result.profile_id, result.library);
       } catch (error) {
-        if (status) status.textContent = error?.message || "Unable to create draft.";
+        if (this._editorLoading !== loading) return;
+        this._editorLoading = null;
+        this._render();
+        const nextStatus = this.shadowRoot.querySelector(".studio-status");
+        if (nextStatus) {
+          nextStatus.textContent = error?.message || "Unable to create draft.";
+        }
       }
       return;
     }
@@ -2899,13 +2983,28 @@ class MoviePosterPanel extends HTMLElement {
         if (item?.draft) {
           this._openEditor(identifier);
         } else {
+          const published = item?.published?.find(
+            (revision) => revision.revision === item.active_revision,
+          )?.profile;
+          const loading = {
+            action,
+            name: published?.name || identifier,
+          };
+          this._editorLoading = loading;
+          this._render();
           const result = await this._callLibrary("edit", {
             profile_id: identifier,
           });
+          if (this._editorLoading !== loading) return;
           this._openEditor(identifier, result.library);
         }
       } catch (error) {
-        if (status) status.textContent = error?.message || "Unable to open profile.";
+        this._editorLoading = null;
+        this._render();
+        const nextStatus = this.shadowRoot.querySelector(".studio-status");
+        if (nextStatus) {
+          nextStatus.textContent = error?.message || "Unable to open profile.";
+        }
       }
       return;
     }
@@ -3438,7 +3537,15 @@ class MoviePosterPanel extends HTMLElement {
     }
     const component = this._selectedEditorComponent();
     const canvas = this.shadowRoot.querySelector(".editor-component-surface");
-    if (!component || component.locked || !canvas) return;
+    if (!component || !canvas) return;
+    if (component.locked) {
+      if (window.matchMedia("(max-width: 760px)").matches && !event.shiftKey) {
+        this._editorSettingsOpenId = identifier;
+        this._editorPanel = "properties";
+      }
+      this._render();
+      return;
+    }
     this._recordEditorHistory();
     element.classList.add("selected");
     const canvasBox = canvas.getBoundingClientRect();
@@ -3451,6 +3558,7 @@ class MoviePosterPanel extends HTMLElement {
     const start = {
       x: event.clientX, y: event.clientY,
       bounds: { ...bounds },
+      moved: false,
       resize: Boolean(event.target.closest("[data-editor-resize]")),
       preserveAspect: Boolean(component.constraints?.preserve_aspect),
       aspectRatio: (bounds.width / 100 * canvasBox.width)
@@ -3458,6 +3566,10 @@ class MoviePosterPanel extends HTMLElement {
     };
     element.setPointerCapture(event.pointerId);
     const move = (moveEvent) => {
+      if (Math.hypot(
+        moveEvent.clientX - start.x,
+        moveEvent.clientY - start.y,
+      ) > 4) start.moved = true;
       const dx = ((moveEvent.clientX - start.x) / canvasBox.width) * 100;
       const dy = ((moveEvent.clientY - start.y) / canvasBox.height) * 100;
       if (start.resize) {
@@ -3534,6 +3646,12 @@ class MoviePosterPanel extends HTMLElement {
       element.removeEventListener("pointermove", move);
       element.removeEventListener("pointerup", finish);
       element.removeEventListener("pointercancel", finish);
+      if (!start.moved
+        && !event.shiftKey
+        && window.matchMedia("(max-width: 760px)").matches) {
+        this._editorSettingsOpenId = identifier;
+        this._editorPanel = "properties";
+      }
       this._render();
       this._scheduleEditorSave();
     };
@@ -3575,7 +3693,12 @@ class MoviePosterPanel extends HTMLElement {
 
   _openEditor(profileId, library = this._presentationLibrary) {
     const draft = library?.profiles?.[profileId]?.draft;
-    if (!draft) return;
+    if (!draft) {
+      this._editorLoading = null;
+      this._render();
+      return;
+    }
+    this._editorLoading = null;
     this._presentationLibrary = library;
     this._editorProfileId = profileId;
     this._editorDocument = structuredClone(draft);
@@ -3597,6 +3720,7 @@ class MoviePosterPanel extends HTMLElement {
     this._editorSaveTimer = null;
     this._editorProfileId = null;
     this._editorDocument = null;
+    this._editorLoading = null;
     this._editorSelectedId = null;
     this._editorSelectedIds = [];
     this._editorSettingsOpenId = null;
@@ -7970,9 +8094,10 @@ class MoviePosterPanel extends HTMLElement {
         min-width: 0;
       }
       .editor-toolbar-actions { justify-content: flex-end; }
-      .editor-toolbar-panels { justify-content: center; }
+      .editor-toolbar-panels { display: none; justify-content: center; }
       .editor-toolbar button,
       .editor-mobile-dock button,
+      .editor-inspector-tabs button,
       .editor-panel button {
         min-height: 40px;
         padding: 7px 11px;
@@ -7986,6 +8111,8 @@ class MoviePosterPanel extends HTMLElement {
       .editor-toolbar button:focus-visible,
       .editor-mobile-dock button:hover,
       .editor-mobile-dock button:focus-visible,
+      .editor-inspector-tabs button:hover,
+      .editor-inspector-tabs button:focus-visible,
       .editor-panel button:hover,
       .editor-panel button:focus-visible {
         border-color: #f6cf70;
@@ -7993,7 +8120,8 @@ class MoviePosterPanel extends HTMLElement {
         outline-offset: 1px;
       }
       .editor-toolbar button[aria-pressed="true"],
-      .editor-mobile-dock button[aria-pressed="true"] {
+      .editor-mobile-dock button[aria-pressed="true"],
+      .editor-inspector-tabs button[aria-pressed="true"] {
         border-color: #f6cf70;
         background: #4a351c;
         color: #fff6d5;
@@ -8069,6 +8197,17 @@ class MoviePosterPanel extends HTMLElement {
         width: var(--editor-right-width);
         border-left: 1px solid #ffffff20;
       }
+      .editor-inspector-tabs {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+        margin: 0 0 16px;
+        padding: 4px;
+        border: 1px solid #ffffff1f;
+        border-radius: 11px;
+        background: #080706b8;
+      }
+      .editor-inspector-tabs button { min-height: 38px; }
       .editor-design-view { display: none; }
       .design-studio-shell.panel-design .editor-properties-view { display: none; }
       .design-studio-shell.panel-design .editor-design-view { display: block; }
@@ -8223,8 +8362,66 @@ class MoviePosterPanel extends HTMLElement {
       }
       .editor-motion legend,
       .editor-viewport legend { color: #f6cf70; }
+      .editor-workspace-options {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin: 0 0 14px;
+      }
+      .editor-workspace-options .studio-check {
+        display: flex;
+        min-height: 38px;
+        align-items: center;
+        gap: 7px;
+        padding: 0 9px;
+        border: 1px solid #ffffff1f;
+        border-radius: 8px;
+        background: #ffffff05;
+      }
       .editor-warnings { margin: 12px 0; }
       .editor-mobile-dock { display: none; pointer-events: auto; }
+      .editor-loading-stage {
+        position: fixed;
+        z-index: 125;
+        inset: var(--editor-toolbar-height) var(--editor-right-width) 0
+          var(--editor-left-width);
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        background: #080706e8;
+        pointer-events: auto;
+      }
+      .editor-loading-canvas {
+        width: min(calc(100% - 24px), calc((100% - 24px) * 9 / 16));
+        height: min(calc(100% - 24px), calc((100% - 24px) * 16 / 9));
+        max-width: 74%;
+        aspect-ratio: 9 / 16;
+        border: 1px solid #f6cf704d;
+        border-radius: 10px;
+        background:
+          linear-gradient(100deg, transparent 35%, #f6cf7012 48%, transparent 61%),
+          linear-gradient(#211b17, #100e0d);
+        background-size: 220% 100%, 100% 100%;
+        box-shadow: 0 24px 70px #000b;
+        animation: editor-loading-sweep 1.4s linear infinite;
+      }
+      .editor-loading-rail h2 { margin: 4px 0 22px; }
+      .editor-loading-line,
+      .editor-loading-pill {
+        display: block;
+        width: 72%;
+        height: 38px;
+        margin: 0 0 9px;
+        border-radius: 8px;
+        background: #ffffff0d;
+      }
+      .editor-loading-line.wide { width: 100%; }
+      .editor-loading-line.medium { width: 84%; }
+      .editor-loading-pill { width: 84px; height: 38px; margin: 0; }
+      .editor-loading-pill.short { width: 54px; }
+      @keyframes editor-loading-sweep {
+        to { background-position: -120% 0, 0 0; }
+      }
       .sr-only {
         position: absolute !important;
         width: 1px !important;
@@ -8301,7 +8498,8 @@ class MoviePosterPanel extends HTMLElement {
         .editor-toolbar {
           grid-template-columns: minmax(190px, 1fr) auto;
         }
-        .editor-toolbar-panels { display: none; }
+        .editor-toolbar-panels,
+        .editor-inspector-tabs { display: none; }
         .editor-panel { display: none; }
         .editor-panel-dismiss { display: block; }
         .design-studio-shell.panel-layers .editor-layers-panel,
@@ -8313,6 +8511,11 @@ class MoviePosterPanel extends HTMLElement {
         }
         .studio-preview.visual-editor-active {
           right: 0;
+          left: 0;
+        }
+        .editor-loading-stage {
+          right: 0;
+          bottom: 70px;
           left: 0;
         }
         .design-studio-shell.panel-layers + .studio-preview.visual-editor-active {
@@ -8369,6 +8572,7 @@ class MoviePosterPanel extends HTMLElement {
         }
         .editor-toolbar-actions::-webkit-scrollbar { display: none; }
         .editor-toolbar-actions > * { flex: 0 0 auto; }
+        .editor-toolbar-actions > .studio-check { display: none; }
         .editor-toolbar button,
         .editor-toolbar .studio-check,
         .editor-mobile-dock button,
@@ -8397,6 +8601,10 @@ class MoviePosterPanel extends HTMLElement {
           transform: translateX(50%);
         }
         .editor-mobile-dock button { flex: 1 1 0; }
+        .editor-loading-stage {
+          inset: var(--editor-toolbar-height) 0 0;
+        }
+        .editor-loading-canvas { max-width: min(72%, 330px); }
         .studio-preview.visual-editor-active,
         .design-studio-shell.panel-layers + .studio-preview.visual-editor-active,
         .design-studio-shell:is(.panel-properties, .panel-design)
@@ -8420,9 +8628,7 @@ class MoviePosterPanel extends HTMLElement {
         }
         .editor-property-grid,
         .editor-advanced-grid { grid-template-columns: minmax(0, 1fr); }
-        .editor-context-toolbar {
-          transform: translate(-100%, calc(-100% - 6px));
-        }
+        .editor-context-toolbar { display: none; }
       }
       @media (max-width: 760px) and (orientation: landscape) {
         .design-studio-shell { --editor-toolbar-height: 58px; }
@@ -8453,6 +8659,9 @@ class MoviePosterPanel extends HTMLElement {
           right: min(46vw, 390px);
           bottom: 70px;
         }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .editor-loading-canvas { animation: none; }
       }
       /* The development renderer must never expose the legacy physical frame
          or content stage beneath its structural layers. Keeping the dormant

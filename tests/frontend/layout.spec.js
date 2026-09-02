@@ -2262,6 +2262,228 @@ test("Design Mode adapts panels without covering the canvas", async ({ page }) =
   }
 });
 
+test("Dual Rail keeps desktop rails visible and makes phone selection contextual", async ({
+  page,
+}) => {
+  const inspectEditor = async (viewport, panelState) => {
+    await page.setViewportSize(viewport);
+    await openHarness(page, "?studio=1");
+    return page.evaluate(async ({ panelState }) => {
+      const panel = document.createElement("movie-poster-panel");
+      document.body.append(panel);
+      const poster = panel._defaultEditorComponent("poster", "poster");
+      const title = panel._defaultEditorComponent("title", "title");
+      panel._editorProfileId = "dual-rail";
+      panel._editorSelectedId = "poster";
+      panel._editorSelectedIds = ["poster"];
+      panel._editorPanel = panelState;
+      panel._editorDocument = {
+        version: 2,
+        name: "Dual Rail",
+        description: "",
+        author: "",
+        presentation: { ...panel._state.presentation },
+        design: {
+          schema_version: 2,
+          resources: {
+            frame: { id: "builtin.frame.marquee", version: 1 },
+            theme: { id: "builtin.theme.classic", version: 1 },
+            layout: { id: "builtin.layout.cinematic", version: 1 },
+          },
+          viewport: { fit: "contain", link_orientations: true },
+          components: [poster, title],
+          motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+        },
+      };
+      panel._render();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const root = panel.shadowRoot;
+      const visible = (selector) => {
+        const node = root.querySelector(selector);
+        return Boolean(node && getComputedStyle(node).display !== "none");
+      };
+      const box = (selector) => {
+        const value = root.querySelector(selector).getBoundingClientRect();
+        return {
+          left: value.left,
+          right: value.right,
+          top: value.top,
+          bottom: value.bottom,
+        };
+      };
+      const before = {
+        layersVisible: visible(".editor-layers-panel"),
+        inspectorVisible: visible(".editor-inspector-panel"),
+        inspectorTabs: [...root.querySelectorAll(".editor-inspector-tabs button")]
+          .map((button) => button.textContent.trim()),
+        dockTabs: [...root.querySelectorAll(".editor-mobile-dock button")]
+          .map((button) => button.textContent.trim()),
+      };
+      if (innerWidth > 760) {
+        return {
+          before,
+          layers: box(".editor-layers-panel"),
+          canvas: box(".visual-editor-canvas"),
+          inspector: box(".editor-inspector-panel"),
+        };
+      }
+      root.querySelector('[data-editor-select="title"]').click();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      const nextRoot = panel.shadowRoot;
+      const editButton = [...nextRoot.querySelectorAll(".editor-mobile-dock button")]
+        .find((button) => button.textContent.trim() === "Edit");
+      const contextual = {
+        before,
+        selectedId: panel._editorSelectedId,
+        settingsId: panel._editorSettingsOpenId,
+        panelState: panel._editorPanel,
+        editActive: editButton?.getAttribute("aria-pressed"),
+        layersVisible: getComputedStyle(
+          nextRoot.querySelector(".editor-layers-panel"),
+        ).display !== "none",
+        inspectorVisible: getComputedStyle(
+          nextRoot.querySelector(".editor-inspector-panel"),
+        ).display !== "none",
+        fontControlVisible: Boolean(
+          nextRoot.querySelector('[data-editor-style="font_family"]'),
+        ),
+        canvasBottom: nextRoot.querySelector(
+          ".visual-editor-canvas",
+        ).getBoundingClientRect().bottom,
+        sheetTop: nextRoot.querySelector(
+          ".editor-inspector-panel",
+        ).getBoundingClientRect().top,
+      };
+      nextRoot.querySelector('[data-editor-context="close"]').click();
+      const closedRoot = panel.shadowRoot;
+      return {
+        ...contextual,
+        closeCollapsedSheet: panel._editorPanel === "none"
+          && getComputedStyle(
+            closedRoot.querySelector(".editor-inspector-panel"),
+          ).display === "none",
+      };
+    }, { panelState });
+  };
+
+  const desktop = await inspectEditor({ width: 1440, height: 900 }, "none");
+  expect(desktop.before.layersVisible).toBe(true);
+  expect(desktop.before.inspectorVisible).toBe(true);
+  expect(desktop.before.inspectorTabs).toEqual(["Edit", "Design"]);
+  expect(desktop.canvas.left).toBeGreaterThanOrEqual(desktop.layers.right - 1);
+  expect(desktop.canvas.right).toBeLessThanOrEqual(desktop.inspector.left + 1);
+
+  const phone = await inspectEditor({ width: 390, height: 844 }, "layers");
+  expect(phone.before.dockTabs).toEqual(["Layers", "Edit", "Design"]);
+  expect(phone.selectedId).toBe("title");
+  expect(phone.settingsId).toBe("title");
+  expect(phone.panelState).toBe("properties");
+  expect(phone.editActive).toBe("true");
+  expect(phone.layersVisible).toBe(false);
+  expect(phone.inspectorVisible).toBe(true);
+  expect(phone.fontControlVisible).toBe(true);
+  expect(phone.canvasBottom).toBeLessThanOrEqual(phone.sheetTop + 1);
+  expect(phone.closeCollapsedSheet).toBe(true);
+});
+
+test("opening a presentation keeps the Dual Rail workspace stable", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openHarness(page, "?studio=1");
+  const result = await page.evaluate(async () => {
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    let resolveRequest;
+    panel._callLibrary = () => new Promise((resolve) => {
+      resolveRequest = resolve;
+    });
+    window.prompt = () => "Stable workspace";
+    const opening = panel._editorAction("new-preset");
+    await Promise.resolve();
+    const loadingRoot = panel.shadowRoot;
+    const loadingShell = loadingRoot.querySelector(".design-studio-shell");
+    const loadingToolbar = loadingRoot.querySelector(
+      ".editor-toolbar",
+    ).getBoundingClientRect();
+    const before = {
+      busy: loadingShell.getAttribute("aria-busy"),
+      loading: loadingShell.classList.contains("editor-loading"),
+      legacySidebarAbsent: !loadingRoot.querySelector(".studio"),
+      stageVisible: getComputedStyle(
+        loadingRoot.querySelector(".editor-loading-stage"),
+      ).display !== "none",
+      layersVisible: getComputedStyle(
+        loadingRoot.querySelector(".editor-layers-panel"),
+      ).display !== "none",
+      inspectorVisible: getComputedStyle(
+        loadingRoot.querySelector(".editor-inspector-panel"),
+      ).display !== "none",
+      toolbar: { left: loadingToolbar.left, right: loadingToolbar.right },
+    };
+    const draftDocument = {
+      version: 2,
+      name: "Stable workspace",
+      description: "",
+      author: "",
+      presentation: { ...panel._state.presentation },
+      design: {
+        schema_version: 2,
+        resources: {
+          frame: { id: "builtin.frame.marquee", version: 1 },
+          theme: { id: "builtin.theme.classic", version: 1 },
+          layout: { id: "builtin.layout.cinematic", version: 1 },
+        },
+        viewport: { fit: "contain", link_orientations: true },
+        components: [panel._defaultEditorComponent("poster", "poster")],
+        motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+      },
+    };
+    resolveRequest({
+      profile_id: "stable-workspace",
+      library: {
+        profiles: {
+          "stable-workspace": {
+            active_revision: null,
+            draft: draftDocument,
+            published: [],
+            assets: {},
+          },
+        },
+      },
+    });
+    await opening;
+    const editorRoot = panel.shadowRoot;
+    const editorToolbar = editorRoot.querySelector(
+      ".editor-toolbar",
+    ).getBoundingClientRect();
+    return {
+      before,
+      editorOpen: Boolean(panel._editorDocument),
+      loadingCleared: panel._editorLoading === null,
+      dualRailVisible: [".editor-layers-panel", ".editor-inspector-panel"]
+        .every((selector) => getComputedStyle(
+          editorRoot.querySelector(selector),
+        ).display !== "none"),
+      toolbarStable: Math.abs(editorToolbar.left - before.toolbar.left) < 0.5
+        && Math.abs(editorToolbar.right - before.toolbar.right) < 0.5,
+    };
+  });
+  expect(result).toEqual({
+    before: {
+      busy: "true",
+      loading: true,
+      legacySidebarAbsent: true,
+      stageVisible: true,
+      layersVisible: true,
+      inspectorVisible: true,
+      toolbar: { left: 0, right: 1440 },
+    },
+    editorOpen: true,
+    loadingCleared: true,
+    dualRailVisible: true,
+    toolbarStable: true,
+  });
+});
+
 test("editor canvas provides guides, rulers, zoom, pan, and fit reset", async ({
   page,
 }) => {
