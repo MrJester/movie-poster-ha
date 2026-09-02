@@ -2153,6 +2153,115 @@ test("component settings use a contextual progressive-disclosure inspector", asy
   });
 });
 
+test("Design Mode adapts panels without covering the canvas", async ({ page }) => {
+  const editorViewports = [
+    { name: "phone", width: 390, height: 844 },
+    { name: "tablet", width: 820, height: 1180 },
+    { name: "laptop", width: 1366, height: 768 },
+    { name: "large-monitor", width: 2560, height: 1440 },
+  ];
+  for (const viewport of editorViewports) {
+    await page.setViewportSize(viewport);
+    await openHarness(page, "?studio=1");
+    const result = await page.evaluate(async ({ width }) => {
+      const panel = document.createElement("movie-poster-panel");
+      document.body.append(panel);
+      const poster = panel._defaultEditorComponent("poster", "poster");
+      const title = panel._defaultEditorComponent("title", "title");
+      panel._editorProfileId = "responsive-editor";
+      panel._editorSelectedId = "title";
+      panel._editorSelectedIds = ["title"];
+      panel._editorSettingsOpenId = "title";
+      panel._editorPanel = "properties";
+      panel._editorDocument = {
+        version: 2,
+        name: "Responsive editor",
+        description: "",
+        author: "",
+        presentation: { ...panel._state.presentation },
+        design: {
+          schema_version: 2,
+          resources: {
+            frame: { id: "builtin.frame.marquee", version: 1 },
+            theme: { id: "builtin.theme.classic", version: 1 },
+            layout: { id: "builtin.layout.cinematic", version: 1 },
+          },
+          viewport: { fit: "contain", link_orientations: true },
+          components: [poster, title],
+          motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+        },
+      };
+      panel._render();
+      await new Promise((resolve) => requestAnimationFrame(() =>
+        requestAnimationFrame(resolve)));
+      const root = panel.shadowRoot;
+      const box = (selector) => {
+        const node = root.querySelector(selector);
+        if (!node || getComputedStyle(node).display === "none") return null;
+        const value = node.getBoundingClientRect();
+        return {
+          left: value.left, top: value.top, right: value.right,
+          bottom: value.bottom, width: value.width, height: value.height,
+        };
+      };
+      const before = box(".visual-editor-canvas");
+      const toolbar = box(".editor-toolbar");
+      const layers = box(".editor-layers-panel");
+      const inspector = box(".editor-inspector-panel");
+      const dock = box(".editor-mobile-dock");
+      const propertyControl = root.querySelector('[data-editor-style="font_size"]');
+      const propertyControlHeight = propertyControl?.getBoundingClientRect().height || 0;
+      root.querySelector('[data-editor-action="focus"]').click();
+      await new Promise((resolve) => requestAnimationFrame(() =>
+        requestAnimationFrame(resolve)));
+      const focused = box(".visual-editor-canvas");
+      return {
+        width,
+        toolbar,
+        layers,
+        inspector,
+        dock,
+        before,
+        focused,
+        propertyControlHeight,
+        focusHidesPanels: getComputedStyle(
+          root.querySelector(".editor-inspector-panel"),
+        ).display === "none",
+      };
+    }, viewport);
+    expect(result.toolbar.left, `${viewport.name} toolbar left`).toBeGreaterThanOrEqual(-1);
+    expect(result.toolbar.right, `${viewport.name} toolbar right`).toBeLessThanOrEqual(viewport.width + 1);
+    expect(result.before.width, `${viewport.name} canvas width`).toBeGreaterThan(80);
+    expect(result.before.height, `${viewport.name} canvas height`).toBeGreaterThan(80);
+    expect(result.before.left, `${viewport.name} canvas left`).toBeGreaterThanOrEqual(-1);
+    expect(result.before.right, `${viewport.name} canvas right`).toBeLessThanOrEqual(viewport.width + 1);
+    expect(result.focusHidesPanels, `${viewport.name} focus panels`).toBe(true);
+    expect(
+      result.focused.width * result.focused.height,
+      `${viewport.name} focused canvas area`,
+    ).toBeGreaterThanOrEqual(result.before.width * result.before.height);
+    if (viewport.width <= 760) {
+      expect(result.dock, `${viewport.name} mobile dock`).not.toBeNull();
+      expect(result.before.bottom, `${viewport.name} canvas above sheet`)
+        .toBeLessThanOrEqual(result.inspector.top + 1);
+      expect(result.propertyControlHeight, `${viewport.name} touch control`)
+        .toBeGreaterThanOrEqual(44);
+    } else if (viewport.width <= 1100) {
+      expect(result.layers, `${viewport.name} layers hidden`).toBeNull();
+      expect(result.inspector, `${viewport.name} inspector`).not.toBeNull();
+      expect(result.before.right, `${viewport.name} canvas beside inspector`)
+        .toBeLessThanOrEqual(result.inspector.left + 1);
+    } else {
+      expect(result.layers, `${viewport.name} layers`).not.toBeNull();
+      expect(result.inspector, `${viewport.name} inspector`).not.toBeNull();
+      expect(result.before.left, `${viewport.name} canvas beside layers`)
+        .toBeGreaterThanOrEqual(result.layers.right - 1);
+      expect(result.before.right, `${viewport.name} canvas beside inspector`)
+        .toBeLessThanOrEqual(result.inspector.left + 1);
+    }
+  }
+});
+
 test("editor canvas provides guides, rulers, zoom, pan, and fit reset", async ({
   page,
 }) => {

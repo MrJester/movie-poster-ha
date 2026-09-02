@@ -256,6 +256,8 @@ class MoviePosterPanel extends HTMLElement {
     this._editorZoom = 1;
     this._editorPanX = 0;
     this._editorPanY = 0;
+    this._editorPanel = "none";
+    this._editorFocusMode = false;
     this._editorKeyHandler = (event) => this._handleEditorKeydown(event);
     if (this._studio) this._state = studioState();
   }
@@ -1529,6 +1531,410 @@ class MoviePosterPanel extends HTMLElement {
       }).join("");
   }
 
+  _designStudioControls(context) {
+    const {
+      editorComponents,
+      editorFrameLayers,
+      editorFrameMotion,
+      selectedComponent,
+      selectedComponents,
+      selectedBounds,
+      selectedIsImage,
+      selectedIsSurface,
+      selectedIsText,
+      editorWarnings,
+      editorOrientation,
+      hasOrientationOverride,
+      editorLibraryItem,
+      editorRevisions,
+      editorAssets,
+      componentTypes,
+    } = context;
+    const panel = ["layers", "properties", "design"].includes(this._editorPanel)
+      ? this._editorPanel : "none";
+    const focusClass = this._editorFocusMode ? " focus-mode" : "";
+    const panelButton = (value, label) => `<button type="button"
+      data-editor-panel="${value}" aria-pressed="${panel === value}">
+      ${label}</button>`;
+    const layers = `${editorFrameLayers.length || editorComponents.length ? `
+      <div class="editor-panel-heading">
+        <div><span class="editor-panel-kicker">Structure</span><h2>Layers</h2></div>
+        <button type="button" class="editor-panel-dismiss" data-editor-panel="none"
+          aria-label="Close layers">×</button>
+      </div>
+      <label class="editor-add-control">Add component
+        <span class="studio-inline">
+          <select data-editor-add-type>
+            ${componentTypes.map((type) =>
+              `<option value="${type}">${escapeHtml(type.replaceAll("_", " "))}</option>`
+            ).join("")}
+          </select>
+          <button type="button" data-editor-action="add">Add</button>
+        </span>
+      </label>
+      <div class="editor-layer-list" role="list" aria-label="Presentation layers">
+        ${[...editorFrameLayers].sort((a, b) => b.z_index - a.z_index)
+          .map((layer) => `
+            <div class="editor-layer-row structural-layer" role="listitem">
+              <span title="Structural frame layer">${escapeHtml(layer.name)}</span>
+              <span class="layer-order">${Number(layer.z_index)}</span>
+              <span title="Built-in frame layers are locked">Locked</span>
+            </div>`).join("")}
+        ${[...editorComponents].sort((a, b) => b.z_index - a.z_index)
+          .map((component) => `
+            <div class="editor-layer-row${this._editorSelectedIds.includes(component.id) ? " selected" : ""}"
+              role="listitem">
+              <button type="button" data-editor-select="${escapeHtml(component.id)}">
+                ${escapeHtml(component.name || component.type.replaceAll("_", " "))}
+              </button>
+              <button type="button" title="Move layer forward"
+                data-editor-layer="forward" data-editor-target="${escapeHtml(component.id)}">↑</button>
+              <button type="button" title="Move layer backward"
+                data-editor-layer="backward" data-editor-target="${escapeHtml(component.id)}">↓</button>
+              <button type="button" title="${component.visible === false ? "Show" : "Hide"} layer"
+                data-editor-layer="visibility" data-editor-target="${escapeHtml(component.id)}">
+                ${component.visible === false ? "Show" : "Hide"}
+              </button>
+              <button type="button" title="${component.locked ? "Unlock" : "Lock"} layer"
+                data-editor-layer="lock" data-editor-target="${escapeHtml(component.id)}">
+                ${component.locked ? "Unlock" : "Lock"}
+              </button>
+            </div>`).join("")}
+      </div>` : `<div class="editor-panel-heading">
+          <div><span class="editor-panel-kicker">Structure</span><h2>Layers</h2></div>
+          <button type="button" class="editor-panel-dismiss" data-editor-panel="none"
+            aria-label="Close layers">×</button>
+        </div>
+        <div class="editor-empty-panel"><h2>Blank canvas</h2>
+          <p>Add a component to begin designing this presentation.</p>
+          <label class="editor-add-control">Add component
+            <span class="studio-inline">
+              <select data-editor-add-type>
+                ${componentTypes.map((type) =>
+                  `<option value="${type}">${escapeHtml(type.replaceAll("_", " "))}</option>`
+                ).join("")}
+              </select>
+              <button type="button" data-editor-action="add">Add</button>
+            </span>
+          </label>
+        </div>`}`;
+    const properties = selectedComponent
+      && this._editorSettingsOpenId === selectedComponent.id ? `
+      <div class="editor-panel-heading">
+        <div><span class="editor-panel-kicker">Selected item</span>
+          <h2>${selectedComponents.length > 1
+            ? `${selectedComponents.length} selected`
+            : escapeHtml(selectedComponent.name
+              || selectedComponent.type.replaceAll("_", " "))}</h2></div>
+        <button type="button" class="editor-panel-dismiss" data-editor-context="close"
+          aria-label="Close component settings">×</button>
+      </div>
+      <fieldset class="editor-properties editor-context-popover">
+        <legend class="sr-only">Component properties</legend>
+        ${selectedComponent.type === "static_text"
+          ? `<label class="studio-wide">Content<input type="text" maxlength="500"
+            data-editor-text value="${escapeHtml(selectedComponent.text || "")}"></label>`
+          : ""}
+        ${selectedIsText ? `<section class="editor-property-group studio-wide">
+          <h3>Style</h3>
+          <div class="editor-property-grid">
+          <label>Font<select data-editor-style="font_family">
+            ${[
+              ["theme_heading", "Theme heading"], ["theme_body", "Theme body"],
+              ["system", "System"], ["cinematic", "Cinematic"], ["serif", "Serif"],
+              ["modern", "Modern"], ["condensed", "Condensed"],
+            ].map(([value, label]) => `<option value="${value}"
+              ${(selectedComponent.style?.font_family
+                || (["mode_heading", "title"].includes(selectedComponent.type)
+                  ? "theme_heading" : "theme_body")) === value ? "selected" : ""}>
+                ${label}</option>`).join("")}
+          </select></label>
+          <label>Theme color<select data-editor-style-ref>
+            ${[
+              "text_heading", "text_body", "text_muted", "text_inverse",
+              "accent_primary", "accent_secondary", "light_primary",
+              "light_secondary", "progress_fill",
+            ].map((value) => `<option value="${value}"
+              ${(selectedComponent.style_ref || "text_heading") === value ? "selected" : ""}>
+              ${value.replaceAll("_", " ")}</option>`).join("")}
+          </select></label>
+          <label class="studio-check"><input type="checkbox"
+            data-editor-text-color-override
+            ${selectedComponent.style?.text_color ? "checked" : ""}>
+            Custom color</label>
+          <label>Text color<input type="color" data-editor-style="text_color"
+            ${selectedComponent.style?.text_color ? "" : "disabled"}
+            value="${normalizeColor(selectedComponent.style?.text_color, "#ffffff")}"></label>
+          <label>Font size<input type="number" min=".1" max="20" step=".1"
+            data-editor-style="font_size"
+            value="${Number(selectedComponent.style?.font_size ?? 3)}"></label>
+          <label>Alignment<select data-editor-style="text_align">
+            ${["left", "center", "right"].map((value) =>
+              `<option value="${value}" ${(selectedComponent.style?.text_align || "center") === value ? "selected" : ""}>${value}</option>`
+            ).join("")}
+          </select></label>
+          <label>Glow<input type="number" min="0" max="1" step=".05"
+            data-editor-style="glow"
+            value="${Number(selectedComponent.style?.glow ?? 0)}"></label>
+          <label>Rotation<input type="number" min="-180" max="180" step="1"
+            data-editor-style="rotation"
+            value="${Number(selectedComponent.style?.rotation ?? 0)}"></label>
+          <label>Maximum lines<input type="number" min="0" max="20" step="1"
+            data-editor-max-lines
+            value="${Number(selectedComponent.constraints?.max_lines ?? 0)}"></label>
+          <label>Minimum font<input type="number" min=".1" max="20" step=".1"
+            data-editor-min-font
+            value="${Number(selectedComponent.constraints?.min_font_size ?? 0.8)}"></label>
+          </div></section>` : ""}
+        ${selectedIsSurface ? `<section class="editor-property-group studio-wide">
+          <h3>Surface</h3><div class="editor-property-grid">
+          <label>Theme surface<select data-editor-style-ref>
+            ${["surface", "surface_elevated", "backdrop"].map((value) =>
+              `<option value="${value}"
+                ${(selectedComponent.style_ref || "surface_elevated") === value ? "selected" : ""}>
+                ${value.replaceAll("_", " ")}</option>`).join("")}
+          </select></label>
+          <label>Background<input type="color" data-editor-style="background_color"
+            value="${normalizeColor(selectedComponent.style?.background_color, "#10151b")}"></label>
+          <label>Opacity<input type="number" min="0" max="1" step=".05"
+            data-editor-style="opacity"
+            value="${Number(selectedComponent.style?.opacity ?? 1)}"></label>
+          </div></section>` : ""}
+        ${selectedIsImage ? `<section class="editor-property-group studio-wide">
+          <h3>Image</h3><div class="editor-property-grid">
+          <label>Image fit<select data-editor-style="image_fit">
+            ${["contain", "cover", "fill"].map((value) =>
+              `<option value="${value}"
+                ${(selectedComponent.style?.image_fit
+                  || (selectedComponent.type === "backdrop" ? "cover" : "contain")) === value
+                  ? "selected" : ""}>${value}</option>`).join("")}
+          </select></label>
+          <label class="studio-check"><input type="checkbox"
+            data-editor-preserve-aspect
+            ${selectedComponent.constraints?.preserve_aspect ? "checked" : ""}>
+            Preserve aspect</label>
+          </div></section>` : ""}
+        <details class="editor-advanced studio-wide">
+          <summary>Position &amp; advanced</summary>
+          <div class="editor-advanced-grid">
+            <label class="studio-wide">Layer name<input type="text" maxlength="80"
+              data-editor-name value="${escapeHtml(selectedComponent.name
+                || selectedComponent.type.replaceAll("_", " "))}"></label>
+            ${["x", "y", "width", "height"].map((field) =>
+              `<label>${field}<input type="number"
+                min="${field === "width" || field === "height" ? ".1" : "0"}"
+                max="100" step=".1" data-editor-bound="${field}"
+                value="${Number(selectedBounds[field])}"></label>`
+            ).join("")}
+            <label>Layer<input type="number" min="-100" max="100"
+              data-editor-z value="${Number(selectedComponent.z_index)}"></label>
+            <div class="editor-align-actions studio-wide" aria-label="Align component">
+              ${[
+                ["left", "Left"], ["center", "Center"], ["right", "Right"],
+                ["top", "Top"], ["middle", "Middle"], ["bottom", "Bottom"],
+              ].map(([value, label]) => `<button type="button"
+                data-editor-align="${value}">${label}</button>`).join("")}
+              <button type="button" data-editor-distribute="horizontal"
+                ${selectedComponents.length < 3 ? "disabled" : ""}>Space across</button>
+              <button type="button" data-editor-distribute="vertical"
+                ${selectedComponents.length < 3 ? "disabled" : ""}>Space down</button>
+            </div>
+            <label class="studio-check"><input type="checkbox" data-editor-visible
+              ${selectedComponent.visible !== false ? "checked" : ""}>Visible</label>
+            <label class="studio-check"><input type="checkbox" data-editor-locked
+              ${selectedComponent.locked ? "checked" : ""}>Locked</label>
+            <label>Blend mode<select data-editor-blend>
+              ${["normal", "multiply", "screen", "overlay", "soft-light"]
+                .map((value) => `<option value="${value}"
+                  ${(selectedComponent.blend_mode || "normal") === value ? "selected" : ""}>
+                  ${value}</option>`).join("")}
+            </select></label>
+            <label>Clip layer<select data-editor-clip>
+              ${[
+                ["safe_opening", "Frame opening"], ["canvas", "Full canvas"],
+                ["none", "No clipping"],
+              ].map(([value, label]) => `<option value="${value}"
+                ${(selectedComponent.clip || "safe_opening") === value ? "selected" : ""}>
+                ${label}</option>`).join("")}
+            </select></label>
+            <label class="studio-check studio-wide"><input type="checkbox"
+              data-editor-orientation-override ${hasOrientationOverride ? "checked" : ""}>
+              Override geometry in ${editorOrientation}</label>
+          </div>
+        </details>
+        <div class="editor-component-actions studio-wide">
+          <button type="button" data-editor-action="duplicate-component">Duplicate</button>
+          <button type="button" data-editor-action="reset-component">Reset</button>
+          <button type="button" class="danger" data-editor-action="delete-component">Remove</button>
+        </div>
+      </fieldset>` : `
+      <div class="editor-empty-panel">
+        <span class="editor-panel-kicker">Properties</span>
+        <h2>${selectedComponent ? escapeHtml(selectedComponent.name) : "Select an item"}</h2>
+        <p>${selectedComponent
+          ? "Use the Settings button beside the selected item to edit it."
+          : "Choose a layer or tap an item on the canvas to begin editing."}</p>
+        ${selectedComponent ? `<button type="button" data-editor-context="settings">
+          Open ${escapeHtml(selectedComponent.name)} settings</button>` : ""}
+      </div>`;
+    const design = `
+      <div class="editor-panel-heading">
+        <div><span class="editor-panel-kicker">Presentation</span><h2>Design tools</h2></div>
+        <button type="button" class="editor-panel-dismiss" data-editor-panel="none"
+          aria-label="Close design tools">×</button>
+      </div>
+      <fieldset class="editor-viewport">
+        <legend>Canvas view</legend>
+        <label>Zoom<input type="range" min=".5" max="1.5" step=".05"
+          data-editor-viewport="zoom" value="${this._editorZoom}"></label>
+        <output>${Math.round(this._editorZoom * 100)}%</output>
+        <label>Pan X<input type="range" min="-50" max="50" step="1"
+          data-editor-viewport="pan-x" value="${this._editorPanX}"></label>
+        <label>Pan Y<input type="range" min="-50" max="50" step="1"
+          data-editor-viewport="pan-y" value="${this._editorPanY}"></label>
+        <button type="button" data-editor-action="reset-view">Fit canvas</button>
+      </fieldset>
+      <div class="editor-property-grid">
+        <label>Preview state<select data-editor-preview>
+          ${[
+            ["coming_soon", "Coming Soon"], ["now_playing", "Now Playing"],
+            ["paused", "Paused"], ["no_artwork", "No artwork"],
+            ["stress", "Long-content stress test"],
+            ["connection_warning", "Connection warning"],
+          ].map(([value, label]) => `<option value="${value}"
+            ${this._editorPreviewState === value ? "selected" : ""}>${label}</option>`).join("")}
+        </select></label>
+        <label>Preview device<select data-editor-device>
+          ${[
+            ["responsive", "Responsive orientation"], ["phone", "Phone portrait"],
+            ["tablet", "Tablet portrait"], ["television", "16:9 television"],
+            ["portrait_signage", "9:16 portrait signage"], ["ultrawide", "21:9 ultrawide"],
+          ].map(([value, label]) => `<option value="${value}"
+            ${this._editorDevicePreset === value ? "selected" : ""}>${label}</option>`).join("")}
+        </select></label>
+      </div>
+      ${editorWarnings.length ? `<div class="editor-warnings" role="status">
+        <strong>Design checks</strong><ul>${editorWarnings.map(
+          (warning) => `<li>${escapeHtml(warning)}</li>`,
+        ).join("")}</ul></div>` : ""}
+      <details class="editor-global-group" open>
+        <summary>Motion &amp; practical lights</summary>
+        <fieldset class="editor-motion">
+          <legend>Profile motion</legend>
+          <label>Preset<select data-editor-motion="preset">
+            ${[["none", "None"], ["breathe", "Breathe"], ["pulse", "Pulse"],
+              ["shimmer", "Shimmer"], ["chase", "Chase"]]
+              .map(([value, label]) => `<option value="${value}"
+                ${(this._editorDocument.design.motion?.preset || "none") === value ? "selected" : ""}>
+                ${label}</option>`).join("")}
+          </select></label>
+          <label>Speed<input type="number" min=".1" max="5" step=".1"
+            data-editor-motion="speed"
+            value="${Number(this._editorDocument.design.motion?.speed ?? 1)}"></label>
+          <label>Intensity<input type="range" min="0" max="1" step=".05"
+            data-editor-motion="intensity"
+            value="${Number(this._editorDocument.design.motion?.intensity ?? 0)}"></label>
+          <label>Layer stagger<input type="number" min="0" max="5" step=".05"
+            data-editor-motion="stagger"
+            value="${Number(this._editorDocument.design.motion?.stagger ?? 0)}"></label>
+        </fieldset>
+        <fieldset class="editor-motion">
+          <legend>Frame practical lights</legend>
+          <label>Character<select data-editor-frame-motion="preset">
+            ${[
+              ["none", "None"], ["marquee_chase", "Marquee chase"],
+              ["cyber_scan", "Cyber scan"], ["comic_energy", "Comic energy"],
+              ["theater_sconce", "Theater sconces"], ["nature_dapple", "Natural light"],
+              ["golden_footlights", "Golden footlights"],
+              ["steampunk_mechanical", "Steampunk mechanics"],
+            ].map(([value, label]) => `<option value="${value}"
+              ${(editorFrameMotion?.preset || "none") === value ? "selected" : ""}>
+              ${label}</option>`).join("")}
+          </select></label>
+          <label>Speed<input type="number" min=".1" max="5" step=".1"
+            data-editor-frame-motion="speed" value="${Number(editorFrameMotion?.speed ?? 1)}"></label>
+          <label>Intensity<input type="range" min="0" max="1" step=".05"
+            data-editor-frame-motion="intensity"
+            value="${Number(editorFrameMotion?.intensity ?? 0)}"></label>
+          <label>Light count<input type="number" min="0" max="24" step="1"
+            data-editor-frame-motion="light_count"
+            value="${Number(editorFrameMotion?.light_count ?? 0)}"></label>
+        </fieldset>
+      </details>
+      <details class="editor-global-group">
+        <summary>Assets</summary>
+        <div class="studio-profile-actions">
+          <button type="button" data-editor-action="upload-asset">Upload image or font</button>
+          <input type="file" data-editor-asset-file hidden
+            accept=".png,.jpg,.jpeg,.webp,.woff,.woff2,.ttf,.otf">
+        </div>
+        ${editorAssets.length ? editorAssets.map((path) => `
+          <div class="editor-asset-row">
+            <code title="${escapeHtml(path)}">${escapeHtml(path)}</code>
+            ${/\.(png|jpe?g|webp)$/i.test(path)
+              ? `<button type="button" data-editor-add-asset="${escapeHtml(path)}">Add</button>` : ""}
+            <button type="button" data-editor-delete-asset="${escapeHtml(path)}">Remove</button>
+          </div>`).join("") : "<small>No custom assets in this Profile.</small>"}
+      </details>
+      ${editorRevisions.length ? `<details class="editor-global-group">
+        <summary>Published revisions</summary>
+        <label>Revision<span class="studio-inline">
+          <select data-editor-revision>
+            ${[...editorRevisions].reverse().map((revision) =>
+              `<option value="${revision.revision}"
+                ${revision.revision === editorLibraryItem.active_revision ? "selected" : ""}>
+                Revision ${revision.revision}</option>`).join("")}
+          </select>
+          <button type="button" data-editor-action="rollback">Activate</button>
+        </span></label>
+      </details>` : ""}`;
+    return `<section class="design-studio-shell panel-${panel}${focusClass}"
+      aria-label="Presentation Design Mode">
+      <header class="editor-toolbar">
+        <div class="editor-toolbar-primary">
+          <button type="button" data-editor-action="close" title="Close Design Mode">←</button>
+          <div class="editor-document-title">
+            <span>Design Mode</span>
+            <strong>${escapeHtml(this._editorDocument.name)}</strong>
+          </div>
+          <span class="editor-autosave-state">Autosaves draft</span>
+        </div>
+        <nav class="editor-toolbar-panels" aria-label="Editor panels">
+          ${panelButton("layers", "Layers")}
+          ${panelButton("properties", "Properties")}
+          ${panelButton("design", "Design")}
+        </nav>
+        <div class="editor-toolbar-actions">
+          <button type="button" data-editor-action="undo"
+            ${this._editorUndoStack.length ? "" : "disabled"}>Undo</button>
+          <button type="button" data-editor-action="redo"
+            ${this._editorRedoStack.length ? "" : "disabled"}>Redo</button>
+          <button type="button" data-editor-action="focus"
+            aria-pressed="${this._editorFocusMode}">${this._editorFocusMode ? "Exit focus" : "Focus"}</button>
+          <button type="button" class="primary" data-editor-action="publish">Publish</button>
+          <button type="button" data-editor-action="reset-view">Fit</button>
+          <label class="studio-check"><input type="checkbox" data-editor-snap
+            ${this._editorSnapEnabled ? "checked" : ""}>Snap</label>
+          <label class="studio-check"><input type="checkbox" data-editor-guides
+            ${this._editorGuidesEnabled ? "checked" : ""}>Guides</label>
+        </div>
+        <small class="studio-status" role="status"></small>
+      </header>
+      <aside class="editor-panel editor-layers-panel" aria-label="Layers panel">
+        ${layers}
+      </aside>
+      <aside class="editor-panel editor-inspector-panel" aria-label="Editor inspector">
+        <div class="editor-properties-view">${properties}</div>
+        <div class="editor-design-view">${design}</div>
+      </aside>
+      <nav class="editor-mobile-dock" aria-label="Editor tools">
+        ${panelButton("layers", "Layers")}
+        ${panelButton("properties", "Properties")}
+        ${panelButton("design", "Design")}
+      </nav>
+    </section>`;
+  }
+
   _studioControls() {
     if (!this._studio) return "";
     const presentation = this._state?.presentation ?? {};
@@ -1568,6 +1974,26 @@ class MoviePosterPanel extends HTMLElement {
       "year", "content_rating", "runtime", "summary", "progress",
       "active_user", "player_name", "playback_state", "static_text",
     ];
+    if (this._editorDocument) {
+      return this._designStudioControls({
+        editorComponents,
+        editorFrameLayers,
+        editorFrameMotion,
+        selectedComponent,
+        selectedComponents,
+        selectedBounds,
+        selectedIsImage,
+        selectedIsSurface,
+        selectedIsText,
+        editorWarnings,
+        editorOrientation,
+        hasOrientationOverride,
+        editorLibraryItem,
+        editorRevisions,
+        editorAssets,
+        componentTypes,
+      });
+    }
     const options = (items, selected) => items.map(({ value, label }) =>
       `<option value="${escapeHtml(value)}" ${selected === value ? "selected" : ""}>${escapeHtml(label)}</option>`
     ).join("");
@@ -2058,6 +2484,23 @@ class MoviePosterPanel extends HTMLElement {
       button.addEventListener("click", () =>
         this._editorAction(button.dataset.editorAction));
     });
+    this.shadowRoot.querySelectorAll("[data-editor-panel]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const requested = button.dataset.editorPanel;
+        if (requested === "none") {
+          this._editorPanel = "none";
+        } else if (this._editorPanel === requested
+          && window.matchMedia("(max-width: 1100px)").matches) {
+          this._editorPanel = "none";
+        } else {
+          this._editorPanel = requested;
+        }
+        if (requested === "properties" && this._editorSelectedId) {
+          this._editorSettingsOpenId = this._editorSelectedId;
+        }
+        this._render();
+      });
+    });
     this.shadowRoot.querySelectorAll("[data-editor-component]").forEach((component) => {
       component.addEventListener("pointerdown", (event) =>
         this._startEditorPointer(event, component));
@@ -2069,6 +2512,7 @@ class MoviePosterPanel extends HTMLElement {
         if (action === "settings") {
           this._editorSettingsOpenId =
             this._editorSettingsOpenId === component?.id ? null : component?.id;
+          if (this._editorSettingsOpenId) this._editorPanel = "properties";
           this._render();
           return;
         }
@@ -2411,6 +2855,11 @@ class MoviePosterPanel extends HTMLElement {
 
   async _editorAction(action) {
     const status = this.shadowRoot.querySelector(".studio-status");
+    if (action === "focus") {
+      this._editorFocusMode = !this._editorFocusMode;
+      this._render();
+      return;
+    }
     if (action === "reset-view") {
       this._editorZoom = 1;
       this._editorPanX = 0;
@@ -3138,6 +3587,8 @@ class MoviePosterPanel extends HTMLElement {
     this._editorZoom = 1;
     this._editorPanX = 0;
     this._editorPanY = 0;
+    this._editorPanel = "none";
+    this._editorFocusMode = false;
     this._render();
   }
 
@@ -3149,6 +3600,8 @@ class MoviePosterPanel extends HTMLElement {
     this._editorSelectedId = null;
     this._editorSelectedIds = [];
     this._editorSettingsOpenId = null;
+    this._editorPanel = "none";
+    this._editorFocusMode = false;
     this._editorUndoStack = [];
     this._editorRedoStack = [];
   }
@@ -7470,6 +7923,535 @@ class MoviePosterPanel extends HTMLElement {
         .visual-editor-active.orientation-auto .visual-editor-canvas {
           width: min(96vw, calc((54dvh - 20px) * 4 / 3));
           aspect-ratio: 4 / 3;
+        }
+      }
+      /* Design Mode is an adaptive workspace rather than a scaled-down
+         Display Studio sidebar. Its panels change presentation by available
+         space while the normalized canvas remains the same at every size. */
+      .design-studio-shell {
+        --editor-toolbar-height: 68px;
+        --editor-left-width: clamp(248px, 18vw, 292px);
+        --editor-right-width: clamp(300px, 23vw, 372px);
+        position: fixed;
+        z-index: 100;
+        inset: 0;
+        pointer-events: none;
+        color: #fff7df;
+        font-family: "Trebuchet MS", Arial, sans-serif;
+      }
+      .editor-toolbar {
+        position: fixed;
+        z-index: 160;
+        top: 0;
+        right: 0;
+        left: 0;
+        display: grid;
+        grid-template-columns: minmax(240px, 1fr) auto minmax(390px, 1fr);
+        align-items: center;
+        gap: 12px;
+        min-height: var(--editor-toolbar-height);
+        box-sizing: border-box;
+        padding:
+          max(8px, env(safe-area-inset-top))
+          max(12px, env(safe-area-inset-right))
+          8px max(12px, env(safe-area-inset-left));
+        border-bottom: 1px solid #ffffff24;
+        background: #0d0b0af5;
+        box-shadow: 0 8px 30px #0008;
+        pointer-events: auto;
+        backdrop-filter: blur(18px);
+      }
+      .editor-toolbar-primary,
+      .editor-toolbar-actions,
+      .editor-toolbar-panels {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+      }
+      .editor-toolbar-actions { justify-content: flex-end; }
+      .editor-toolbar-panels { justify-content: center; }
+      .editor-toolbar button,
+      .editor-mobile-dock button,
+      .editor-panel button {
+        min-height: 40px;
+        padding: 7px 11px;
+        border: 1px solid #ffffff29;
+        border-radius: 8px;
+        background: #221b17;
+        color: inherit;
+        cursor: pointer;
+      }
+      .editor-toolbar button:hover,
+      .editor-toolbar button:focus-visible,
+      .editor-mobile-dock button:hover,
+      .editor-mobile-dock button:focus-visible,
+      .editor-panel button:hover,
+      .editor-panel button:focus-visible {
+        border-color: #f6cf70;
+        outline: 2px solid #f6cf7066;
+        outline-offset: 1px;
+      }
+      .editor-toolbar button[aria-pressed="true"],
+      .editor-mobile-dock button[aria-pressed="true"] {
+        border-color: #f6cf70;
+        background: #4a351c;
+        color: #fff6d5;
+      }
+      .editor-toolbar button:disabled { cursor: default; opacity: .38; }
+      .editor-toolbar .primary,
+      .editor-panel .primary {
+        border-color: #f6cf70;
+        background: #f6cf70;
+        color: #17100a;
+        font-weight: 800;
+      }
+      .editor-document-title {
+        display: grid;
+        min-width: 0;
+        line-height: 1.1;
+      }
+      .editor-document-title span,
+      .editor-panel-kicker {
+        color: #d8b86f;
+        font-size: .66rem;
+        font-weight: 800;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+      }
+      .editor-document-title strong {
+        overflow: hidden;
+        max-width: min(26vw, 340px);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .editor-autosave-state { color: #a89d8b; font-size: .7rem; white-space: nowrap; }
+      .editor-toolbar .studio-check {
+        display: inline-flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 4px;
+        min-height: 40px;
+        margin: 0;
+        color: #ded4c3;
+        font-size: .72rem;
+      }
+      .editor-toolbar .studio-status {
+        position: absolute;
+        right: 12px;
+        bottom: 1px;
+        min-height: 0;
+        color: #d7cbb6;
+        font-size: .65rem;
+      }
+      .editor-panel {
+        position: fixed;
+        z-index: 130;
+        top: var(--editor-toolbar-height);
+        bottom: 0;
+        box-sizing: border-box;
+        overflow: auto;
+        padding: 16px;
+        border-color: #ffffff20;
+        background: #100e0df2;
+        box-shadow: 0 18px 50px #0009;
+        pointer-events: auto;
+        scrollbar-gutter: stable;
+        backdrop-filter: blur(18px);
+      }
+      .editor-layers-panel {
+        left: 0;
+        width: var(--editor-left-width);
+        border-right: 1px solid #ffffff20;
+      }
+      .editor-inspector-panel {
+        right: 0;
+        width: var(--editor-right-width);
+        border-left: 1px solid #ffffff20;
+      }
+      .editor-design-view { display: none; }
+      .design-studio-shell.panel-design .editor-properties-view { display: none; }
+      .design-studio-shell.panel-design .editor-design-view { display: block; }
+      .editor-panel-heading {
+        position: sticky;
+        z-index: 2;
+        top: -16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin: -16px -16px 14px;
+        padding: 15px 16px 11px;
+        border-bottom: 1px solid #ffffff16;
+        background: #100e0df7;
+      }
+      .editor-panel-heading h2,
+      .editor-empty-panel h2,
+      .editor-property-group h3 {
+        margin: 3px 0 0;
+        color: #fff7df;
+      }
+      .editor-panel-dismiss {
+        display: none;
+        width: 40px;
+        padding: 0 !important;
+        font-size: 1.25rem;
+      }
+      .editor-add-control { display: grid; gap: 6px; margin-bottom: 14px; }
+      .editor-panel :is(label, fieldset) { min-width: 0; }
+      .editor-panel label {
+        display: grid;
+        gap: 5px;
+        color: #ded4c3;
+        font-size: .75rem;
+      }
+      .editor-panel :is(input, select, textarea) {
+        min-width: 0;
+        min-height: 40px;
+        box-sizing: border-box;
+        border: 1px solid #ffffff29;
+        border-radius: 7px;
+        background: #080706;
+        color: #fff7df;
+        font: inherit;
+      }
+      .editor-layer-list { display: grid; gap: 6px; }
+      .editor-layer-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) repeat(4, 36px);
+        align-items: center;
+        gap: 4px;
+        min-height: 44px;
+        padding: 4px;
+        border: 1px solid #ffffff14;
+        border-radius: 8px;
+        background: #ffffff05;
+      }
+      .editor-layer-row > button:first-child {
+        overflow: hidden;
+        text-align: left;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .editor-layer-row > button:not(:first-child) {
+        width: 36px;
+        min-height: 36px;
+        overflow: hidden;
+        padding: 0;
+        font-size: .65rem;
+      }
+      .editor-layer-row.selected {
+        border-color: #f6cf70aa;
+        background: #f6cf7015;
+      }
+      .editor-layer-row.structural-layer {
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        color: #a89d8b;
+        font-size: .7rem;
+      }
+      .editor-empty-panel {
+        display: grid;
+        align-content: center;
+        justify-items: start;
+        min-height: 45%;
+        color: #bfb4a2;
+      }
+      .editor-properties.editor-context-popover {
+        position: static;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        width: auto;
+        max-height: none;
+        margin: 0;
+        padding: 0;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        color: inherit;
+        font-size: .78rem;
+        backdrop-filter: none;
+      }
+      .editor-properties.editor-context-popover > * { grid-column: 1; }
+      .editor-property-group {
+        display: grid;
+        gap: 9px;
+        margin: 0 0 14px;
+        padding: 0 0 14px;
+        border-bottom: 1px solid #ffffff18;
+      }
+      .editor-property-grid,
+      .editor-advanced-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px;
+      }
+      .editor-advanced,
+      .editor-global-group {
+        margin: 0 0 12px;
+        padding: 10px;
+        border: 1px solid #ffffff20;
+        border-radius: 9px;
+        background: #ffffff05;
+      }
+      .editor-advanced summary,
+      .editor-global-group summary {
+        min-height: 32px;
+        color: #f6cf70;
+        cursor: pointer;
+        font-weight: 800;
+      }
+      .editor-align-actions,
+      .editor-component-actions,
+      .studio-profile-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .editor-component-actions { margin-top: 5px; }
+      .editor-component-actions .danger { color: #ffb6a9; }
+      .editor-motion,
+      .editor-viewport {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px;
+        margin: 0 0 12px;
+        padding: 10px;
+        border: 1px solid #ffffff20;
+        border-radius: 9px;
+      }
+      .editor-motion legend,
+      .editor-viewport legend { color: #f6cf70; }
+      .editor-warnings { margin: 12px 0; }
+      .editor-mobile-dock { display: none; pointer-events: auto; }
+      .sr-only {
+        position: absolute !important;
+        width: 1px !important;
+        height: 1px !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        clip: rect(0, 0, 0, 0) !important;
+        white-space: nowrap !important;
+        border: 0 !important;
+      }
+      .studio-preview.visual-editor-active {
+        --editor-toolbar-height: 68px;
+        --editor-left-width: clamp(248px, 18vw, 292px);
+        --editor-right-width: clamp(300px, 23vw, 372px);
+        position: fixed;
+        inset:
+          var(--editor-toolbar-height) var(--editor-right-width) 0
+          var(--editor-left-width);
+        width: auto;
+        height: auto;
+        min-height: 0;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        container-type: size;
+      }
+      .studio-preview.visual-editor-active .visual-editor-viewport {
+        padding: clamp(12px, 2cqw, 28px);
+      }
+      .studio-preview.visual-editor-active .visual-editor-canvas {
+        width: min(calc(100cqw - 32px), calc((100cqh - 32px) * 9 / 16));
+        max-height: calc(100cqh - 32px);
+      }
+      .studio-preview.visual-editor-active.orientation-landscape .visual-editor-canvas,
+      .studio-preview.visual-editor-active.orientation-auto .visual-editor-canvas {
+        width: min(calc(100cqw - 32px), calc((100cqh - 32px) * 4 / 3));
+      }
+      .studio-preview.visual-editor-active .visual-editor-canvas.device-preview {
+        width: min(
+          calc(100cqw - 32px),
+          calc((100cqh - 32px) * var(--editor-preview-ratio))
+        ) !important;
+      }
+      .design-studio-shell.focus-mode .editor-panel { display: none !important; }
+      .design-studio-shell.focus-mode + .studio-preview.visual-editor-active {
+        right: 0;
+        left: 0;
+      }
+      .editor-component-label {
+        opacity: 0;
+        transition: opacity .12s ease;
+      }
+      .editor-component:hover .editor-component-label,
+      .editor-component.selected .editor-component-label { opacity: 1; }
+      @media (min-width: 1800px) {
+        .design-studio-shell {
+          --editor-left-width: 288px;
+          --editor-right-width: 372px;
+        }
+        .studio-preview.visual-editor-active {
+          --editor-left-width: 288px;
+          --editor-right-width: 372px;
+        }
+      }
+      @media (max-width: 1100px) {
+        .design-studio-shell {
+          --editor-left-width: min(310px, 38vw);
+          --editor-right-width: min(370px, 44vw);
+        }
+        .studio-preview.visual-editor-active {
+          --editor-left-width: min(310px, 38vw);
+          --editor-right-width: min(370px, 44vw);
+        }
+        .editor-toolbar {
+          grid-template-columns: minmax(190px, 1fr) auto;
+        }
+        .editor-toolbar-panels { display: none; }
+        .editor-panel { display: none; }
+        .editor-panel-dismiss { display: block; }
+        .design-studio-shell.panel-layers .editor-layers-panel,
+        .design-studio-shell.panel-properties .editor-inspector-panel,
+        .design-studio-shell.panel-design .editor-inspector-panel { display: block; }
+        .design-studio-shell.panel-design .editor-inspector-panel,
+        .design-studio-shell.panel-properties .editor-inspector-panel {
+          width: var(--editor-right-width);
+        }
+        .studio-preview.visual-editor-active {
+          right: 0;
+          left: 0;
+        }
+        .design-studio-shell.panel-layers + .studio-preview.visual-editor-active {
+          left: var(--editor-left-width);
+        }
+        .design-studio-shell:is(.panel-properties, .panel-design)
+          + .studio-preview.visual-editor-active {
+          right: var(--editor-right-width);
+        }
+        .design-studio-shell.focus-mode + .studio-preview.visual-editor-active {
+          right: 0;
+          left: 0;
+        }
+        .editor-mobile-dock {
+          position: fixed;
+          z-index: 150;
+          right: 12px;
+          bottom: max(12px, env(safe-area-inset-bottom));
+          display: flex;
+          gap: 6px;
+          padding: 6px;
+          border: 1px solid #ffffff24;
+          border-radius: 12px;
+          background: #100e0df2;
+          box-shadow: 0 10px 34px #000b;
+          backdrop-filter: blur(16px);
+        }
+        .focus-mode .editor-mobile-dock { display: none; }
+      }
+      @media (max-width: 760px) {
+        .design-studio-shell {
+          --editor-toolbar-height: 104px;
+          --editor-sheet-height: min(38dvh, 360px);
+        }
+        .studio-preview.visual-editor-active {
+          --editor-toolbar-height: 104px;
+          --editor-sheet-height: min(38dvh, 360px);
+        }
+        .editor-toolbar {
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-rows: 44px 44px;
+          gap: 4px;
+          overflow: hidden;
+          padding-bottom: 8px;
+        }
+        .editor-toolbar-primary { grid-row: 1; }
+        .editor-document-title strong { max-width: 44vw; }
+        .editor-autosave-state { display: none; }
+        .editor-toolbar-actions {
+          grid-row: 2;
+          justify-content: flex-start;
+          overflow-x: auto;
+          scrollbar-width: none;
+        }
+        .editor-toolbar-actions::-webkit-scrollbar { display: none; }
+        .editor-toolbar-actions > * { flex: 0 0 auto; }
+        .editor-toolbar button,
+        .editor-toolbar .studio-check,
+        .editor-mobile-dock button,
+        .editor-panel button,
+        .editor-panel :is(input, select, textarea) {
+          min-height: 44px;
+          font-size: 16px;
+        }
+        .editor-panel {
+          z-index: 145;
+          top: auto;
+          right: max(8px, env(safe-area-inset-right));
+          bottom: calc(68px + env(safe-area-inset-bottom));
+          left: max(8px, env(safe-area-inset-left));
+          width: auto !important;
+          height: var(--editor-sheet-height);
+          border: 1px solid #ffffff28;
+          border-radius: 18px;
+        }
+        .editor-mobile-dock {
+          right: 50%;
+          bottom: max(8px, env(safe-area-inset-bottom));
+          width: min(430px, calc(100vw - 16px));
+          box-sizing: border-box;
+          justify-content: stretch;
+          transform: translateX(50%);
+        }
+        .editor-mobile-dock button { flex: 1 1 0; }
+        .studio-preview.visual-editor-active,
+        .design-studio-shell.panel-layers + .studio-preview.visual-editor-active,
+        .design-studio-shell:is(.panel-properties, .panel-design)
+          + .studio-preview.visual-editor-active {
+          inset: var(--editor-toolbar-height) 0 70px;
+        }
+        .design-studio-shell:is(.panel-layers, .panel-properties, .panel-design)
+          + .studio-preview.visual-editor-active {
+          bottom: calc(var(--editor-sheet-height) + 76px);
+        }
+        .design-studio-shell.focus-mode + .studio-preview.visual-editor-active {
+          inset: var(--editor-toolbar-height) 0 0;
+        }
+        .studio-preview.visual-editor-active .visual-editor-canvas,
+        .studio-preview.visual-editor-active.orientation-auto .visual-editor-canvas {
+          width: min(calc(100cqw - 20px), calc((100cqh - 20px) * 9 / 16));
+          max-height: calc(100cqh - 20px);
+        }
+        .studio-preview.visual-editor-active.orientation-landscape .visual-editor-canvas {
+          width: min(calc(100cqw - 20px), calc((100cqh - 20px) * 4 / 3));
+        }
+        .editor-property-grid,
+        .editor-advanced-grid { grid-template-columns: minmax(0, 1fr); }
+        .editor-context-toolbar {
+          transform: translate(-100%, calc(-100% - 6px));
+        }
+      }
+      @media (max-width: 760px) and (orientation: landscape) {
+        .design-studio-shell { --editor-toolbar-height: 58px; }
+        .studio-preview.visual-editor-active { --editor-toolbar-height: 58px; }
+        .editor-toolbar {
+          grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr);
+          grid-template-rows: 1fr;
+        }
+        .editor-toolbar-primary,
+        .editor-toolbar-actions { grid-row: 1; }
+        .editor-toolbar-actions { grid-column: 2; }
+        .editor-panel {
+          top: calc(var(--editor-toolbar-height) + 8px);
+          right: max(8px, env(safe-area-inset-right));
+          bottom: calc(68px + env(safe-area-inset-bottom));
+          left: auto;
+          width: min(46vw, 390px) !important;
+          height: auto;
+        }
+        .studio-preview.visual-editor-active,
+        .design-studio-shell.panel-layers + .studio-preview.visual-editor-active,
+        .design-studio-shell:is(.panel-properties, .panel-design)
+          + .studio-preview.visual-editor-active {
+          inset: var(--editor-toolbar-height) 0 70px;
+        }
+        .design-studio-shell:is(.panel-layers, .panel-properties, .panel-design)
+          + .studio-preview.visual-editor-active {
+          right: min(46vw, 390px);
+          bottom: 70px;
         }
       }
       /* The development renderer must never expose the legacy physical frame
