@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.0-beta.57
+
+- Replace the crowded presentation editor with the responsive Dual Rail
+  workspace: persistent Layers and Edit/Design rails on desktop, contextual
+  Layers/Edit/Design sheets on phones, and adaptive tablet panels.
+- Open a selected phone layer directly in its focused Edit sheet, keep canvas
+  helpers under Design, and remove the obstructive floating phone toolbar.
+- Keep the final editor geometry visible while drafts open so the workspace no
+  longer jumps from the narrow Display Studio sidebar to a wider editor.
+- Expand Frame artwork to display edges on large screens while preserving its
+  aspect ratio, and dynamically balance portrait poster and metadata space.
+- Improve movie-title prominence and metadata placement in the portrait
+  presentation templates.
+- Advance the versioned Home Assistant panel element and cache key so an older
+  loaded editor cannot mask the beta.57 frontend after installation.
+
 ## 0.1.0-beta.56
 
 - Synchronize unsaved Display Studio Frame, Theme, and Layout selections with

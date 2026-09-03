@@ -8970,8 +8970,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v23")) {
-  customElements.define("movie-poster-panel-v23", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v24")) {
+  customElements.define("movie-poster-panel-v24", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});
