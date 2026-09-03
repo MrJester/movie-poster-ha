@@ -97,8 +97,8 @@ STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
 _FRONTEND_DIR = Path(__file__).parent / "frontend"
 _FRONTEND_PATH = _FRONTEND_DIR / "movie-poster-panel.js"
-_FRONTEND_VERSION = "0.1.0-beta.57-presentation.25"
-_FRONTEND_ELEMENT = "movie-poster-panel-v24"
+_FRONTEND_VERSION = "0.1.0-beta.58-presentation.26"
+_FRONTEND_ELEMENT = "movie-poster-panel-v25"
 
 
 def _frontend_module_url() -> str:

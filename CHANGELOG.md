@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.0-beta.58
+
+- Replace the crowded initial Display Studio sidebar with a guided Quick Setup
+  flow for Plex targeting, Display Profile, Frame, Theme, Layout, and
+  Orientation.
+- Keep every existing configuration option in focused, collapsed sections for
+  playback timing, presentation files, profile tools, branding, typography,
+  and movie details.
+- Make Customize design the clear handoff into the full Dual Rail workspace.
+- Validate the collapsed and fully expanded setup panel from compact phones
+  through tablets, desktops, ultrawide displays, and 4K orientations.
+
 ## 0.1.0-beta.57
 
 - Replace the crowded presentation editor with the responsive Dual Rail

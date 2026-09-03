@@ -2054,26 +2054,66 @@ class MoviePosterPanel extends HTMLElement {
     const options = (items, selected) => items.map(({ value, label }) =>
       `<option value="${escapeHtml(value)}" ${selected === value ? "selected" : ""}>${escapeHtml(label)}</option>`
     ).join("");
-    return `<aside class="studio" aria-label="Display Studio controls">
-      <strong>Display Studio</strong>
-      <h3>Playback & Coming Soon</h3>
-      ${this._settings ? `<label class="studio-wide">Coming Soon source<select data-setting="source">
-        ${options(this._choices.sources, settings.source)}</select></label>
-      <label>Preferred player<select data-setting="player_id">
-        ${options(this._studioPlayerChoices(), settings.player_id || "")}</select></label>
-      <label>Preferred user<select data-setting="user_id">
-        ${options(this._choices.users, settings.user_id || "")}</select></label>
-      <small class="studio-wide">Players are scoped to the selected user. With Any user selected, players default to the Plex account owner; leave player on Any to follow that user on every known device.</small>
-      <label>Stop grace (seconds)<input type="number" min="0" max="600"
-        data-setting="grace_seconds" value="${Number(settings.grace_seconds ?? 30)}"></label>
-      <label>Poster rotation (seconds)<input type="number" min="2" max="3600"
-        data-setting="rotation_seconds" value="${Number(settings.rotation_seconds ?? 15)}"></label>
-      <label class="studio-wide">Library refresh (seconds)<input type="number" min="60" max="86400"
-        data-setting="library_refresh_seconds" value="${Number(settings.library_refresh_seconds ?? 900)}"></label>`
-        : `<p class="studio-wide">Loading Plex libraries, players, and users…</p>`}
-      <h3>Presentation</h3>
-      <div class="studio-profile-actions studio-wide">
-        <button type="button" data-editor-action="new-preset">Customize preset</button>
+    return `<aside class="studio studio-setup" aria-label="Display Studio controls">
+      <header class="studio-intro studio-wide">
+        <span class="studio-kicker">Display Studio</span>
+        <strong>Set up your movie poster</strong>
+        <small>Choose the Plex activity to follow and a ready-made look. Use Customize only when you want to edit the design itself.</small>
+      </header>
+      <section class="studio-quick-card studio-wide" aria-labelledby="studio-plex-heading">
+        <div class="studio-section-heading">
+          <div>
+            <span class="studio-step">1</span>
+            <h3 id="studio-plex-heading">Plex &amp; playback</h3>
+          </div>
+          <small>What this display follows</small>
+        </div>
+        <div class="studio-grid">
+          ${this._settings ? `<label class="studio-wide">Coming Soon source<select data-setting="source">
+            ${options(this._choices.sources, settings.source)}</select></label>
+          <label>Preferred user<select data-setting="user_id">
+            ${options(this._choices.users, settings.user_id || "")}</select></label>
+          <label>Preferred player<select data-setting="player_id">
+            ${options(this._studioPlayerChoices(), settings.player_id || "")}</select></label>
+          <small class="studio-wide">Players follow the selected Plex user. Choose Any player to follow that user on every known device.</small>`
+            : `<p class="studio-wide">Loading Plex libraries, players, and users…</p>`}
+        </div>
+      </section>
+      ${this._settings ? `<details class="studio-disclosure studio-wide studio-timing-tools">
+        <summary>
+          <span>Playback timing</span>
+          <small>Grace periods, rotation, and refresh</small>
+        </summary>
+        <div class="studio-disclosure-body studio-grid">
+          <label>Stop grace (seconds)<input type="number" min="0" max="600"
+            data-setting="grace_seconds" value="${Number(settings.grace_seconds ?? 30)}"></label>
+          <label>Poster rotation (seconds)<input type="number" min="2" max="3600"
+            data-setting="rotation_seconds" value="${Number(settings.rotation_seconds ?? 15)}"></label>
+          <label class="studio-wide">Library refresh (seconds)<input type="number" min="60" max="86400"
+            data-setting="library_refresh_seconds" value="${Number(settings.library_refresh_seconds ?? 900)}"></label>
+        </div>
+      </details>` : ""}
+      <div class="studio-section-heading studio-wide studio-look-heading">
+        <div>
+          <span class="studio-step">2</span>
+          <h3>Choose a look</h3>
+        </div>
+        <small>Start with a preset, then customize if needed</small>
+      </div>
+      <div class="studio-customize-callout studio-wide">
+        <div>
+          <strong>Want to move or restyle individual elements?</strong>
+          <small>Open the full Dual Rail design workspace.</small>
+        </div>
+        <button type="button" class="primary" data-editor-action="new-preset">Customize design</button>
+      </div>
+      <details class="studio-disclosure studio-wide studio-presentation-tools">
+        <summary>
+          <span>Presentations &amp; files</span>
+          <small>Blank designs, imports, exports, and saved work</small>
+        </summary>
+        <div class="studio-disclosure-body">
+      <div class="studio-profile-actions">
         <button type="button" data-editor-action="new-blank">Start blank</button>
         <button type="button" data-editor-action="import-package">Import .movieposter</button>
         <input type="file" accept=".movieposter,application/zip"
@@ -2101,6 +2141,8 @@ class MoviePosterPanel extends HTMLElement {
         <div class="studio-profile-actions studio-wide">
           <button type="button" data-editor-action="export-package">Export .movieposter</button>
         </div>` : ""}
+        </div>
+      </details>
       ${this._editorDocument ? `
         <p class="studio-wide editor-draft-label">
           Editing draft: <strong>${escapeHtml(this._editorDocument.name)}</strong>
@@ -2422,38 +2464,50 @@ class MoviePosterPanel extends HTMLElement {
           </small>`}
         <small class="studio-wide">Drag components to move them. Drag the lower-right handle to resize. Changes autosave to this draft.</small>
       ` : ""}
-      <label class="studio-wide">Display profile<select data-profile-select>
+      <label class="studio-wide studio-quick-profile">Display profile<select data-profile-select>
         ${options(this._choices.profiles || [], settings.profile_id || this._requestedProfileId)}
       </select></label>
-      <div class="studio-profile-actions studio-wide">
-        <button type="button" data-profile-action="create">New</button>
-        <button type="button" data-profile-action="export">Export</button>
-        <button type="button" data-profile-action="import">Import</button>
-        <button type="button" data-profile-action="delete"
-          ${settings.profile_id === "default" ? "disabled" : ""}>Delete</button>
-        <input type="file" accept="application/json" data-profile-file hidden>
-      </div>
-      <label>Frame<select data-studio="frame_theme">
+      <details class="studio-disclosure studio-wide studio-profile-tools">
+        <summary>
+          <span>Display profiles</span>
+          <small>Create, export, import, or remove settings profiles</small>
+        </summary>
+        <div class="studio-disclosure-body studio-profile-actions">
+          <button type="button" data-profile-action="create">New profile</button>
+          <button type="button" data-profile-action="export">Export profile</button>
+          <button type="button" data-profile-action="import">Import profile</button>
+          <button type="button" data-profile-action="delete"
+            ${settings.profile_id === "default" ? "disabled" : ""}>Delete profile</button>
+          <input type="file" accept="application/json" data-profile-file hidden>
+        </div>
+      </details>
+      <label class="studio-quick-design">Frame<select data-studio="frame_theme">
         ${["marquee", "cyber_noir", "comic_hero", "theater_classic",
           "indie_nature", "golden_age", "steampunk"].map((value) =>
           `<option value="${value}" ${presentation.frame_theme === value ? "selected" : ""}>${FRAME_LABELS[value]}</option>`
         ).join("")}
       </select></label>
-      <label>Theme<select data-studio="theme">
+      <label class="studio-quick-design">Theme<select data-studio="theme">
         ${["classic", "art_deco", "neon", "minimal", "oled"].map((value) =>
           `<option value="${value}" ${presentation.theme === value ? "selected" : ""}>${THEME_LABELS[value]}</option>`
         ).join("")}
       </select></label>
-      <label>Layout<select data-studio="layout">
+      <label class="studio-quick-design">Layout<select data-studio="layout">
         ${["cinematic", "poster", "split"].map((value) =>
           `<option value="${value}" ${presentation.layout === value ? "selected" : ""}>${value.replace(/\b\w/g, (letter) => letter.toUpperCase())}</option>`
         ).join("")}
       </select></label>
-      <label>Orientation<select data-studio="orientation">
+      <label class="studio-quick-design">Orientation<select data-studio="orientation">
         ${["auto", "landscape", "portrait"].map((value) =>
           `<option value="${value}" ${presentation.orientation === value ? "selected" : ""}>${value.replace(/\b\w/g, (letter) => letter.toUpperCase())}</option>`
         ).join("")}
       </select></label>
+      <details class="studio-disclosure studio-wide studio-branding-tools">
+        <summary>
+          <span>Branding &amp; typography</span>
+          <small>Fonts, colors, labels, and logo</small>
+        </summary>
+        <div class="studio-disclosure-body studio-grid">
       <label>Heading font<select data-studio="heading_font">
         ${["cinematic", "system", "serif", "modern", "condensed"].map((value) =>
           `<option value="${value}" ${presentation.heading_font === value ? "selected" : ""}>${value}</option>`
@@ -2485,7 +2539,14 @@ class MoviePosterPanel extends HTMLElement {
           `<option value="${value}" ${normalizeLogoPosition(presentation.logo_position) === value ? "selected" : ""}>top ${value}</option>`
         ).join("")}
       </select></label>
-      <h3 class="studio-wide">Movie details</h3>
+        </div>
+      </details>
+      <details class="studio-disclosure studio-wide studio-detail-tools">
+        <summary>
+          <span>Movie details</span>
+          <small>Choose which information appears on the poster</small>
+        </summary>
+        <div class="studio-disclosure-body studio-toggle-grid">
       ${[["show_title", "Title"], ["show_subtitle", "Tagline"],
         ["show_year", "Year"], ["show_rating", "Content rating"],
         ["show_runtime", "Runtime"],
@@ -2495,6 +2556,8 @@ class MoviePosterPanel extends HTMLElement {
           `<label class="studio-check"><input type="checkbox" data-studio="${field}"
           ${presentation[field] !== false ? "checked" : ""}>${label}</label>`
         ).join("")}
+        </div>
+      </details>
       <div class="studio-actions">
         <button type="button" data-studio-action="back">Back to settings</button>
         <button type="button" class="primary" data-studio-action="save">Save & return</button>
@@ -4280,6 +4343,123 @@ class MoviePosterPanel extends HTMLElement {
       }
       .studio strong, .studio h3, .studio small, .studio-actions { grid-column: 1 / -1; }
       .studio h3 { margin: 8px 0 0; color: var(--gold); font-size: 13px; text-transform: uppercase; letter-spacing: .12em; }
+      .studio-setup > * { min-width: 0; }
+      .studio-intro {
+        order: 0;
+        display: grid;
+        gap: 4px;
+        padding: 2px 2px 7px;
+      }
+      .studio-intro > strong { font-size: 1.08rem; }
+      .studio-kicker {
+        color: var(--gold);
+        font-size: .65rem;
+        font-weight: 800;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+      }
+      .studio-quick-card {
+        order: 10;
+        padding: 12px;
+        border: 1px solid #f6cf704d;
+        border-radius: 10px;
+        background: linear-gradient(145deg, #3a261a99, #15100dcc);
+      }
+      .studio-section-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .studio-section-heading > div { min-width: 0; }
+      .studio-section-heading h3 { display: inline; margin: 0 0 0 6px; }
+      .studio-section-heading > small { max-width: 48%; text-align: right; }
+      .studio-step {
+        display: inline-grid;
+        width: 20px;
+        height: 20px;
+        place-items: center;
+        border: 1px solid #f6cf7077;
+        border-radius: 50%;
+        background: #f6cf7015;
+        color: var(--gold);
+        font-size: .68rem;
+        font-weight: 800;
+      }
+      .studio-grid,
+      .studio-toggle-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 9px 10px;
+      }
+      .studio-look-heading { order: 20; margin: 1px 2px -2px; }
+      .studio-quick-profile { order: 30; }
+      .studio-quick-design {
+        order: 31;
+        padding: 9px;
+        border: 1px solid #ffffff1f;
+        border-radius: 8px;
+        background: #ffffff07;
+      }
+      .studio-customize-callout {
+        order: 40;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 12px;
+        border: 1px solid #f6cf7055;
+        border-radius: 10px;
+        background: #f6cf700c;
+      }
+      .studio-customize-callout > div { display: grid; gap: 2px; min-width: 0; }
+      .studio-customize-callout > div strong { font-size: .78rem; }
+      .studio-customize-callout > div small { font-size: .7rem; }
+      .studio-timing-tools { order: 60; }
+      .studio-presentation-tools { order: 70; }
+      .studio-profile-tools { order: 71; }
+      .studio-branding-tools { order: 72; }
+      .studio-detail-tools { order: 73; }
+      .studio-disclosure {
+        overflow: hidden;
+        border: 1px solid #ffffff24;
+        border-radius: 9px;
+        background: #ffffff05;
+      }
+      .studio-disclosure > summary {
+        position: relative;
+        display: grid;
+        gap: 2px;
+        min-height: 42px;
+        box-sizing: border-box;
+        padding: 10px 38px 10px 12px;
+        list-style: none;
+        cursor: pointer;
+      }
+      .studio-disclosure > summary::-webkit-details-marker { display: none; }
+      .studio-disclosure > summary::after {
+        content: "+";
+        position: absolute;
+        top: 50%;
+        right: 13px;
+        color: var(--gold);
+        font-size: 1.15rem;
+        transform: translateY(-50%);
+      }
+      .studio-disclosure[open] > summary::after { content: "−"; }
+      .studio-disclosure[open] > summary { border-bottom: 1px solid #ffffff1a; }
+      .studio-disclosure > summary span { color: #fff7df; font-weight: 800; }
+      .studio-disclosure > summary small { font-size: .68rem; }
+      .studio-disclosure-body {
+        display: grid;
+        gap: 9px;
+        padding: 11px 12px 12px;
+      }
+      .studio-disclosure:not([open]) > .studio-disclosure-body { display: none; }
+      .studio-disclosure-body.studio-profile-actions { display: flex; }
+      .studio-actions { order: 90; }
+      .studio > .studio-status { order: 91; }
       .studio label {
         display: grid;
         min-width: 0;
@@ -4511,6 +4691,12 @@ class MoviePosterPanel extends HTMLElement {
         .studio-preview.orientation-portrait .marquee-frame {
           width: min(96vw, 28.688vh);
         }
+      }
+      @media (max-width: 480px) {
+        .studio-section-heading > small { display: none; }
+        .studio-customize-callout { grid-template-columns: minmax(0, 1fr); }
+        .studio-customize-callout > button { width: 100%; }
+        .studio-disclosure > summary { min-height: 48px; }
       }
       @media (min-width: 721px) and (max-width: 900px) and (orientation: portrait) {
         .studio-preview {
@@ -8970,8 +9156,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v24")) {
-  customElements.define("movie-poster-panel-v24", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v25")) {
+  customElements.define("movie-poster-panel-v25", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});

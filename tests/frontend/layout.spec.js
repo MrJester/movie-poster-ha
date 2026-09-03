@@ -92,7 +92,7 @@ const responsiveViewports = configuredResponsivePartition
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
   await openHarness(page);
   const result = await page.evaluate(() => {
-    const current = document.createElement("movie-poster-panel-v24");
+    const current = document.createElement("movie-poster-panel-v25");
     document.body.append(current);
     return {
       registered: current.localName,
@@ -101,7 +101,7 @@ test("versioned Home Assistant element cannot be claimed by an older module", as
     };
   });
   expect(result).toEqual({
-    registered: "movie-poster-panel-v24",
+    registered: "movie-poster-panel-v25",
     hasCurrentEditor: true,
     stableAlias: true,
   });
@@ -1133,6 +1133,93 @@ test("Display Studio presents Frame, Theme, then Layout", async ({ page }) => {
   expect(result.themeLabels).toEqual([
     "Classic", "Art Deco", "Neon", "Minimal", "OLED",
   ]);
+});
+
+test("Display Studio starts focused and keeps every setting available", async ({ page }) => {
+  await openHarness(page, "?studio=1");
+  const result = await page.evaluate(async () => {
+    const panel = document.createElement("movie-poster-panel");
+    panel._settings = {
+      profile_id: "default",
+      source: "Movies::Coming Soon",
+      player_id: "",
+      user_id: "",
+      grace_seconds: 30,
+      rotation_seconds: 60,
+      library_refresh_seconds: 900,
+    };
+    panel._choices = {
+      profiles: [{ value: "default", label: "Default" }],
+      sources: [{ value: "Movies::Coming Soon", label: "Movies — Coming Soon" }],
+      players: [{ value: "", label: "Any active Plex player" }],
+      users: [{ value: "", label: "Any active Plex user" }],
+      owner_user_id: "",
+      player_ids_by_user: {},
+    };
+    document.body.append(panel);
+    panel._render();
+    const root = panel.shadowRoot;
+    const visible = (node) => Boolean(node?.getClientRects().length);
+    const disclosures = [...root.querySelectorAll(".studio-disclosure")];
+    const initiallyVisibleSettings = [...root.querySelectorAll("[data-setting]")]
+      .filter(visible).map((control) => control.dataset.setting);
+    const initiallyVisibleDesign = [...root.querySelectorAll("[data-studio]")]
+      .filter(visible).map((control) => control.dataset.studio);
+    const initial = {
+      title: root.querySelector(".studio-intro strong")?.textContent,
+      customize: root.querySelector('[data-editor-action="new-preset"]')?.textContent,
+      disclosures: disclosures.map((details) => ({
+        label: details.querySelector("summary span")?.textContent,
+        open: details.open,
+      })),
+      initiallyVisibleSettings,
+      initiallyVisibleDesign,
+      profileVisible: visible(root.querySelector("[data-profile-select]")),
+    };
+    disclosures.forEach((details) => { details.open = true; });
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    return {
+      initial,
+      allSettings: [...root.querySelectorAll("[data-setting]")]
+        .filter(visible).map((control) => control.dataset.setting).sort(),
+      allDesign: [...root.querySelectorAll("[data-studio]")]
+        .filter(visible).map((control) => control.dataset.studio).sort(),
+      profileActions: [...root.querySelectorAll("[data-profile-action]")]
+        .filter(visible).map((button) => button.dataset.profileAction).sort(),
+      packageActions: [...root.querySelectorAll("[data-editor-action]")]
+        .filter(visible).map((button) => button.dataset.editorAction).sort(),
+    };
+  });
+  expect(result.initial.title).toBe("Set up your movie poster");
+  expect(result.initial.customize).toBe("Customize design");
+  expect(result.initial.disclosures).toEqual([
+    { label: "Playback timing", open: false },
+    { label: "Presentations & files", open: false },
+    { label: "Display profiles", open: false },
+    { label: "Branding & typography", open: false },
+    { label: "Movie details", open: false },
+  ]);
+  expect(result.initial.initiallyVisibleSettings).toEqual([
+    "source", "user_id", "player_id",
+  ]);
+  expect(result.initial.initiallyVisibleDesign).toEqual([
+    "frame_theme", "theme", "layout", "orientation",
+  ]);
+  expect(result.initial.profileVisible).toBe(true);
+  expect(result.allSettings).toEqual([
+    "grace_seconds", "library_refresh_seconds", "player_id",
+    "rotation_seconds", "source", "user_id",
+  ]);
+  expect(result.allDesign).toEqual([
+    "accent_color", "background_color", "body_font", "coming_soon_text",
+    "enable_motion", "eyebrow_text", "frame_theme", "heading_font",
+    "kiosk_mode", "layout", "logo_position", "logo_url",
+    "now_playing_text", "orientation", "show_progress", "show_rating",
+    "show_runtime", "show_session", "show_subtitle", "show_summary",
+    "show_title", "show_year", "theme",
+  ]);
+  expect(result.profileActions).toEqual(["create", "delete", "export", "import"]);
+  expect(result.packageActions).toEqual(["import-package", "new-blank", "new-preset"]);
 });
 
 test("Display Studio refreshes declarative preset resources before save", async ({
@@ -3532,6 +3619,8 @@ for (const viewport of VIEWPORTS) {
         panel._state.presentation.orientation = orientation;
         panel._renderIdentity = null;
         panel._render();
+        panel.shadowRoot.querySelectorAll(".studio-disclosure")
+          .forEach((details) => { details.open = true; });
         await new Promise((resolve) => requestAnimationFrame(() =>
           requestAnimationFrame(resolve)));
         const root = panel.shadowRoot;
