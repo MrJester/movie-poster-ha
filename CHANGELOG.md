@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.0-beta.59
+
+- Add an administrator-only logo uploader to Display Studio, supporting PNG,
+  JPEG, and WebP images without requiring users to manually place files in
+  Home Assistant's `www` directory.
+- Store validated logo assets under an integration-specific `/local` path and
+  automatically populate the presentation's Logo image setting after upload.
+- Keep manual local and HTTPS logo URLs available, add a clear action, and
+  verify upload-and-save behavior through backend and browser tests.
+
 ## 0.1.0-beta.58
 
 - Replace the crowded initial Display Studio sidebar with a guided Quick Setup

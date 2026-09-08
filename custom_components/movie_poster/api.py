@@ -8,7 +8,7 @@ import hashlib
 import mimetypes
 from copy import deepcopy
 from datetime import timedelta
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 
@@ -69,6 +69,7 @@ from .presentation_package import (
     MAX_PACKAGE_BYTES,
     build_package,
     read_package,
+    validate_asset,
 )
 from .presentation_resources import (
     blank_design,
@@ -97,8 +98,9 @@ STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
 _FRONTEND_DIR = Path(__file__).parent / "frontend"
 _FRONTEND_PATH = _FRONTEND_DIR / "movie-poster-panel.js"
-_FRONTEND_VERSION = "0.1.0-beta.58-presentation.26"
-_FRONTEND_ELEMENT = "movie-poster-panel-v25"
+_FRONTEND_VERSION = "0.1.0-beta.59-presentation.27"
+_FRONTEND_ELEMENT = "movie-poster-panel-v26"
+_LOGO_ASSET_SUFFIXES = frozenset({".png", ".jpg", ".jpeg", ".webp"})
 
 
 def _frontend_module_url() -> str:
@@ -129,6 +131,7 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_update_presentation)
     websocket_api.async_register_command(hass, websocket_get_settings)
     websocket_api.async_register_command(hass, websocket_update_settings)
+    websocket_api.async_register_command(hass, websocket_upload_logo)
     websocket_api.async_register_command(hass, websocket_display_control)
     websocket_api.async_register_command(hass, websocket_manage_profile)
     websocket_api.async_register_command(hass, websocket_presentation_library)
@@ -507,6 +510,75 @@ async def websocket_update_settings(
     connection.send_result(
         msg["id"], {"entry_id": entry.entry_id, "profile_id": profile_id}
     )
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "movie_poster/upload_logo",
+        vol.Optional("entry_id"): str,
+        vol.Required("filename"): vol.All(str, vol.Length(min=1, max=240)),
+        vol.Required("image"): vol.All(
+            str,
+            vol.Length(max=(MAX_FILE_BYTES * 4 // 3) + 4),
+        ),
+    }
+)
+@websocket_api.async_response
+async def websocket_upload_logo(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Validate and store a logo in Home Assistant's local media directory."""
+    coordinator = _coordinator(hass, msg.get("entry_id"))
+    entry = (
+        hass.config_entries.async_get_entry(coordinator.entry_id)
+        if coordinator is not None
+        else None
+    )
+    if entry is None:
+        connection.send_error(
+            msg["id"], websocket_api.ERR_NOT_FOUND, "Movie Poster is not configured"
+        )
+        return
+    try:
+        logo_url = await hass.async_add_executor_job(
+            _store_uploaded_logo,
+            Path(hass.config.path("www")),
+            entry.entry_id,
+            msg["filename"],
+            _decode_base64_field(msg, "image", "Logo image"),
+        )
+    except vol.Invalid as err:
+        connection.send_error(
+            msg["id"], websocket_api.ERR_INVALID_FORMAT, str(err)
+        )
+        return
+    connection.send_result(msg["id"], {"logo_url": logo_url})
+
+
+def _store_uploaded_logo(
+    www_root: Path,
+    entry_id: str,
+    filename: str,
+    content: bytes,
+) -> str:
+    """Store one validated logo and return its cache-safe /local URL."""
+    suffix = PurePath(filename).suffix.casefold()
+    if suffix not in _LOGO_ASSET_SUFFIXES:
+        message = "Logo must be a PNG, JPEG, or WebP image"
+        raise vol.Invalid(message)
+    digest = hashlib.sha256(content, usedforsecurity=False).hexdigest()[:12]
+    stored_name = f"logo-{digest}{suffix}"
+    validate_asset(f"assets/{stored_name}", content)
+    relative_path = Path("movie_poster", entry_id, stored_name)
+    target = www_root / relative_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_suffix(f"{target.suffix}.tmp")
+    temporary.write_bytes(content)
+    temporary.replace(target)
+    return f"/local/{relative_path.as_posix()}"
 
 
 def _updated_presentation_options(

@@ -92,7 +92,7 @@ const responsiveViewports = configuredResponsivePartition
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
   await openHarness(page);
   const result = await page.evaluate(() => {
-    const current = document.createElement("movie-poster-panel-v25");
+    const current = document.createElement("movie-poster-panel-v26");
     document.body.append(current);
     return {
       registered: current.localName,
@@ -101,7 +101,7 @@ test("versioned Home Assistant element cannot be claimed by an older module", as
     };
   });
   expect(result).toEqual({
-    registered: "movie-poster-panel-v25",
+    registered: "movie-poster-panel-v26",
     hasCurrentEditor: true,
     stableAlias: true,
   });
@@ -3375,6 +3375,9 @@ test("Display Studio saves edited behavior and presentation settings", async ({ 
     panel._hass = {
       callWS: async (request) => {
         calls.push(request);
+        if (request.type === "movie_poster/upload_logo") {
+          return { logo_url: "/local/movie_poster/studio-entry/logo-test.png" };
+        }
         return {};
       },
     };
@@ -3385,7 +3388,12 @@ test("Display Studio saves edited behavior and presentation settings", async ({ 
   });
 
   const root = page.locator("movie-poster-panel");
-  await root.evaluate((panel) => {
+  await root.evaluate(async (panel) => {
+    await panel._uploadStudioLogo(new File(
+      [new Uint8Array([137, 80, 78, 71])],
+      "theater-logo.png",
+      { type: "image/png" },
+    ));
     const field = panel.shadowRoot.querySelector('[data-setting="rotation_seconds"]');
     field.value = "45";
     field.dispatchEvent(new Event("change", { bubbles: true }));
@@ -3400,9 +3408,15 @@ test("Display Studio saves edited behavior and presentation settings", async ({ 
     panel.shadowRoot.querySelector('[data-studio-action="save"]').click();
   });
 
-  await expect.poll(() => page.evaluate(() => window.__studioCalls.length)).toBe(1);
-  const request = await page.evaluate(() => window.__studioCalls[0]);
-  expect(request).toMatchObject({
+  await expect.poll(() => page.evaluate(() => window.__studioCalls.length)).toBe(2);
+  const requests = await page.evaluate(() => window.__studioCalls);
+  expect(requests[0]).toMatchObject({
+    type: "movie_poster/upload_logo",
+    entry_id: "studio-entry",
+    filename: "theater-logo.png",
+  });
+  expect(requests[0].image).toBe("iVBORw==");
+  expect(requests[1]).toMatchObject({
     type: "movie_poster/update_settings",
     entry_id: "studio-entry",
     profile_id: "default",
@@ -3412,6 +3426,7 @@ test("Display Studio saves edited behavior and presentation settings", async ({ 
     show_title: false,
     show_rating: false,
     show_progress: false,
+    logo_url: "/local/movie_poster/studio-entry/logo-test.png",
   });
   await expect.poll(() => root.evaluate((panel) =>
     panel.shadowRoot.querySelector(".studio-status").textContent))

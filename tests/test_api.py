@@ -1,7 +1,13 @@
 """Tests for the versioned frontend state contract."""
 
+from __future__ import annotations
+
 import hashlib
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
+
+import pytest
+import voluptuous as vol
 
 from custom_components.movie_poster.api import (
     _FRONTEND_ELEMENT,
@@ -12,6 +18,7 @@ from custom_components.movie_poster.api import (
     _frontend_module_url,
     _serialize_state,
     _signed_design_assets,
+    _store_uploaded_logo,
     _updated_presentation_options,
 )
 from custom_components.movie_poster.const import CONF_DISPLAY_PROFILES
@@ -23,6 +30,9 @@ from custom_components.movie_poster.models import (
 )
 from custom_components.movie_poster.state_machine import ModeSnapshot, TransitionReason
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 
 def test_frontend_registration_uses_the_asset_content_as_its_cache_key() -> None:
     """Every JavaScript edit produces a new module URL automatically."""
@@ -33,6 +43,23 @@ def test_frontend_registration_uses_the_asset_content_as_its_cache_key() -> None
         f"{STATIC_URL}/movie-poster-panel.js?v={_FRONTEND_VERSION}-{digest}"
     )
     assert f'customElements.define("{_FRONTEND_ELEMENT}"' in source.decode()
+
+
+def test_uploaded_logo_is_validated_and_stored_below_www(tmp_path: Path) -> None:
+    """Logo uploads receive a cache-safe local URL without trusting filenames."""
+    png = b"\x89PNG\r\n\x1a\nlogo"
+
+    logo_url = _store_uploaded_logo(tmp_path, "entry-one", "Family Logo.PNG", png)
+
+    assert logo_url.startswith("/local/movie_poster/entry-one/logo-")
+    assert logo_url.endswith(".png")
+    assert (tmp_path / logo_url.removeprefix("/local/")).read_bytes() == png
+
+    with pytest.raises(vol.Invalid, match="PNG, JPEG, or WebP"):
+        _store_uploaded_logo(tmp_path, "entry-one", "logo.svg", b"<svg/>")
+
+    with pytest.raises(vol.Invalid, match="signature"):
+        _store_uploaded_logo(tmp_path, "entry-one", "logo.png", b"not an image")
 
 
 def test_design_assets_receive_scoped_signed_urls() -> None:

@@ -2531,9 +2531,19 @@ class MoviePosterPanel extends HTMLElement {
       <label class="studio-wide">Marquee label<input type="text"
         maxlength="80" data-studio="eyebrow_text"
         value="${escapeHtml(presentation.eyebrow_text || "Theater Presentation")}"></label>
-      <label class="studio-wide">Optional logo URL<input type="text"
-        maxlength="500" placeholder="/local/movie-poster-logo.png"
-        data-studio="logo_url" value="${escapeHtml(presentation.logo_url || "")}"></label>
+      <div class="studio-logo-field studio-wide">
+        <label>Logo image<input type="text"
+          maxlength="500" placeholder="/local/movie-poster-logo.png"
+          data-studio="logo_url" value="${escapeHtml(presentation.logo_url || "")}"></label>
+        <div class="studio-logo-actions">
+          <button type="button" data-studio-action="upload-logo">Upload image</button>
+          <button type="button" data-studio-action="clear-logo"
+            ${presentation.logo_url ? "" : "disabled"}>Clear</button>
+        </div>
+        <input type="file" accept="image/png,image/jpeg,image/webp"
+          data-studio-logo-file hidden>
+        <small>Upload a PNG, JPEG, or WebP image, or enter an HTTPS or /local URL.</small>
+      </div>
       <label>Logo placement<select data-studio="logo_position">
         ${["left", "center", "right"].map((value) =>
           `<option value="${value}" ${normalizeLogoPosition(presentation.logo_position) === value ? "selected" : ""}>top ${value}</option>`
@@ -2593,6 +2603,18 @@ class MoviePosterPanel extends HTMLElement {
       ?.addEventListener("click", () => this._returnToSettings());
     this.shadowRoot.querySelector('[data-studio-action="save"]')
       ?.addEventListener("click", () => this._saveStudio());
+    this.shadowRoot.querySelector('[data-studio-action="upload-logo"]')
+      ?.addEventListener("click", () =>
+        this.shadowRoot.querySelector("[data-studio-logo-file]")?.click());
+    this.shadowRoot.querySelector('[data-studio-action="clear-logo"]')
+      ?.addEventListener("click", () => {
+        this._state.presentation.logo_url = "";
+        this._renderIdentity = null;
+        this._render();
+      });
+    this.shadowRoot.querySelector("[data-studio-logo-file]")
+      ?.addEventListener("change", (event) =>
+        this._uploadStudioLogo(event.target.files?.[0]));
     this.shadowRoot.querySelector("[data-profile-select]")
       ?.addEventListener("change", (event) => this._switchProfile(event.target.value));
     this.shadowRoot.querySelectorAll("[data-profile-action]").forEach((button) => {
@@ -3896,6 +3918,32 @@ class MoviePosterPanel extends HTMLElement {
     if (!allowed.has(this._settings.player_id || "")) this._settings.player_id = "";
   }
 
+  async _uploadStudioLogo(file) {
+    if (!file || !this._hass || !this._state?.entry_id) return;
+    const status = this.shadowRoot.querySelector(".studio-status");
+    const button = this.shadowRoot.querySelector(
+      '[data-studio-action="upload-logo"]',
+    );
+    if (button) button.disabled = true;
+    if (status) status.textContent = "Uploading logo…";
+    try {
+      const result = await this._hass.callWS({
+        type: "movie_poster/upload_logo",
+        entry_id: this._state.entry_id,
+        filename: file.name,
+        image: this._bytesToBase64(new Uint8Array(await file.arrayBuffer())),
+      });
+      this._state.presentation.logo_url = result.logo_url;
+      this._renderIdentity = null;
+      this._render();
+      const nextStatus = this.shadowRoot.querySelector(".studio-status");
+      if (nextStatus) nextStatus.textContent = "Logo uploaded. Save to keep this change.";
+    } catch (error) {
+      if (status) status.textContent = error?.message || "Unable to upload logo.";
+      if (button) button.disabled = false;
+    }
+  }
+
   async _saveStudio() {
     const button = this.shadowRoot.querySelector('[data-studio-action="save"]');
     const status = this.shadowRoot.querySelector(".studio-status");
@@ -4501,6 +4549,9 @@ class MoviePosterPanel extends HTMLElement {
         outline-offset: 2px;
       }
       .studio-profile-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+      .studio-logo-field { display: grid; gap: 7px; }
+      .studio-logo-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+      .studio-logo-field > small { font-size: .68rem; }
       .studio-inline {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
@@ -9156,8 +9207,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v25")) {
-  customElements.define("movie-poster-panel-v25", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v26")) {
+  customElements.define("movie-poster-panel-v26", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});
