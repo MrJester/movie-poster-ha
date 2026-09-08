@@ -720,33 +720,52 @@ test("portrait metadata height follows its visible line budget", async ({ page }
   expect(complete.detailsFit).toBe(true);
 });
 
-test("portrait branding clears the Marquee and Golden Age top artwork", async ({
+test("portrait logo clears the Marquee and Golden Age top artwork", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 720, height: 1280 });
-  await openHarness(page);
-  for (const [frame, minimumClearance] of [
-    ["marquee", 8],
-    ["golden_age", 12],
+  for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 720, height: 1280 },
+    { width: 2160, height: 3840 },
   ]) {
-    expect(await renderPoster(
-      page, frame, "classic", "cinematic", "portrait",
-      { logoPosition: "left" },
-    )).toEqual([]);
-    const placement = await page.evaluate(() => {
-      const root = document.querySelector("movie-poster-panel").shadowRoot;
-      const stage = root.querySelector(".frame-stage").getBoundingClientRect();
-      const brand = root.querySelector(".brand-row").getBoundingClientRect();
-      const marquee = root.querySelector(".marquee").getBoundingClientRect();
-      return {
-        topClearance: brand.top - stage.top,
-        headerGap: marquee.top - brand.bottom,
-      };
-    });
-    expect(placement.topClearance, frame).toBeGreaterThanOrEqual(
-      minimumClearance - 1,
-    );
-    expect(placement.headerGap, frame).toBeGreaterThanOrEqual(0);
+    await page.setViewportSize(viewport);
+    await openHarness(page);
+    for (const orientation of ["portrait", "auto"]) {
+      for (const [frame, minimumArtworkTop] of [
+        ["marquee", .18],
+        ["golden_age", .19],
+      ]) {
+        expect(await renderPoster(
+          page, frame, "classic", "cinematic", orientation,
+          { logoPosition: "left" },
+        )).toEqual([]);
+        const placement = await page.evaluate(() => {
+          const root = document.querySelector("movie-poster-panel").shadowRoot;
+          const frame = root.querySelector(".marquee-frame")
+            .getBoundingClientRect();
+          const stage = root.querySelector(".frame-stage")
+            .getBoundingClientRect();
+          const brand = root.querySelector(".brand-row")
+            .getBoundingClientRect();
+          const logo = root.querySelector(".brand-logo img")
+            .getBoundingClientRect();
+          const marquee = root.querySelector(".marquee")
+            .getBoundingClientRect();
+          return {
+            logoTopInFrame: (logo.top - frame.top) / frame.height,
+            logoInsideStage: logo.top >= stage.top - 1,
+            headerGap: marquee.top - brand.bottom,
+          };
+        });
+        const context = `${frame} ${orientation} `
+          + `${viewport.width}x${viewport.height}`;
+        expect(placement.logoTopInFrame, context).toBeGreaterThanOrEqual(
+          minimumArtworkTop,
+        );
+        expect(placement.logoInsideStage, context).toBe(true);
+        expect(placement.headerGap, context).toBeGreaterThanOrEqual(0);
+      }
+    }
   }
 });
 

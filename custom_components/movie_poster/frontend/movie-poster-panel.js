@@ -7772,26 +7772,27 @@ class MoviePosterPanel extends HTMLElement {
       .frame-indie_nature { --layout-poster-share: 46%; --layout-gap: clamp(10px, 1.8cqw, 24px); }
       .frame-golden_age { --layout-poster-share: 42%; --layout-details-pad: clamp(6px, 1cqw, 16px); }
       .frame-steampunk { --layout-poster-share: 43%; --layout-gap: clamp(9px, 1.5cqw, 21px); }
-      /* The common safe-opening rectangle starts immediately below the frame
-         artwork. These two portrait assets have a heavy top rail/arch, so the
-         optional brand row needs a small optical inset of its own. Keeping
-         the offset on the brand row preserves the shared content aperture. */
+      /* The common safe-opening rectangle deliberately stays consistent when
+         switching Frames, but these two photographic portrait assets extend
+         below its 16% top edge. Keep the optional branding below the Marquee
+         rail and the deeper Golden Age arch without moving the heading,
+         poster, or metadata when no logo is configured. */
       .theater.frame-marquee.orientation-portrait
         .frame-stage > .brand-row {
-        margin-top: clamp(8px, 1.35cqw, 16px);
+        margin-top: clamp(16px, 4.8cqw, 120px);
       }
       .theater.frame-golden_age.orientation-portrait
         .frame-stage > .brand-row {
-        margin-top: clamp(12px, 1.9cqw, 22px);
+        margin-top: clamp(20px, 6cqw, 140px);
       }
       @media (max-width: 720px), (orientation: portrait) {
         .theater.frame-marquee.orientation-auto
           .frame-stage > .brand-row {
-          margin-top: clamp(8px, 1.35cqw, 16px);
+          margin-top: clamp(16px, 4.8cqw, 120px);
         }
         .theater.frame-golden_age.orientation-auto
           .frame-stage > .brand-row {
-          margin-top: clamp(12px, 1.9cqw, 22px);
+          margin-top: clamp(20px, 6cqw, 140px);
         }
       }
       .visual-editor-active .marquee-frame { display: none; }
