@@ -637,7 +637,8 @@ test("portrait metadata height follows its visible line budget", async ({ page }
       const root = document.querySelector("movie-poster-panel").shadowRoot;
       const theater = root.querySelector(".theater");
       const content = root.querySelector(".content").getBoundingClientRect();
-      const details = root.querySelector(".details").getBoundingClientRect();
+      const detailsElement = root.querySelector(".details");
+      const details = detailsElement.getBoundingClientRect();
       const posterWrap = root.querySelector(".poster-wrap").getBoundingClientRect();
       return {
         expanded: theater.classList.contains("details-expanded"),
@@ -645,11 +646,13 @@ test("portrait metadata height follows its visible line budget", async ({ page }
         detailLines: Number.parseInt(
           getComputedStyle(theater).getPropertyValue("--portrait-detail-lines"), 10,
         ),
-        configuredPosterShare: Number.parseFloat(
-          getComputedStyle(theater).getPropertyValue("--portrait-poster-share"),
+        configuredDetailsCeiling: Number.parseFloat(
+          getComputedStyle(theater).getPropertyValue("--portrait-details-share"),
         ) / 100,
         detailsShare: details.height / content.height,
         posterShare: posterWrap.height / content.height,
+        detailsFit:
+          detailsElement.scrollHeight <= detailsElement.clientHeight + 4,
       };
     });
   };
@@ -686,25 +689,60 @@ test("portrait metadata height follows its visible line budget", async ({ page }
   expect(baseline.compact).toBe(true);
   expect(baseline.expanded).toBe(false);
   expect(baseline.detailLines).toBe(2);
-  expect(baseline.configuredPosterShare).toBeCloseTo(.85, 2);
-  expect(baseline.detailsShare).toBeGreaterThan(.11);
-  expect(baseline.detailsShare).toBeLessThan(.17);
-  expect(baseline.posterShare).toBeGreaterThan(.82);
+  expect(baseline.configuredDetailsCeiling).toBeCloseTo(.15, 2);
+  expect(baseline.detailsShare).toBeGreaterThan(.07);
+  expect(baseline.detailsShare).toBeLessThan(.15);
+  expect(baseline.posterShare).toBeGreaterThan(.85);
+  expect(baseline.detailsFit).toBe(true);
 
   expect(tagline.detailLines).toBe(3);
-  expect(tagline.configuredPosterShare).toBeCloseTo(.82, 2);
-  expect(tagline.detailsShare).toBeGreaterThan(baseline.detailsShare + .02);
+  expect(tagline.configuredDetailsCeiling).toBeCloseTo(.18, 2);
+  expect(tagline.detailsShare).toBeGreaterThan(baseline.detailsShare);
+  expect(tagline.detailsFit).toBe(true);
 
   expect(summary.expanded).toBe(true);
   expect(summary.compact).toBe(false);
   expect(summary.detailLines).toBe(5);
-  expect(summary.configuredPosterShare).toBeCloseTo(.76, 2);
-  expect(summary.detailsShare).toBeGreaterThan(tagline.detailsShare + .04);
+  expect(summary.configuredDetailsCeiling).toBeCloseTo(.24, 2);
+  expect(summary.detailsShare).toBeGreaterThan(tagline.detailsShare);
+  expect(summary.detailsFit).toBe(true);
 
   expect(complete.detailLines).toBe(7);
-  expect(complete.configuredPosterShare).toBeCloseTo(.70, 2);
-  expect(complete.detailsShare).toBeGreaterThan(summary.detailsShare + .04);
+  expect(complete.configuredDetailsCeiling).toBeCloseTo(.30, 2);
+  expect(complete.detailsShare).toBeGreaterThan(summary.detailsShare);
+  expect(complete.detailsShare).toBeLessThan(.24);
   expect(complete.posterShare).toBeLessThan(summary.posterShare);
+  expect(complete.detailsFit).toBe(true);
+});
+
+test("portrait branding clears the Marquee and Golden Age top artwork", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 720, height: 1280 });
+  await openHarness(page);
+  for (const [frame, minimumClearance] of [
+    ["marquee", 8],
+    ["golden_age", 12],
+  ]) {
+    expect(await renderPoster(
+      page, frame, "classic", "cinematic", "portrait",
+      { logoPosition: "left" },
+    )).toEqual([]);
+    const placement = await page.evaluate(() => {
+      const root = document.querySelector("movie-poster-panel").shadowRoot;
+      const stage = root.querySelector(".frame-stage").getBoundingClientRect();
+      const brand = root.querySelector(".brand-row").getBoundingClientRect();
+      const marquee = root.querySelector(".marquee").getBoundingClientRect();
+      return {
+        topClearance: brand.top - stage.top,
+        headerGap: marquee.top - brand.bottom,
+      };
+    });
+    expect(placement.topClearance, frame).toBeGreaterThanOrEqual(
+      minimumClearance - 1,
+    );
+    expect(placement.headerGap, frame).toBeGreaterThanOrEqual(0);
+  }
 });
 
 test("production uses compatibility rendering and only the approved reference preset", async ({ page }) => {

@@ -648,9 +648,10 @@ class MoviePosterPanel extends HTMLElement {
     const showProgressDetail = presentation.show_progress !== false
       && Boolean(hasProgress);
     /* Portrait presentations use the screenshot-approved title + facts band
-       as a two-row floor. Every additional visible row grows the details band
-       by three percentage points, leaving all remaining height to the 2:3
-       poster. Summary is intentionally budgeted for its two-line clamp. */
+       as a two-row floor. Additional visible rows raise the details band's
+       safety ceiling, but CSS sizes the band to its actual content so a short
+       metadata stack never steals unused height from the 2:3 poster. Summary
+       is intentionally budgeted for its two-line clamp. */
     const portraitDetailLines = Math.max(
       2,
       Number(showTitleDetail)
@@ -663,8 +664,7 @@ class MoviePosterPanel extends HTMLElement {
     const portraitDetailsShare = Math.min(
       36, 15 + Math.max(0, portraitDetailLines - 2) * 3,
     );
-    const portraitPosterShare = 100 - portraitDetailsShare;
-    const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};--title-max-lines:${titleMaxLines};--title-design-min:${titleMinimum}cqw;--portrait-detail-lines:${portraitDetailLines};--portrait-details-share:${portraitDetailsShare}%;--portrait-poster-share:${portraitPosterShare}%;--frame-motion-duration:${4 / frameMotionSpeed}s;--frame-motion-intensity:${frameMotionIntensity};${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)};${safeOpeningStyle(resolvedFrame?.safe_opening)};${frameLayoutStyle(resolvedFrame?.layout_tuning)}"`;
+    const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};--title-max-lines:${titleMaxLines};--title-design-min:${titleMinimum}cqw;--portrait-detail-lines:${portraitDetailLines};--portrait-details-share:${portraitDetailsShare}%;--frame-motion-duration:${4 / frameMotionSpeed}s;--frame-motion-intensity:${frameMotionIntensity};${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)};${safeOpeningStyle(resolvedFrame?.safe_opening)};${frameLayoutStyle(resolvedFrame?.layout_tuning)}"`;
 
     const hasDetails = showTitleDetail
       || showSubtitleDetail
@@ -7697,11 +7697,11 @@ class MoviePosterPanel extends HTMLElement {
       }
       .theater:is(.orientation-portrait) .frame-stage .content {
         grid-template-columns: minmax(0, 1fr) !important;
-        /* The renderer budgets the lower band from the visible field rows.
-           Its 85% fallback is the approved title + facts baseline. */
+        /* The visible-field budget is a ceiling. fit-content lets the panel
+           wrap its real rows while the poster receives every unused pixel. */
         grid-template-rows:
-          minmax(0, var(--portrait-poster-share, 85%))
-          minmax(0, 1fr) !important;
+          minmax(0, 1fr)
+          fit-content(var(--portrait-details-share, 15%)) !important;
       }
       .theater:is(.orientation-portrait).has-details .frame-stage .details {
         display: flex !important;
@@ -7737,8 +7737,8 @@ class MoviePosterPanel extends HTMLElement {
         .theater.orientation-auto .frame-stage .content {
           grid-template-columns: minmax(0, 1fr) !important;
           grid-template-rows:
-            minmax(0, var(--portrait-poster-share, 85%))
-            minmax(0, 1fr) !important;
+            minmax(0, 1fr)
+            fit-content(var(--portrait-details-share, 15%)) !important;
         }
         .theater.orientation-auto.has-details .frame-stage .details {
           display: flex !important;
@@ -7775,6 +7775,28 @@ class MoviePosterPanel extends HTMLElement {
       .frame-indie_nature { --layout-poster-share: 46%; --layout-gap: clamp(10px, 1.8cqw, 24px); }
       .frame-golden_age { --layout-poster-share: 42%; --layout-details-pad: clamp(6px, 1cqw, 16px); }
       .frame-steampunk { --layout-poster-share: 43%; --layout-gap: clamp(9px, 1.5cqw, 21px); }
+      /* The common safe-opening rectangle starts immediately below the frame
+         artwork. These two portrait assets have a heavy top rail/arch, so the
+         optional brand row needs a small optical inset of its own. Keeping
+         the offset on the brand row preserves the shared content aperture. */
+      .theater.frame-marquee.orientation-portrait
+        .frame-stage > .brand-row {
+        margin-top: clamp(8px, 1.35cqw, 16px);
+      }
+      .theater.frame-golden_age.orientation-portrait
+        .frame-stage > .brand-row {
+        margin-top: clamp(12px, 1.9cqw, 22px);
+      }
+      @media (max-width: 720px), (orientation: portrait) {
+        .theater.frame-marquee.orientation-auto
+          .frame-stage > .brand-row {
+          margin-top: clamp(8px, 1.35cqw, 16px);
+        }
+        .theater.frame-golden_age.orientation-auto
+          .frame-stage > .brand-row {
+          margin-top: clamp(12px, 1.9cqw, 22px);
+        }
+      }
       .visual-editor-active .marquee-frame { display: none; }
       .marquee-frame,
       .visual-editor-canvas {
