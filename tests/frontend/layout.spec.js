@@ -92,7 +92,7 @@ const responsiveViewports = configuredResponsivePartition
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
   await openHarness(page);
   const result = await page.evaluate(() => {
-    const current = document.createElement("movie-poster-panel-v26");
+    const current = document.createElement("movie-poster-panel-v27");
     document.body.append(current);
     return {
       registered: current.localName,
@@ -101,7 +101,7 @@ test("versioned Home Assistant element cannot be claimed by an older module", as
     };
   });
   expect(result).toEqual({
-    registered: "movie-poster-panel-v26",
+    registered: "movie-poster-panel-v27",
     hasCurrentEditor: true,
     stableAlias: true,
   });
@@ -544,6 +544,8 @@ test("enabled movie details remain readable in every frame and layout", async ({
           return {
             detailsWidth: Math.round(detailsBox.width),
             detailsHeight: Math.round(detailsBox.height),
+            detailsContentFits:
+              details.scrollHeight <= details.clientHeight + 4,
             titleVisible: getComputedStyle(title).display !== "none"
               && titleBox.width >= 60 && titleBox.height >= 12,
             titleSize: Math.round(parseFloat(getComputedStyle(title).fontSize)),
@@ -560,13 +562,16 @@ test("enabled movie details remain readable in every frame and layout", async ({
           titleVisible: true,
           metaVisible: true,
         });
+        const context = `${configuration.orientation}/${frame}/${layout}: `
+          + JSON.stringify(readability);
         if (configuration.orientation === "portrait") {
-          expect(readability.metaFlexShrink).toBe("0");
+          expect(readability.metaFlexShrink, context).toBe("0");
         }
-        expect(readability.metaHeight).toBeGreaterThanOrEqual(8);
-        expect(readability.detailsWidth).toBeGreaterThanOrEqual(80);
-        expect(readability.detailsHeight).toBeGreaterThanOrEqual(28);
-        expect(readability.titleSize).toBeGreaterThanOrEqual(12);
+        expect(readability.metaHeight, context).toBeGreaterThanOrEqual(8);
+        expect(readability.detailsWidth, context).toBeGreaterThanOrEqual(80);
+        expect(readability.detailsHeight, context).toBeGreaterThanOrEqual(28);
+        expect(readability.detailsContentFits, context).toBe(true);
+        expect(readability.titleSize, context).toBeGreaterThanOrEqual(12);
       }
     }
   }

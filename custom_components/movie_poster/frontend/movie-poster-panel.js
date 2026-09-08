@@ -7697,17 +7697,16 @@ class MoviePosterPanel extends HTMLElement {
       }
       .theater:is(.orientation-portrait) .frame-stage .content {
         grid-template-columns: minmax(0, 1fr) !important;
-        /* The visible-field budget is a ceiling. fit-content lets the panel
-           wrap its real rows while the poster receives every unused pixel. */
-        grid-template-rows:
-          minmax(0, 1fr)
-          fit-content(var(--portrait-details-share, 15%)) !important;
+        /* Let the metadata row measure its real content. WebKit can collapse
+           fit-content(var(...)) tracks and percentage max-heights inside an
+           auto-sized Poster row, clipping otherwise visible fields. */
+        grid-template-rows: minmax(0, 1fr) auto !important;
       }
       .theater:is(.orientation-portrait).has-details .frame-stage .details {
         display: flex !important;
         width: 100%;
         max-width: 100%;
-        max-height: 100%;
+        max-height: none !important;
         padding: clamp(5px, 1.15cqw, 14px);
         padding-top: clamp(10px, 1.5cqw, 18px);
         justify-content: flex-start;
@@ -7736,15 +7735,13 @@ class MoviePosterPanel extends HTMLElement {
       @media (max-width: 720px), (orientation: portrait) {
         .theater.orientation-auto .frame-stage .content {
           grid-template-columns: minmax(0, 1fr) !important;
-          grid-template-rows:
-            minmax(0, 1fr)
-            fit-content(var(--portrait-details-share, 15%)) !important;
+          grid-template-rows: minmax(0, 1fr) auto !important;
         }
         .theater.orientation-auto.has-details .frame-stage .details {
           display: flex !important;
           width: 100%;
           max-width: 100%;
-          max-height: 100%;
+          max-height: none !important;
           padding: clamp(5px, 1.15cqw, 14px);
           padding-top: clamp(10px, 1.5cqw, 18px);
           justify-content: flex-start;
@@ -9229,8 +9226,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v26")) {
-  customElements.define("movie-poster-panel-v26", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v27")) {
+  customElements.define("movie-poster-panel-v27", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-beta.60
+
+- Let portrait metadata panels grow only with their visible content so compact
+  title-and-facts presentations give the remaining space to 2:3 poster art.
+- Keep optional branding inside the photographic opening of the Marquee and
+  Golden Age portrait Frames.
+- Fix WebKit collapsing portrait metadata in Cinematic and Poster layouts, and
+  strengthen cross-browser coverage to reject clipped detail content.
+
 ## 0.1.0-beta.59
 
 - Add an administrator-only logo uploader to Display Studio, supporting PNG,
