@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.0-beta.61
+
+- Update the PlexAPI compatibility baseline to 4.18.2 and use the bounded
+  `>=4.18.2,<5` range for both Home Assistant and development installs, so
+  compatible PlexAPI 4.x consumers can share one installed version.
+- Add regression coverage that keeps the runtime and development dependency
+  policies aligned and prevents an accidental return to an exact PlexAPI pin.
+- Keep portrait logos fully inside the Marquee and Golden Age openings across
+  compact, HD, and 4K displays.
+
 ## 0.1.0-beta.60
 
 - Let portrait metadata panels grow only with their visible content so compact

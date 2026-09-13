@@ -9,8 +9,8 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/MrJester/movie-poster-ha/issues",
   "loggers": ["plexapi"],
-  "requirements": ["PlexAPI==4.18.1"],
+  "requirements": ["PlexAPI>=4.18.2,<5"],
   "single_config_entry": true,
-  "version": "0.1.0-beta.60",
+  "version": "0.1.0-beta.61",
   "zeroconf": ["_plexmediasvr._tcp.local."]
 }
