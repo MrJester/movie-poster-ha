@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 import voluptuous as vol
@@ -20,6 +21,7 @@ from custom_components.movie_poster.api import (
     _signed_design_assets,
     _store_uploaded_logo,
     _updated_presentation_options,
+    async_setup_frontend,
 )
 from custom_components.movie_poster.const import CONF_DISPLAY_PROFILES
 from custom_components.movie_poster.models import (
@@ -43,6 +45,41 @@ def test_frontend_registration_uses_the_asset_content_as_its_cache_key() -> None
         f"{STATIC_URL}/movie-poster-panel.js?v={_FRONTEND_VERSION}-{digest}"
     )
     assert f'customElements.define("{_FRONTEND_ELEMENT}"' in source.decode()
+
+
+async def test_frontend_asset_hash_is_read_in_executor() -> None:
+    """Panel registration never opens the JavaScript asset on the event loop."""
+    module_url_builder = Mock(name="frontend_module_url")
+    executor = AsyncMock(return_value="/movie-poster.js?v=test")
+    register_panel = AsyncMock()
+    hass = SimpleNamespace(
+        async_add_executor_job=executor,
+        http=SimpleNamespace(
+            async_register_static_paths=AsyncMock(),
+            register_view=Mock(),
+        ),
+    )
+
+    with (
+        patch(
+            "custom_components.movie_poster.api._frontend_module_url",
+            module_url_builder,
+        ),
+        patch(
+            "custom_components.movie_poster.api.panel_custom.async_register_panel",
+            register_panel,
+        ),
+        patch(
+            "custom_components.movie_poster.api.websocket_api.async_register_command"
+        ),
+    ):
+        await async_setup_frontend(hass)
+
+    executor.assert_awaited_once_with(module_url_builder)
+    module_url_builder.assert_not_called()
+    assert register_panel.await_args.kwargs["module_url"] == (
+        "/movie-poster.js?v=test"
+    )
 
 
 def test_uploaded_logo_is_validated_and_stored_below_www(tmp_path: Path) -> None:

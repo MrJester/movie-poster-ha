@@ -94,6 +94,29 @@ def test_legacy_presentation_becomes_linked_contained_design() -> None:
     assert DESIGN_SCHEMA(design) == design
 
 
+def test_component_motion_requires_explicit_opt_in() -> None:
+    """Migrated and built-in layers stay fixed until a user opts one in."""
+    design = design_from_legacy_presentation({})
+
+    assert all(
+        component["motion_enabled"] is False
+        for component in design["components"]
+    )
+
+    title = next(
+        component for component in design["components"]
+        if component["type"] == "title"
+    )
+    title["motion_enabled"] = True
+
+    validated = DESIGN_SCHEMA(design)
+    validated_title = next(
+        component for component in validated["components"]
+        if component["type"] == "title"
+    )
+    assert validated_title["motion_enabled"] is True
+
+
 def test_marquee_cinematic_profile_owns_complete_bounded_component_tree() -> None:
     """The reference preset models its plaque and every movie detail layer."""
     design = design_from_legacy_presentation(

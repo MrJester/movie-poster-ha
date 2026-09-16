@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.0-beta.62
+
+- Move frontend asset hashing off Home Assistant's event loop so panel setup no
+  longer performs blocking file I/O.
+- Keep Display Studio motion paused while editing, add an explicit motion
+  preview control, and require each movable content layer to opt in to Profile
+  motion while structural backgrounds remain fixed.
+- Open an element's focused settings immediately when it is selected from the
+  canvas or Layers rail, removing the redundant extra settings-button click.
+- Advance the versioned Home Assistant panel element and cache key so the
+  updated editor loads cleanly after installation.
+
 ## 0.1.0-beta.61
 
 - Update the PlexAPI compatibility baseline to 4.18.2 and use the bounded

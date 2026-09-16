@@ -98,8 +98,8 @@ STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
 _FRONTEND_DIR = Path(__file__).parent / "frontend"
 _FRONTEND_PATH = _FRONTEND_DIR / "movie-poster-panel.js"
-_FRONTEND_VERSION = "0.1.0-beta.61-presentation.29"
-_FRONTEND_ELEMENT = "movie-poster-panel-v28"
+_FRONTEND_VERSION = "0.1.0-beta.62-presentation.30"
+_FRONTEND_ELEMENT = "movie-poster-panel-v29"
 _LOGO_ASSET_SUFFIXES = frozenset({".png", ".jpg", ".jpeg", ".webp"})
 
 
@@ -113,6 +113,7 @@ def _frontend_module_url() -> str:
 
 async def async_setup_frontend(hass: HomeAssistant) -> None:
     """Register static assets, panel, HTTP view, and WebSocket commands."""
+    module_url = await hass.async_add_executor_job(_frontend_module_url)
     await hass.http.async_register_static_paths(
         [StaticPathConfig(STATIC_URL, str(_FRONTEND_DIR), cache_headers=False)]
     )
@@ -122,7 +123,7 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
         webcomponent_name=_FRONTEND_ELEMENT,
         sidebar_title="Movie Poster",
         sidebar_icon="mdi:movie-open-star",
-        module_url=_frontend_module_url(),
+        module_url=module_url,
         require_admin=False,
     )
     hass.http.register_view(MoviePosterArtworkView())

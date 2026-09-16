@@ -92,7 +92,7 @@ const responsiveViewports = configuredResponsivePartition
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
   await openHarness(page);
   const result = await page.evaluate(() => {
-    const current = document.createElement("movie-poster-panel-v28");
+    const current = document.createElement("movie-poster-panel-v29");
     document.body.append(current);
     return {
       registered: current.localName,
@@ -101,7 +101,7 @@ test("versioned Home Assistant element cannot be claimed by an older module", as
     };
   });
   expect(result).toEqual({
-    registered: "movie-poster-panel-v28",
+    registered: "movie-poster-panel-v29",
     hasCurrentEditor: true,
     stableAlias: true,
   });
@@ -2010,8 +2010,14 @@ test("Profile motion controls animate authored layers with stagger", async ({ pa
   const result = await page.evaluate(() => {
     const panel = document.createElement("movie-poster-panel");
     document.body.append(panel);
+    const backdrop = panel._defaultEditorComponent("backdrop", "backdrop");
     const title = panel._defaultEditorComponent("title", "title");
     const overlay = panel._defaultEditorComponent("custom_image", "overlay");
+    // Structural layers remain fixed even if an imported document tries to
+    // opt them in. Other layers only move after explicit opt-in.
+    backdrop.motion_enabled = true;
+    title.motion_enabled = true;
+    overlay.motion_enabled = true;
     panel._editorProfileId = "motion-test";
     panel._editorDocument = {
       version: 2,
@@ -2027,7 +2033,7 @@ test("Profile motion controls animate authored layers with stagger", async ({ pa
           layout: { id: "builtin.layout.blank", version: 1 },
         },
         viewport: { fit: "contain", link_orientations: true },
-        components: [title, overlay],
+        components: [backdrop, title, overlay],
         motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
       },
     };
@@ -2057,6 +2063,9 @@ test("Profile motion controls animate authored layers with stagger", async ({ pa
     const secondLayer = panel.shadowRoot.querySelector(
       '[data-authored-component="overlay"]',
     );
+    const backdropLayer = panel.shadowRoot.querySelector(
+      '[data-authored-component="backdrop"]',
+    );
     const computed = getComputedStyle(secondLayer);
     return {
       storedMotion,
@@ -2064,6 +2073,7 @@ test("Profile motion controls animate authored layers with stagger", async ({ pa
       duration: computed.animationDuration,
       delay: computed.animationDelay,
       animationName: computed.animationName,
+      backdropAnimation: getComputedStyle(backdropLayer).animationName,
       opacityFloor: canvas.style.getPropertyValue(
         "--authored-motion-opacity",
       ).trim(),
@@ -2077,6 +2087,7 @@ test("Profile motion controls animate authored layers with stagger", async ({ pa
     duration: "2s",
     delay: "0.25s",
     animationName: "authoredPulse",
+    backdropAnimation: "none",
     opacityFloor: "0.72",
   });
 });
@@ -2118,13 +2129,28 @@ test("editor authors Frame practical-light motion independently", async ({ page 
     change("speed", 0.6);
     change("intensity", 0.7);
     change("light_count", 4);
+    const pausedLights = panel.shadowRoot.querySelectorAll(".theater-sconce");
+    const animationBefore = getComputedStyle(pausedLights[0]).animationName;
+    const pausedBefore = panel.shadowRoot.querySelector(".theater")
+      .classList.contains("motion-off");
+    panel.shadowRoot.querySelector(
+      '[data-editor-action="preview-motion"]',
+    ).click();
     const lights = panel.shadowRoot.querySelectorAll(".theater-sconce");
+    const theater = panel.shadowRoot.querySelector(".theater");
+    const toggle = panel.shadowRoot.querySelector(
+      '[data-editor-action="preview-motion"]',
+    );
     return {
       stored: structuredClone(panel._editorDocument.design.frame_motion),
-      className: [...panel.shadowRoot.querySelector(".theater").classList]
+      className: [...theater.classList]
         .find((name) => name.startsWith("frame-motion-")),
       lights: lights.length,
-      animation: getComputedStyle(lights[0]).animationName,
+      animationBefore,
+      animationAfter: getComputedStyle(lights[0]).animationName,
+      pausedBefore,
+      pausedAfter: theater.classList.contains("motion-off"),
+      toggleLabel: toggle.textContent.trim(),
     };
   });
   expect(result).toEqual({
@@ -2133,7 +2159,11 @@ test("editor authors Frame practical-light motion independently", async ({ page 
     },
     className: "frame-motion-theater_sconce",
     lights: 4,
-    animation: "frameSconceBreathe",
+    animationBefore: "none",
+    animationAfter: "frameSconceBreathe",
+    pausedBefore: true,
+    pausedAfter: false,
+    toggleLabel: "Pause motion",
   });
 });
 
@@ -2299,6 +2329,64 @@ test("component settings use a contextual progressive-disclosure inspector", asy
     posterHasImageFit: true,
     posterHasNoFont: true,
     escapeClosed: true,
+  });
+});
+
+test("selecting a canvas element opens its settings immediately", async ({ page }) => {
+  await openHarness(page, "?studio=1");
+  await page.evaluate(() => {
+    const panel = document.createElement("movie-poster-panel");
+    document.body.append(panel);
+    const poster = panel._defaultEditorComponent("poster", "poster");
+    const title = panel._defaultEditorComponent("title", "title");
+    panel._editorProfileId = "direct-settings";
+    panel._editorDocument = {
+      version: 2,
+      name: "Direct settings",
+      description: "",
+      author: "",
+      presentation: { ...panel._state.presentation },
+      design: {
+        schema_version: 2,
+        resources: {
+          frame: { id: "builtin.frame.blank", version: 1 },
+          theme: { id: "builtin.theme.classic", version: 1 },
+          layout: { id: "builtin.layout.blank", version: 1 },
+        },
+        viewport: { fit: "contain", link_orientations: true },
+        components: [poster, title],
+        motion: { preset: "none", speed: 1, intensity: 0, stagger: 0 },
+      },
+    };
+    panel._editorSelectedId = "poster";
+    panel._editorSelectedIds = ["poster"];
+    panel._render();
+  });
+
+  await page.locator('[data-editor-component="title"]').click();
+
+  const result = await page.evaluate(() => {
+    const panel = document.querySelector("movie-poster-panel");
+    clearTimeout(panel._editorSaveTimer);
+    return {
+      selectedId: panel._editorSelectedId,
+      settingsId: panel._editorSettingsOpenId,
+      panel: panel._editorPanel,
+      hasSettings: Boolean(
+        panel.shadowRoot.querySelector(".editor-context-popover"),
+      ),
+      hasFontControl: Boolean(
+        panel.shadowRoot.querySelector('[data-editor-style="font_family"]'),
+      ),
+    };
+  });
+
+  expect(result).toEqual({
+    selectedId: "title",
+    settingsId: "title",
+    panel: "properties",
+    hasSettings: true,
+    hasFontControl: true,
   });
 });
 

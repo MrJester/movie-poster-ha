@@ -259,6 +259,7 @@ class MoviePosterPanel extends HTMLElement {
     this._editorPanY = 0;
     this._editorPanel = "none";
     this._editorFocusMode = false;
+    this._editorMotionPreview = false;
     this._editorKeyHandler = (event) => this._handleEditorKeydown(event);
     if (this._studio) this._state = studioState();
   }
@@ -585,7 +586,11 @@ class MoviePosterPanel extends HTMLElement {
       presentation.show_runtime !== false && formatRuntime(media.duration_ms)
         ? `<span class="meta-runtime">${escapeHtml(formatRuntime(media.duration_ms))}</span>` : "",
     ].filter(Boolean).join('<span class="meta-separator" aria-hidden="true"> · </span>');
-    const motionClass = presentation.enable_motion === false ? " motion-off" : "";
+    const editorMotionPaused = Boolean(
+      this._editorDocument && !this._editorMotionPreview,
+    );
+    const motionClass = presentation.enable_motion === false || editorMotionPaused
+      ? " motion-off" : "";
     const transitionClass = this._softMediaTransition ? " media-arriving" : "";
     const studioClass = this._studio ? " studio-preview" : "";
     const orientation = normalizeOrientation(presentation.orientation);
@@ -1170,8 +1175,9 @@ class MoviePosterPanel extends HTMLElement {
       --authored-motion-scale:${1 + motionIntensity * 0.025};
       --authored-motion-brightness:${1 + motionIntensity * 0.35};
       --authored-motion-saturation:${1 + motionIntensity * 0.2}`;
+    let motionIndex = 0;
     return `<div class="visual-editor-viewport">
-      <section class="visual-editor-canvas authored-motion-${motionPreset}${this._editorSnapEnabled ? " snap-enabled" : ""}${this._editorGuidesEnabled ? " guides-enabled" : ""}${deviceClass}"
+      <section class="visual-editor-canvas authored-motion-${motionPreset} motion-preview-${this._editorMotionPreview ? "on" : "off"}${this._editorSnapEnabled ? " snap-enabled" : ""}${this._editorGuidesEnabled ? " guides-enabled" : ""}${deviceClass}"
       aria-label="Presentation canvas" style="${editorStyle}">
       <div class="editor-design-guides" aria-hidden="true">
         <i class="editor-ruler editor-ruler-horizontal"></i>
@@ -1184,7 +1190,7 @@ class MoviePosterPanel extends HTMLElement {
       <div class="authored-component-surface editor-component-surface">
       ${components.filter((component) => component.visible !== false)
         .sort((a, b) => a.z_index - b.z_index)
-        .map((component, index) => {
+        .map((component) => {
           const bounds = this._editorBounds(component);
           const selected = this._editorSelectedIds.includes(component.id)
             ? " selected" : "";
@@ -1193,11 +1199,14 @@ class MoviePosterPanel extends HTMLElement {
           const locked = component.locked ? " locked" : "";
           const clip = ["none", "canvas", "safe_opening"].includes(component.clip)
             ? component.clip : "safe_opening";
-          return `<button type="button" class="editor-component component-${component.type} component-clip-${clip}${selected}${constrained}${locked}"
+          const motionEnabled = this._componentMotionEnabled(component);
+          const motionClass = motionEnabled ? " motion-enabled" : "";
+          const motionDelay = motionEnabled ? motionIndex++ * motionStagger : 0;
+          return `<button type="button" class="editor-component component-${component.type} component-clip-${clip}${selected}${constrained}${locked}${motionClass}"
             data-editor-component="${escapeHtml(component.id)}"
             data-component-clip="${clip}"
             style="${this._editorComponentStyle(component, bounds)};
-              --authored-motion-delay:${index * motionStagger}s">
+              --authored-motion-delay:${motionDelay}s">
             <span class="editor-component-content">${this._componentContent(component)}</span>
             <span class="editor-component-label">${escapeHtml(component.type.replaceAll("_", " "))}</span>
             <span class="editor-resize-handle" data-editor-resize aria-hidden="true"></span>
@@ -1305,6 +1314,7 @@ class MoviePosterPanel extends HTMLElement {
       1, Math.max(0, Number(motion.intensity ?? 0)),
     );
     const motionStagger = Math.min(5, Math.max(0, Number(motion.stagger || 0)));
+    let motionIndex = 0;
     return `<section class="authored-presentation-canvas authored-motion-${motionPreset}"
       aria-label="Authored movie presentation"
       style="--authored-motion-duration:${4 / motionSpeed}s;
@@ -1317,22 +1327,35 @@ class MoviePosterPanel extends HTMLElement {
       <div class="authored-component-surface">
       ${components.filter((component) => component.visible !== false)
         .sort((a, b) => a.z_index - b.z_index)
-        .map((component, index) => {
+        .map((component) => {
           const bounds = this._displayComponentBounds(component);
           const constrained = Number(component.constraints?.max_lines) > 0
             ? " constrained-lines" : "";
           const clip = ["none", "canvas", "safe_opening"].includes(component.clip)
             ? component.clip : "safe_opening";
-          return `<div class="authored-component component-${escapeHtml(component.type)} component-clip-${clip}${constrained}"
+          const motionEnabled = this._componentMotionEnabled(component);
+          const motionClass = motionEnabled ? " motion-enabled" : "";
+          const motionDelay = motionEnabled ? motionIndex++ * motionStagger : 0;
+          return `<div class="authored-component component-${escapeHtml(component.type)} component-clip-${clip}${constrained}${motionClass}"
             data-authored-component="${escapeHtml(component.id)}"
             data-component-clip="${clip}"
             style="${this._editorComponentStyle(component, bounds)};
-              --authored-motion-delay:${index * motionStagger}s">
+              --authored-motion-delay:${motionDelay}s">
             <span class="authored-component-content">${this._componentContent(component)}</span>
           </div>`;
         }).join("")}
       </div>
     </section>`;
+  }
+
+  _componentSupportsMotion(component) {
+    return Boolean(component)
+      && !["backdrop", "surface"].includes(component.type);
+  }
+
+  _componentMotionEnabled(component) {
+    return this._componentSupportsMotion(component)
+      && component.motion_enabled === true;
   }
 
   _displayComponentBounds(component) {
@@ -1544,6 +1567,7 @@ class MoviePosterPanel extends HTMLElement {
       selectedIsImage,
       selectedIsSurface,
       selectedIsText,
+      selectedSupportsMotion,
       editorWarnings,
       editorOrientation,
       hasOrientationOverride,
@@ -1749,6 +1773,11 @@ class MoviePosterPanel extends HTMLElement {
               ${selectedComponent.visible !== false ? "checked" : ""}>Visible</label>
             <label class="studio-check"><input type="checkbox" data-editor-locked
               ${selectedComponent.locked ? "checked" : ""}>Locked</label>
+            ${selectedSupportsMotion ? `<label class="studio-check studio-wide">
+              <input type="checkbox" data-editor-motion-enabled
+                ${selectedComponent.motion_enabled === true ? "checked" : ""}>
+              Animate with Profile motion</label>` : `
+              <small class="studio-wide">Background and structural layers stay fixed.</small>`}
             <label>Blend mode<select data-editor-blend>
               ${["normal", "multiply", "screen", "overlay", "soft-light"]
                 .map((value) => `<option value="${value}"
@@ -1805,6 +1834,9 @@ class MoviePosterPanel extends HTMLElement {
           ${this._editorSnapEnabled ? "checked" : ""}>Snap to grid</label>
         <label class="studio-check"><input type="checkbox" data-editor-guides
           ${this._editorGuidesEnabled ? "checked" : ""}>Show guides</label>
+        <button type="button" data-editor-action="preview-motion"
+          aria-pressed="${this._editorMotionPreview}">
+          ${this._editorMotionPreview ? "Pause motion" : "Preview motion"}</button>
       </div>
       <div class="editor-property-grid">
         <label>Preview state<select data-editor-preview>
@@ -1923,6 +1955,9 @@ class MoviePosterPanel extends HTMLElement {
             ${this._editorRedoStack.length ? "" : "disabled"}>Redo</button>
           <button type="button" data-editor-action="focus"
             aria-pressed="${this._editorFocusMode}">${this._editorFocusMode ? "Exit focus" : "Focus"}</button>
+          <button type="button" data-editor-action="preview-motion"
+            aria-pressed="${this._editorMotionPreview}">
+            ${this._editorMotionPreview ? "Pause motion" : "Preview motion"}</button>
           <button type="button" class="primary" data-editor-action="publish">Publish</button>
           <button type="button" data-editor-action="reset-view">Fit</button>
           <label class="studio-check"><input type="checkbox" data-editor-snap
@@ -2014,6 +2049,7 @@ class MoviePosterPanel extends HTMLElement {
     const selectedIsText = Boolean(selectedComponent)
       && !selectedIsImage
       && !["progress", "surface"].includes(selectedComponent.type);
+    const selectedSupportsMotion = this._componentSupportsMotion(selectedComponent);
     const editorWarnings = this._editorWarnings();
     const editorOrientation = this._editorOrientation();
     const hasOrientationOverride = Boolean(
@@ -2042,6 +2078,7 @@ class MoviePosterPanel extends HTMLElement {
         selectedIsImage,
         selectedIsSurface,
         selectedIsText,
+        selectedSupportsMotion,
         editorWarnings,
         editorOrientation,
         hasOrientationOverride,
@@ -2685,7 +2722,7 @@ class MoviePosterPanel extends HTMLElement {
     this.shadowRoot.querySelectorAll("[data-editor-select]").forEach((button) => {
       button.addEventListener("click", (event) => {
         this._selectEditorComponent(button.dataset.editorSelect, event.shiftKey);
-        if (!event.shiftKey && window.matchMedia("(max-width: 760px)").matches) {
+        if (!event.shiftKey) {
           this._editorSettingsOpenId = this._editorSelectedId;
           this._editorPanel = "properties";
         }
@@ -2858,6 +2895,16 @@ class MoviePosterPanel extends HTMLElement {
         this._render();
         this._scheduleEditorSave();
       });
+    this.shadowRoot.querySelector("[data-editor-motion-enabled]")
+      ?.addEventListener("change", (event) => {
+        const component = this._selectedEditorComponent();
+        if (!component || component.locked
+          || !this._componentSupportsMotion(component)) return;
+        this._recordEditorHistory();
+        component.motion_enabled = event.target.checked;
+        this._render();
+        this._scheduleEditorSave();
+      });
     this.shadowRoot.querySelector("[data-editor-name]")
       ?.addEventListener("change", (event) => {
         const component = this._selectedEditorComponent();
@@ -3013,6 +3060,11 @@ class MoviePosterPanel extends HTMLElement {
     }
     if (action === "focus") {
       this._editorFocusMode = !this._editorFocusMode;
+      this._render();
+      return;
+    }
+    if (action === "preview-motion") {
+      this._editorMotionPreview = !this._editorMotionPreview;
       this._render();
       return;
     }
@@ -3262,6 +3314,7 @@ class MoviePosterPanel extends HTMLElement {
       z_index: type === "backdrop" ? 0 : type === "surface" ? 4 : 10,
       visible: true,
       locked: false,
+      motion_enabled: false,
       blend_mode: "normal",
       clip: "safe_opening",
       style_ref: type === "progress"
@@ -3624,7 +3677,7 @@ class MoviePosterPanel extends HTMLElement {
     const canvas = this.shadowRoot.querySelector(".editor-component-surface");
     if (!component || !canvas) return;
     if (component.locked) {
-      if (window.matchMedia("(max-width: 760px)").matches && !event.shiftKey) {
+      if (!event.shiftKey) {
         this._editorSettingsOpenId = identifier;
         this._editorPanel = "properties";
       }
@@ -3731,9 +3784,7 @@ class MoviePosterPanel extends HTMLElement {
       element.removeEventListener("pointermove", move);
       element.removeEventListener("pointerup", finish);
       element.removeEventListener("pointercancel", finish);
-      if (!start.moved
-        && !event.shiftKey
-        && window.matchMedia("(max-width: 760px)").matches) {
+      if (!start.moved && !event.shiftKey) {
         this._editorSettingsOpenId = identifier;
         this._editorPanel = "properties";
       }
@@ -3797,6 +3848,7 @@ class MoviePosterPanel extends HTMLElement {
     this._editorPanY = 0;
     this._editorPanel = "none";
     this._editorFocusMode = false;
+    this._editorMotionPreview = false;
     this._render();
   }
 
@@ -3811,6 +3863,7 @@ class MoviePosterPanel extends HTMLElement {
     this._editorSettingsOpenId = null;
     this._editorPanel = "none";
     this._editorFocusMode = false;
+    this._editorMotionPreview = false;
     this._editorUndoStack = [];
     this._editorRedoStack = [];
   }
@@ -7975,7 +8028,7 @@ class MoviePosterPanel extends HTMLElement {
           var(--mp-light-primary, #f6cf70);
       }
       :is(.authored-presentation-canvas, .visual-editor-canvas)
-        :is(.authored-component, .editor-component) {
+        :is(.authored-component, .editor-component).motion-enabled {
         animation-duration: var(--authored-motion-duration, 4s);
         animation-delay: var(--authored-motion-delay, 0s);
         animation-timing-function: ease-in-out;
@@ -7985,28 +8038,35 @@ class MoviePosterPanel extends HTMLElement {
       }
       :is(.authored-motion-breathe, .authored-motion-pulse,
         .authored-motion-shimmer, .authored-motion-chase)
-        :is(.authored-component, .editor-component) {
+        :is(.authored-component, .editor-component).motion-enabled {
         will-change: transform, opacity, filter;
       }
       .authored-motion-breathe
-        :is(.authored-component, .editor-component) {
+        :is(.authored-component, .editor-component).motion-enabled {
         animation-name: authoredBreathe;
       }
       .authored-motion-pulse
-        :is(.authored-component, .editor-component) {
+        :is(.authored-component, .editor-component).motion-enabled {
         animation-name: authoredPulse;
       }
       .authored-motion-shimmer
-        :is(.authored-component, .editor-component) {
+        :is(.authored-component, .editor-component).motion-enabled {
         animation-name: authoredShimmer;
       }
       .authored-motion-chase
-        :is(.authored-component, .editor-component) {
+        :is(.authored-component, .editor-component).motion-enabled {
         animation-name: authoredChase;
       }
       .motion-off :is(.authored-presentation-canvas, .visual-editor-canvas)
         :is(.authored-component, .editor-component) {
         animation: none !important;
+      }
+      .visual-editor-canvas.motion-preview-off .editor-component {
+        animation: none !important;
+      }
+      .visual-editor-active.motion-off :is(.ambient, .content) {
+        animation: none !important;
+        transition: none !important;
       }
       @keyframes authoredBreathe {
         from { transform: scale(1); }
@@ -9227,8 +9287,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v28")) {
-  customElements.define("movie-poster-panel-v28", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v29")) {
+  customElements.define("movie-poster-panel-v29", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});
