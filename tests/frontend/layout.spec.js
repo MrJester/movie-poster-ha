@@ -3619,47 +3619,73 @@ test("Display Studio saves edited behavior and presentation settings", async ({ 
   await expect.poll(() => page.evaluate(() => window.__studioReturned)).toBe(true);
 });
 
-test("movie detail controls apply consistently to every frame", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 720 });
-  await openHarness(page);
-  for (const frame of FRAMES) {
-    expect(await renderPoster(
-      page, frame, "classic", "cinematic", "landscape",
-    )).toEqual([]);
-    const visible = await page.evaluate(() => {
-      const root = document.querySelector("movie-poster-panel").shadowRoot;
-      return {
-        title: root.querySelector(".details h2")?.textContent,
-        subtitle: root.querySelector(".details .subtitle")?.textContent,
-        meta: root.querySelector(".details .meta")?.textContent,
-      };
-    });
-    expect(visible.title).toContain("Pirates of the Caribbean");
-    expect(visible.subtitle).toContain("Every night");
-    expect(visible.meta).toContain("2026");
-    expect(visible.meta).toContain("PG-13");
-    expect(visible.meta).toContain("2h");
-
-    expect(await renderPoster(
-      page, frame, "classic", "cinematic", "landscape", {
-        showTitle: false,
-        showSubtitle: false,
-        showYear: false,
-        showRating: false,
-        showRuntime: false,
-      },
-    )).toEqual([]);
-    const hidden = await page.evaluate(() => {
-      const root = document.querySelector("movie-poster-panel").shadowRoot;
-      return {
-        title: root.querySelector(".details h2"),
-        subtitle: root.querySelector(".details .subtitle"),
-        meta: root.querySelector(".details .meta"),
-      };
-    });
-    expect(hidden).toEqual({ title: null, subtitle: null, meta: null });
-  }
-});
+for (const frame of FRAMES) {
+  test(`movie detail selections stay visible and contained in ${frame}`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await openHarness(page);
+    const options = ["showTitle", "showSubtitle", "showYear", "showRating",
+      "showRuntime", "showSummary", "showProgress", "showSession"];
+    const disabled = Object.fromEntries(options.map((option) => [option, false]));
+    const selections = [
+      ["all", {}], ["none", disabled],
+      ...options.map((option) => [`only ${option}`, { ...disabled, [option]: true }]),
+      ...options.map((option) => [`without ${option}`, { [option]: false }]),
+    ];
+    for (const viewport of [
+      { width: 1280, height: 720, orientation: "landscape" },
+      { width: 720, height: 1280, orientation: "portrait" },
+    ]) {
+      await page.setViewportSize(viewport);
+      for (const layout of LAYOUTS) {
+        for (const [selection, variant] of selections) {
+          const context = `${frame}/${viewport.orientation}/${layout}/${selection}`;
+          expect(await renderPoster(
+            page, frame, "classic", layout, viewport.orientation, variant,
+          ), context).toEqual([]);
+          const result = await page.evaluate(() => {
+            const root = document.querySelector("movie-poster-panel").shadowRoot;
+            const details = root.querySelector(".details");
+            const bounds = details.getBoundingClientRect();
+            const fields = {};
+            for (const [key, selector] of Object.entries({
+              showTitle: "h2", showSubtitle: ".subtitle", showSummary: ".summary",
+              showProgress: ".progress", showSession: ".session", meta: ".meta",
+            })) {
+              const element = details.querySelector(selector);
+              if (!element) { fields[key] = null; continue; }
+              const box = element.getBoundingClientRect();
+              fields[key] = {
+                text: element.textContent,
+                visible: getComputedStyle(element).display !== "none"
+                  && box.width > 0 && box.height > 0,
+                contained: box.top >= bounds.top - 1 && box.bottom <= bounds.bottom + 1
+                  && box.left >= bounds.left - 1 && box.right <= bounds.right + 1,
+              };
+            }
+            return fields;
+          });
+          for (const option of options.filter((key) =>
+            !["showYear", "showRating", "showRuntime"].includes(key))) {
+            if (variant[option] === false) expect(result[option], context).toBeNull();
+            else expect(result[option], `${context}/${option}`).toMatchObject({
+              visible: true, contained: true,
+            });
+          }
+          for (const [option, text] of [
+            ["showYear", "2026"], ["showRating", "PG-13"], ["showRuntime", "2h"],
+          ]) {
+            if (variant[option] === false) {
+              expect(result.meta?.text || "", context).not.toContain(text);
+            } else {
+              expect(result.meta, context).toMatchObject({ visible: true, contained: true });
+              expect(result.meta.text, context).toContain(text);
+            }
+          }
+        }
+      }
+    }
+  });
+}
 
 test("long movie titles fit two lines before truncating at a safe minimum", async ({ page }) => {
   await page.setViewportSize({ width: 768, height: 1024 });

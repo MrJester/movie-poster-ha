@@ -7643,6 +7643,9 @@ class MoviePosterPanel extends HTMLElement {
         object-fit: contain;
         transform: none;
       }
+      .theater:not(.has-details) .frame-stage .details {
+        display: none !important;
+      }
       .theater.has-details .frame-stage .details {
         box-sizing: border-box;
         display: flex !important;
