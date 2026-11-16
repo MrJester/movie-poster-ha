@@ -98,8 +98,8 @@ STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
 _FRONTEND_DIR = Path(__file__).parent / "frontend"
 _FRONTEND_PATH = _FRONTEND_DIR / "movie-poster-panel.js"
-_FRONTEND_VERSION = "0.1.0-beta.62-presentation.30"
-_FRONTEND_ELEMENT = "movie-poster-panel-v29"
+_FRONTEND_VERSION = "0.1.0-beta.62-presentation.31"
+_FRONTEND_ELEMENT = "movie-poster-panel-v30"
 _LOGO_ASSET_SUFFIXES = frozenset({".png", ".jpg", ".jpeg", ".webp"})
 
 
@@ -251,8 +251,10 @@ async def websocket_update_presentation(
     for key in _PRESENTATION_KEYS:
         setattr(coordinator, key, options[key])
     coordinator.presentation_revision += 1
-    coordinator.async_update_listeners()
+    # Live subscriptions resolve settings from entry.options synchronously.
+    # Persist first so this revision announces the newly selected fields.
     hass.config_entries.async_update_entry(entry, options=options)
+    coordinator.async_update_listeners()
     connection.send_result(msg["id"], {"entry_id": entry.entry_id})
 
 
@@ -502,8 +504,10 @@ async def websocket_update_settings(
         }
         options[CONF_DISPLAY_PROFILES] = custom_profiles
     coordinator.presentation_revision += 1
-    coordinator.async_update_listeners()
+    # Live subscriptions resolve settings from entry.options synchronously.
+    # Persist first so this revision announces the newly selected fields.
     hass.config_entries.async_update_entry(entry, options=options)
+    coordinator.async_update_listeners()
     from .issues import async_set_source_issue, async_validate_logo  # noqa: PLC0415
 
     async_set_source_issue(hass, entry.entry_id, active=False, source=msg["source"])

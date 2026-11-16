@@ -18,7 +18,7 @@ module.exports = defineConfig({
   timeout: process.env.CI ? 90_000 : 30_000,
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR || "test-results",
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:4173",
     headless: true,
   },
   projects: [
@@ -33,7 +33,8 @@ module.exports = defineConfig({
         ? { launchOptions: { executablePath: webkitExecutable } } : {}),
     } },
   ],
-  webServer: process.env.PLAYWRIGHT_FILE_MODE === "1" ? undefined : {
+  webServer: process.env.PLAYWRIGHT_FILE_MODE === "1" || process.env.PLAYWRIGHT_BASE_URL
+    ? undefined : {
     command: "python3 tests/frontend/server.py",
     port: 4173,
     reuseExistingServer: true,

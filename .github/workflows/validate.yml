@@ -42,6 +42,10 @@ jobs:
           - {name: responsive-3, kind: responsive, partition: 3, total: 4}
           - {name: acceptance-1, kind: acceptance, partition: 1, total: 2}
           - {name: acceptance-2, kind: acceptance, partition: 2, total: 2}
+          - {name: selections-1, kind: selections, partition: 1, total: 4}
+          - {name: selections-2, kind: selections, partition: 2, total: 4}
+          - {name: selections-3, kind: selections, partition: 3, total: 4}
+          - {name: selections-4, kind: selections, partition: 4, total: 4}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -67,7 +71,26 @@ jobs:
           npx playwright test
           --project=${{ matrix.browser }}
           --workers=1
-          --grep-invert=@responsive-matrix
+          --grep-invert='@responsive-matrix|@selection-matrix'
+          --shard=${{ matrix.suite.partition }}/${{ matrix.suite.total }}
+      - name: Test every information selection
+        if: matrix.suite.kind == 'selections'
+        run: >-
+          npx playwright test
+          --project=${{ matrix.browser }}
+          --workers=1
+          --grep=@selection-matrix
+          --shard=${{ matrix.suite.partition }}/${{ matrix.suite.total }}
+      - name: Test automatic orientation at 4K
+        if: matrix.suite.kind == 'selections'
+        env:
+          SELECTION_AUTO: "1"
+          SELECTION_4K: "1"
+        run: >-
+          npx playwright test
+          --project=${{ matrix.browser }}
+          --workers=1
+          --grep=@selection-matrix
           --shard=${{ matrix.suite.partition }}/${{ matrix.suite.total }}
 
   test:

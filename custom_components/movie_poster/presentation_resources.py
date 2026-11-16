@@ -20,6 +20,39 @@ FRAME_SAFE_OPENING: Final[dict[str, dict[str, float]]] = {
     "landscape": {"x": 15, "y": 19, "width": 70, "height": 64},
 }
 
+# Conservative rectangles inside each photographic bezel's transparent opening.
+# A shared rectangle lets opaque artwork cover otherwise valid layout content.
+FRAME_ART_OPENINGS: Final[dict[str, dict[str, dict[str, float]]]] = {
+    "comic_hero": {
+        "landscape": {"x": 15.67, "y": 22.0, "width": 68.67, "height": 55.67},
+        "portrait": {"x": 20.33, "y": 15.33, "width": 59.33, "height": 68.33},
+    },
+    "cyber_noir": {
+        "landscape": {"x": 12.33, "y": 14.0, "width": 75.33, "height": 72.0},
+        "portrait": {"x": 17.0, "y": 12.33, "width": 65.67, "height": 75.0},
+    },
+    "golden_age": {
+        "landscape": {"x": 23.33, "y": 25.67, "width": 53.0, "height": 61.33},
+        "portrait": {"x": 25.33, "y": 19.67, "width": 49.33, "height": 65.33},
+    },
+    "indie_nature": {
+        "landscape": {"x": 20.33, "y": 19.67, "width": 59.33, "height": 60.33},
+        "portrait": {"x": 16.0, "y": 13.33, "width": 68.67, "height": 73.33},
+    },
+    "marquee": {
+        "landscape": {"x": 16.33, "y": 24.0, "width": 67.33, "height": 52.33},
+        "portrait": {"x": 20.33, "y": 19.0, "width": 59.0, "height": 66.67},
+    },
+    "steampunk": {
+        "landscape": {"x": 13.0, "y": 20.67, "width": 74.0, "height": 59.67},
+        "portrait": {"x": 22.0, "y": 17.67, "width": 56.0, "height": 65.33},
+    },
+    "theater_classic": {
+        "landscape": {"x": 16.33, "y": 21.0, "width": 67.33, "height": 59.0},
+        "portrait": {"x": 21.0, "y": 17.0, "width": 57.67, "height": 66.0},
+    },
+}
+
 COMPONENT_TYPES: Final = (
     "surface",
     "poster",
@@ -666,8 +699,8 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "marquee": _frame_resource(
         "marquee",
         "Marquee",
-        FRAME_SAFE_OPENING["portrait"],
-        FRAME_SAFE_OPENING["landscape"],
+        FRAME_ART_OPENINGS["marquee"]["portrait"],
+        FRAME_ART_OPENINGS["marquee"]["landscape"],
         assets={
             "bezel": {
                 "portrait": (
@@ -694,8 +727,8 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "cyber_noir": _frame_resource(
         "cyber_noir",
         "Cyber Noir",
-        FRAME_SAFE_OPENING["portrait"],
-        FRAME_SAFE_OPENING["landscape"],
+        FRAME_ART_OPENINGS["cyber_noir"]["portrait"],
+        FRAME_ART_OPENINGS["cyber_noir"]["landscape"],
         assets={
             "bezel": {
                 "portrait": (
@@ -723,8 +756,8 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "comic_hero": _frame_resource(
         "comic_hero",
         "Comic Hero",
-        FRAME_SAFE_OPENING["portrait"],
-        FRAME_SAFE_OPENING["landscape"],
+        FRAME_ART_OPENINGS["comic_hero"]["portrait"],
+        FRAME_ART_OPENINGS["comic_hero"]["landscape"],
         assets={
             "bezel": {
                 "portrait": (
@@ -751,8 +784,8 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "theater_classic": _frame_resource(
         "theater_classic",
         "Theater Classic",
-        FRAME_SAFE_OPENING["portrait"],
-        FRAME_SAFE_OPENING["landscape"],
+        FRAME_ART_OPENINGS["theater_classic"]["portrait"],
+        FRAME_ART_OPENINGS["theater_classic"]["landscape"],
         assets={
             "bezel": {
                 "portrait": (
@@ -781,8 +814,8 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "indie_nature": _frame_resource(
         "indie_nature",
         "Indie Nature",
-        FRAME_SAFE_OPENING["portrait"],
-        FRAME_SAFE_OPENING["landscape"],
+        FRAME_ART_OPENINGS["indie_nature"]["portrait"],
+        FRAME_ART_OPENINGS["indie_nature"]["landscape"],
         assets={
             "bezel": {
                 "portrait": (
@@ -809,8 +842,8 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "golden_age": _frame_resource(
         "golden_age",
         "Golden Age",
-        FRAME_SAFE_OPENING["portrait"],
-        FRAME_SAFE_OPENING["landscape"],
+        FRAME_ART_OPENINGS["golden_age"]["portrait"],
+        FRAME_ART_OPENINGS["golden_age"]["landscape"],
         assets={
             "bezel": {
                 "portrait": (
@@ -837,8 +870,8 @@ BUILTIN_FRAMES: Final[dict[str, dict[str, Any]]] = {
     "steampunk": _frame_resource(
         "steampunk",
         "Steampunk",
-        FRAME_SAFE_OPENING["portrait"],
-        FRAME_SAFE_OPENING["landscape"],
+        FRAME_ART_OPENINGS["steampunk"]["portrait"],
+        FRAME_ART_OPENINGS["steampunk"]["landscape"],
         assets={
             "bezel": {
                 "portrait": (

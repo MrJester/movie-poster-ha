@@ -366,19 +366,19 @@ class MoviePosterPanel extends HTMLElement {
     if (!this._studio) {
       this._setKiosk(state.presentation?.kiosk_mode !== false && !this._kioskSuppressed);
     }
-    const identity = [
-      state.mode,
-      state.media?.key,
-      state.presentation?.theme,
-      state.presentation?.orientation,
-      state.presentation?.layout,
-      state.presentation?.frame_theme,
-      state.presentation?.logo_url,
-      state.presentation?.logo_position,
-      state.presentation_revision,
-      state.session?.player,
-      state.session?.user,
-    ].join("|");
+    // A movie can acquire metadata after its first live payload (or lose
+    // fields when Plex refreshes it). Keep progress and health updates cheap,
+    // but rebuild for selections, typography and displayed facts even when
+    // the movie key and revision stay unchanged.
+    const identity = JSON.stringify([
+      state.mode, state.heading, state.media?.key,
+      state.presentation, state.presentation_revision,
+      state.design, state.design_frame, state.design_style,
+      state.media?.title, state.media?.subtitle, state.media?.summary,
+      state.media?.year, state.media?.content_rating, state.media?.duration_ms,
+      state.media?.position_ms != null,
+      state.session?.player, state.session?.user,
+    ]);
     if (identity === this._renderIdentity) {
       this._updateLiveState();
       return;
@@ -630,7 +630,7 @@ class MoviePosterPanel extends HTMLElement {
     const logoUrl = String(presentation.logo_url || "").trim();
     const logoPosition = normalizeLogoPosition(presentation.logo_position);
     const backdrop = media.backdrop_url
-      ? `url('${escapeHtml(media.backdrop_url)}')` : "none";
+      ? `url(${JSON.stringify(String(media.backdrop_url))})` : "none";
     const titleLayer = state.design?.components?.find(
       (component) => component.type === "title",
     );
@@ -669,7 +669,24 @@ class MoviePosterPanel extends HTMLElement {
     const portraitDetailsShare = Math.min(
       36, 15 + Math.max(0, portraitDetailLines - 2) * 3,
     );
-    const presentationStyle = `style="--backdrop:${backdrop};--legacy-accent:${accentColor};--legacy-background:${backgroundColor};--title-max-lines:${titleMaxLines};--title-design-min:${titleMinimum}cqw;--portrait-detail-lines:${portraitDetailLines};--portrait-details-share:${portraitDetailsShare}%;--frame-motion-duration:${4 / frameMotionSpeed}s;--frame-motion-intensity:${frameMotionIntensity};${semanticColorStyle(state.design_style?.colors)};${semanticTypographyStyle(state.design_style?.typography)};${semanticEffectsStyle(state.design_style?.effects)};${safeOpeningStyle(resolvedFrame?.safe_opening)};${frameLayoutStyle(resolvedFrame?.layout_tuning)}"`;
+    // Escape the complete attribute: quoted font families must not terminate
+    // style before the frame's safe-opening and layout declarations.
+    const presentationStyle = `style="${escapeHtml([
+      `--backdrop:${backdrop}`,
+      `--legacy-accent:${accentColor}`,
+      `--legacy-background:${backgroundColor}`,
+      `--title-max-lines:${titleMaxLines}`,
+      `--title-design-min:${titleMinimum}cqw`,
+      `--portrait-detail-lines:${portraitDetailLines}`,
+      `--portrait-details-share:${portraitDetailsShare}%`,
+      `--frame-motion-duration:${4 / frameMotionSpeed}s`,
+      `--frame-motion-intensity:${frameMotionIntensity}`,
+      semanticColorStyle(state.design_style?.colors),
+      semanticTypographyStyle(state.design_style?.typography),
+      semanticEffectsStyle(state.design_style?.effects),
+      safeOpeningStyle(resolvedFrame?.safe_opening),
+      frameLayoutStyle(resolvedFrame?.layout_tuning),
+    ].join(";"))}"`;
 
     const hasDetails = showTitleDetail
       || showSubtitleDetail
@@ -7722,23 +7739,22 @@ class MoviePosterPanel extends HTMLElement {
         grid-template-rows: minmax(0, 1fr) !important;
       }
       .theater.layout-poster .frame-stage .content {
+        row-gap: clamp(6px, 1cqw, 14px) !important;
         grid-template-columns: minmax(0, 1fr) !important;
         grid-template-rows: minmax(0, 1fr) auto !important;
       }
       .theater.layout-poster.has-details .frame-stage .details {
         display: grid !important;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        max-height: 27%;
+        /* This is an auto-sized grid row. A percentage max-height clips
+           the row against its own content instead of reserving poster space. */
+        max-height: none;
         column-gap: var(--layout-gap);
         row-gap: 1px;
       }
-      .theater.layout-poster.has-details.details-compact
-        .frame-stage .details {
-        max-height: 24%;
-      }
-      .theater.layout-poster.has-details.details-expanded
-        .frame-stage .details {
-        max-height: 40%;
+      .theater.layout-poster.has-details .frame-stage .details h2 {
+        /* Stacked metadata needs a smaller title than a side-by-side panel. */
+        font-size: clamp(var(--title-min-size, 14px), 3.2cqw, 44px);
       }
       .theater.layout-poster.has-details .frame-stage .details h2,
       .theater.layout-poster.has-details .frame-stage .details .progress {
@@ -7819,16 +7835,6 @@ class MoviePosterPanel extends HTMLElement {
           -webkit-line-clamp: 2;
         }
       }
-      /* Keep the portrait title band clear of Theater Classic's lower gold
-         rail. Grid subtracts this inset before allocating the poster row. */
-      .theater.frame-theater_classic.orientation-portrait .frame-stage .content {
-        padding-bottom: clamp(12px, 2cqw, 40px) !important;
-      }
-      @media (max-width: 720px), (orientation: portrait) {
-        .theater.frame-theater_classic.orientation-auto .frame-stage .content {
-          padding-bottom: clamp(12px, 2cqw, 40px) !important;
-        }
-      }
       /* Frame-specific layout implementations tune proportions, never the
          aperture. These values compensate for each frame's visual weight. */
       .frame-marquee { --layout-poster-share: 45%; }
@@ -7838,11 +7844,9 @@ class MoviePosterPanel extends HTMLElement {
       .frame-indie_nature { --layout-poster-share: 46%; --layout-gap: clamp(10px, 1.8cqw, 24px); }
       .frame-golden_age { --layout-poster-share: 42%; --layout-details-pad: clamp(6px, 1cqw, 16px); }
       .frame-steampunk { --layout-poster-share: 43%; --layout-gap: clamp(9px, 1.5cqw, 21px); }
-      /* The common safe-opening rectangle deliberately stays consistent when
-         switching Frames, but these two photographic portrait assets extend
-         below its 16% top edge. Keep the optional branding below the Marquee
-         rail and the deeper Golden Age arch without moving the heading,
-         poster, or metadata when no logo is configured. */
+      /* Give optional branding extra clearance from the Marquee rail and
+         Golden Age arch without moving heading, poster, or metadata when
+         no logo is configured. */
       .theater.frame-marquee.orientation-portrait
         .frame-stage > .brand-row {
         margin-top: clamp(16px, 4.8cqw, 120px);
@@ -9300,8 +9304,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v29")) {
-  customElements.define("movie-poster-panel-v29", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v30")) {
+  customElements.define("movie-poster-panel-v30", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});

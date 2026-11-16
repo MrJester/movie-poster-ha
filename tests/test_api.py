@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, Mock, patch
@@ -22,6 +23,8 @@ from custom_components.movie_poster.api import (
     _store_uploaded_logo,
     _updated_presentation_options,
     async_setup_frontend,
+    websocket_update_presentation,
+    websocket_update_settings,
 )
 from custom_components.movie_poster.const import CONF_DISPLAY_PROFILES
 from custom_components.movie_poster.models import (
@@ -30,9 +33,14 @@ from custom_components.movie_poster.models import (
     PlaybackState,
     SessionCandidate,
 )
+from custom_components.movie_poster.profiles import (
+    presentation_from_options,
+    stored_profiles,
+)
 from custom_components.movie_poster.state_machine import ModeSnapshot, TransitionReason
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
     from pathlib import Path
 
 
@@ -271,8 +279,8 @@ def test_state_contract_contains_signed_artwork_and_session() -> None:
         "version": 1,
         "layers": state["design_frame"]["layers"],
         "safe_opening": {
-            "portrait": {"x": 19, "y": 16, "width": 62, "height": 70},
-            "landscape": {"x": 15, "y": 19, "width": 70, "height": 64},
+            "portrait": {"x": 17.0, "y": 12.33, "width": 65.67, "height": 75.0},
+            "landscape": {"x": 12.33, "y": 14.0, "width": 75.33, "height": 72.0},
         },
         "layout_tuning": {
             "poster_share": 43,
@@ -409,3 +417,65 @@ def test_studio_save_preserves_behavior_options() -> None:
     assert result["frame_theme"] == "cyber_noir"
     assert result["show_title"] is False
     assert result["show_rating"] is False
+
+
+@pytest.mark.parametrize(
+    ("handler", "profile_id"),
+    [
+        (websocket_update_presentation, "default"),
+        (websocket_update_settings, "default"),
+        (websocket_update_settings, "cinema"),
+    ],
+)
+async def test_saved_selections_are_visible_in_first_live_notification(
+    handler: Callable[..., Awaitable[None]], profile_id: str,
+) -> None:
+    """Subscribers read entry.options, so persist before notifying them."""
+    presentation = presentation_from_options({})
+    entry = SimpleNamespace(
+        entry_id="entry-one",
+        options={
+            **presentation,
+            CONF_DISPLAY_PROFILES: {
+                "cinema": {
+                    "version": 2, "name": "Cinema", "description": "", "author": "",
+                    "presentation": presentation,
+                    "design": stored_profiles({})["default"]["design"],
+                },
+            },
+        },
+    )
+    notifications = []
+    coordinator = SimpleNamespace(
+        entry_id=entry.entry_id,
+        presentation_revision=0,
+        async_update_listeners=lambda: notifications.append(
+            stored_profiles(entry.options)[profile_id]["presentation"]["show_summary"],
+        ),
+    )
+    hass = SimpleNamespace(config_entries=SimpleNamespace(
+        async_get_entry=lambda _identifier: entry,
+        async_update_entry=lambda _entry, **changes: setattr(
+            entry, "options", changes["options"],
+        ),
+    ))
+    connection = SimpleNamespace(send_result=Mock(), send_error=Mock())
+    msg = {
+        **presentation, "show_summary": False, "id": 1, "entry_id": entry.entry_id,
+        "profile_id": profile_id, "source": "Movies::", "player_id": "", "user_id": "",
+        "grace_seconds": 30, "rotation_seconds": 30, "library_refresh_seconds": 3600,
+    }
+    with (
+        patch(
+            "custom_components.movie_poster.api._coordinator", return_value=coordinator,
+        ),
+        patch("custom_components.movie_poster.issues.async_set_source_issue"),
+        patch(
+            "custom_components.movie_poster.issues.async_validate_logo",
+            new=AsyncMock(),
+        ),
+    ):
+        await inspect.unwrap(handler)(hass, connection, msg)
+
+    assert notifications == [False]
+    connection.send_error.assert_not_called()

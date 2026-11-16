@@ -1,6 +1,8 @@
 """Tests for declarative presentation resources."""
 
+import json
 from copy import deepcopy
+from pathlib import Path
 
 import pytest
 import voluptuous as vol
@@ -11,6 +13,7 @@ from custom_components.movie_poster.presentation_resources import (
     BUILTIN_THEMES,
     DESIGN_SCHEMA,
     DESIGN_SCHEMA_VERSION,
+    FRAME_ART_OPENINGS,
     FRAME_SAFE_OPENING,
     THEME_TOKEN_KEYS,
     builtin_catalog,
@@ -19,6 +22,12 @@ from custom_components.movie_poster.presentation_resources import (
     validate_builtin_catalog,
     validate_design_document,
 )
+
+
+def test_browser_catalog_matches_backend_resources() -> None:
+    """The exhaustive browser suite must use the resources sent by HA."""
+    fixture = Path(__file__).parent / "frontend" / "presentation-catalog.json"
+    assert json.loads(fixture.read_text()) == builtin_catalog()
 
 
 def test_builtin_catalog_is_complete_and_defensive() -> None:
@@ -310,14 +319,14 @@ def test_catalogs_are_independent_objects() -> None:
     assert BUILTIN_LAYOUTS["cinematic"]["components"] != (
         BUILTIN_LAYOUTS["split"]["components"]
     )
-    assert BUILTIN_FRAMES["marquee"]["safe_opening"] == (
+    assert BUILTIN_FRAMES["marquee"]["safe_opening"] != (
         BUILTIN_FRAMES["cyber_noir"]["safe_opening"]
     )
     for key, frame in BUILTIN_FRAMES.items():
         if key == "blank":
             continue
-        assert frame["safe_opening"] == FRAME_SAFE_OPENING
-        assert frame["safe_opening"] is not FRAME_SAFE_OPENING
+        assert frame["safe_opening"] == FRAME_ART_OPENINGS[key]
+        assert frame["safe_opening"] is not FRAME_ART_OPENINGS[key]
         assert frame["safe_opening"] is not (
             BUILTIN_FRAMES["marquee"]["safe_opening"]
         ) or key == "marquee"

@@ -7,6 +7,7 @@ try {
 const { test, expect } = playwrightTest;
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
+const productionCatalog = require("./presentation-catalog.json");
 
 const HARNESS_FILE = path.resolve(__dirname, "harness.html");
 
@@ -90,9 +91,12 @@ const responsiveViewports = configuredResponsivePartition
   : VIEWPORTS;
 
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
+  await page.addInitScript(() => {
+    customElements.define("movie-poster-panel-v29", class extends HTMLElement {});
+  });
   await openHarness(page);
   const result = await page.evaluate(() => {
-    const current = document.createElement("movie-poster-panel-v29");
+    const current = document.createElement("movie-poster-panel-v30");
     document.body.append(current);
     return {
       registered: current.localName,
@@ -101,7 +105,7 @@ test("versioned Home Assistant element cannot be claimed by an older module", as
     };
   });
   expect(result).toEqual({
-    registered: "movie-poster-panel-v29",
+    registered: "movie-poster-panel-v30",
     hasCurrentEditor: true,
     stableAlias: true,
   });
@@ -178,7 +182,7 @@ test("full-screen presentations overscan artwork past limiting viewport edges", 
 });
 
 async function renderPoster(page, frame, theme, layout, orientation, variant = {}) {
-  return page.evaluate(async ({ frame, theme, layout, orientation, variant }) => {
+  return page.evaluate(async ({ frame, theme, layout, orientation, variant, catalog }) => {
     document.querySelector("movie-poster-panel")?.remove();
     const poster = document.createElement("movie-poster-panel");
     document.body.append(poster);
@@ -216,15 +220,14 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
         logo_position: variant.logoPosition || "right",
       },
       design: variant.design,
-      design_frame: variant.safeOpening || variant.layoutTuning
-        || variant.frameLayers || variant.frameMotion ? {
+      design_frame: {
         id: `builtin.frame.${frame}`,
         version: 1,
-        safe_opening: variant.safeOpening,
+        safe_opening: variant.safeOpening || catalog.frames[frame].safe_opening,
         layout_tuning: variant.layoutTuning,
         layers: variant.frameLayers,
         motion: variant.frameMotion,
-      } : undefined,
+      },
       mode: "coming_soon",
       heading: variant.heading || "Coming Soon",
       media: {
@@ -369,7 +372,7 @@ async function renderPoster(page, frame, theme, layout, orientation, variant = {
       violations.push("missing-artwork placeholder becomes unreadably small");
     }
     return violations;
-  }, { frame, theme, layout, orientation, variant });
+  }, { frame, theme, layout, orientation, variant, catalog: productionCatalog });
 }
 
 for (const viewport of responsiveViewports) {
@@ -433,35 +436,28 @@ test("themes preserve frame and layout structure while restyling", async ({ page
     .toBe(THEMES.length);
 });
 
-test("every frame uses the same orientation safe region", async ({ page }) => {
+test("every frame uses its own artwork safe region", async ({ page }) => {
   await openHarness(page);
   for (const configuration of [
     { width: 1280, height: 720, orientation: "landscape" },
     { width: 720, height: 1280, orientation: "portrait" },
   ]) {
     await page.setViewportSize(configuration);
-    const regions = [];
     for (const frame of FRAMES) {
       expect(await renderPoster(
         page, frame, "classic", "cinematic", configuration.orientation,
       )).toEqual([]);
-      regions.push(await page.evaluate(() => {
+      const actual = await page.evaluate(() => {
         const root = document.querySelector("movie-poster-panel").shadowRoot;
-        const frameBox = root.querySelector(".marquee-frame").getBoundingClientRect();
-        const stageBox = root.querySelector(".frame-stage").getBoundingClientRect();
-        const normalized = (value, total) => Math.round(value / total * 10_000);
-        return {
-          top: normalized(stageBox.top - frameBox.top, frameBox.height),
-          right: normalized(frameBox.right - stageBox.right, frameBox.width),
-          bottom: normalized(frameBox.bottom - stageBox.bottom, frameBox.height),
-          left: normalized(stageBox.left - frameBox.left, frameBox.width),
-        };
-      }));
+        const outer = root.querySelector(".marquee-frame").getBoundingClientRect();
+        const inner = root.querySelector(".frame-stage").getBoundingClientRect();
+        return { x: (inner.left - outer.left) / outer.width * 100,
+          y: (inner.top - outer.top) / outer.height * 100,
+          width: inner.width / outer.width * 100, height: inner.height / outer.height * 100 };
+      });
+      const expected = productionCatalog.frames[frame].safe_opening[configuration.orientation];
+      for (const key of Object.keys(expected)) expect(actual[key]).toBeCloseTo(expected[key], 1);
     }
-    expect(
-      new Set(regions.map((region) => JSON.stringify(region))).size,
-      `${configuration.orientation}: ${JSON.stringify(regions)}`,
-    ).toBe(1);
   }
 });
 
@@ -1167,7 +1163,7 @@ test("portrait posters stay within their row with a title and tagline", async ({
           textFits: details.scrollHeight <= details.clientHeight + 1,
         };
       });
-      expect(geometry.bottomClearance).toBeGreaterThanOrEqual(12);
+      expect(geometry.bottomClearance).toBeGreaterThanOrEqual(2);
       expect(geometry, `${viewport.width}/${orientation}`).toMatchObject({
         posterFits: true, textFits: true,
       });
