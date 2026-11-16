@@ -8,9 +8,11 @@ on:
 
 permissions: {}
 
+# Keep the OS compatible with the pinned Python and Playwright versions.
+# ubuntu-latest may advance before those toolchains support the new release.
 jobs:
   hacs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: hacs/action@main
         with:
@@ -18,14 +20,14 @@ jobs:
           ignore: description topics
 
   hassfest:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       - uses: home-assistant/actions/hassfest@master
 
   frontend:
     name: frontend (${{ matrix.browser }}, ${{ matrix.suite.name }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -69,7 +71,7 @@ jobs:
           --shard=${{ matrix.suite.partition }}/${{ matrix.suite.total }}
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
