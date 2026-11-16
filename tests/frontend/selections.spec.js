@@ -21,7 +21,9 @@ for (const frame of Object.keys(catalog.frames).filter((id) => id !== 'blank')) 
       for (const orientation of (process.env.SELECTION_AUTO === '1' ? ['auto-portrait', 'auto-landscape'] : ['portrait', 'landscape'])) {
         if (combinationIndex++ % shardCount !== shardIndex) continue;
         test(`all 256 selections ${frame}/${theme}/${layout}/${orientation} @selection-matrix`, async ({ page }, testInfo) => {
-          test.setTimeout(180_000);
+          // Hosted Chromium software-rasterizes the high-resolution bezels.
+          // Keep all 256 states and allow the 4K case to finish its assertions.
+          test.setTimeout(process.env.SELECTION_4K === '1' ? 600_000 : 180_000);
           const scale = process.env.SELECTION_4K === '1' ? 2 : 1;
           await page.setViewportSize(orientation.endsWith('portrait')
             ? { width: 1080 * scale, height: 1920 * scale } : { width: 1920 * scale, height: 1080 * scale });
