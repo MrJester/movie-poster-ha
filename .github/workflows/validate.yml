@@ -42,10 +42,22 @@ jobs:
           - {name: responsive-3, kind: responsive, partition: 3, total: 4}
           - {name: acceptance-1, kind: acceptance, partition: 1, total: 2}
           - {name: acceptance-2, kind: acceptance, partition: 2, total: 2}
-          - {name: selections-1, kind: selections, partition: 1, total: 4}
-          - {name: selections-2, kind: selections, partition: 2, total: 4}
-          - {name: selections-3, kind: selections, partition: 3, total: 4}
-          - {name: selections-4, kind: selections, partition: 4, total: 4}
+          - {name: selections-0, kind: selections, partition: 0, total: 16}
+          - {name: selections-1, kind: selections, partition: 1, total: 16}
+          - {name: selections-2, kind: selections, partition: 2, total: 16}
+          - {name: selections-3, kind: selections, partition: 3, total: 16}
+          - {name: selections-4, kind: selections, partition: 4, total: 16}
+          - {name: selections-5, kind: selections, partition: 5, total: 16}
+          - {name: selections-6, kind: selections, partition: 6, total: 16}
+          - {name: selections-7, kind: selections, partition: 7, total: 16}
+          - {name: selections-8, kind: selections, partition: 8, total: 16}
+          - {name: selections-9, kind: selections, partition: 9, total: 16}
+          - {name: selections-10, kind: selections, partition: 10, total: 16}
+          - {name: selections-11, kind: selections, partition: 11, total: 16}
+          - {name: selections-12, kind: selections, partition: 12, total: 16}
+          - {name: selections-13, kind: selections, partition: 13, total: 16}
+          - {name: selections-14, kind: selections, partition: 14, total: 16}
+          - {name: selections-15, kind: selections, partition: 15, total: 16}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -75,23 +87,28 @@ jobs:
           --shard=${{ matrix.suite.partition }}/${{ matrix.suite.total }}
       - name: Test every information selection
         if: matrix.suite.kind == 'selections'
+        env:
+          SELECTION_MATRIX_SHARD_COUNT: ${{ matrix.suite.total }}
+          SELECTION_MATRIX_SHARD: ${{ matrix.suite.partition }}
         run: >-
           npx playwright test
           --project=${{ matrix.browser }}
           --workers=1
           --grep=@selection-matrix
-          --shard=${{ matrix.suite.partition }}/${{ matrix.suite.total }}
+          --reporter=line
       - name: Test automatic orientation at 4K
         if: matrix.suite.kind == 'selections'
         env:
           SELECTION_AUTO: "1"
           SELECTION_4K: "1"
+          SELECTION_MATRIX_SHARD_COUNT: ${{ matrix.suite.total }}
+          SELECTION_MATRIX_SHARD: ${{ matrix.suite.partition }}
         run: >-
           npx playwright test
           --project=${{ matrix.browser }}
           --workers=1
           --grep=@selection-matrix
-          --shard=${{ matrix.suite.partition }}/${{ matrix.suite.total }}
+          --reporter=line
 
   test:
     runs-on: ubuntu-24.04

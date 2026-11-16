@@ -5,12 +5,21 @@ const catalog = require('./presentation-catalog.json');
 const fields = ['show_title', 'show_subtitle', 'show_year', 'show_rating',
   'show_runtime', 'show_summary', 'show_progress', 'show_session'];
 
+// Spread expensive photographic frames across runners instead of putting
+// most Cyber Noir cases in the same contiguous Playwright shard.
+const shardCount = Number(process.env.SELECTION_MATRIX_SHARD_COUNT || 1);
+const shardIndex = Number(process.env.SELECTION_MATRIX_SHARD || 0);
+if (!Number.isInteger(shardCount) || shardCount < 1 || !Number.isInteger(shardIndex)
+  || shardIndex < 0 || shardIndex >= shardCount) throw new Error('Invalid selection matrix shard');
+let combinationIndex = 0;
+
 // This catalog is exported from builtin_catalog(), rather than replacing the
 // backend's typography and geometry with browser fallback values.
 for (const frame of Object.keys(catalog.frames).filter((id) => id !== 'blank')) {
   for (const theme of Object.keys(catalog.themes).filter((id) => process.env.SELECTION_AUTO !== '1' || id === 'classic')) {
     for (const layout of Object.keys(catalog.layouts).filter((id) => id !== 'blank')) {
       for (const orientation of (process.env.SELECTION_AUTO === '1' ? ['auto-portrait', 'auto-landscape'] : ['portrait', 'landscape'])) {
+        if (combinationIndex++ % shardCount !== shardIndex) continue;
         test(`all 256 selections ${frame}/${theme}/${layout}/${orientation} @selection-matrix`, async ({ page }, testInfo) => {
           test.setTimeout(180_000);
           const scale = process.env.SELECTION_4K === '1' ? 2 : 1;
