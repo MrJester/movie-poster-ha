@@ -7698,7 +7698,9 @@ class MoviePosterPanel extends HTMLElement {
         font-size: clamp(var(--title-min-size, 14px), 3.7cqw, 50px);
         font-weight: 700;
         letter-spacing: var(--mp-heading-tracking, .025em);
-        line-height: 1;
+        /* Leave room for glyph ink below the baseline (g, j, p, q, y).
+           Futura also needs this leading in Art Deco. */
+        line-height: 1.4;
         text-wrap: balance;
         text-shadow:
           0 .065em 0 color-mix(in srgb,
@@ -7753,8 +7755,22 @@ class MoviePosterPanel extends HTMLElement {
         row-gap: 1px;
       }
       .theater.layout-poster.has-details .frame-stage .details h2 {
-        /* Stacked metadata needs a smaller title than a side-by-side panel. */
         font-size: clamp(var(--title-min-size, 14px), 3.2cqw, 44px);
+      }
+      /* Shallow stacked landscape layouts retain their title line budget. */
+      .theater.orientation-landscape.layout-poster .frame-stage .content {
+        row-gap: 6px !important;
+      }
+      .theater.orientation-landscape.layout-poster .frame-stage .details h2 {
+        font-size: clamp(var(--title-min-size, 14px), calc(3.2cqw / 1.4), calc(44px / 1.4));
+      }
+      @media (orientation: landscape) {
+        .theater.orientation-auto.layout-poster .frame-stage .content {
+          row-gap: 6px !important;
+        }
+        .theater.orientation-auto.layout-poster .frame-stage .details h2 {
+          font-size: clamp(var(--title-min-size, 14px), calc(3.2cqw / 1.4), calc(44px / 1.4));
+        }
       }
       .theater.layout-poster.has-details .frame-stage .details h2,
       .theater.layout-poster.has-details .frame-stage .details .progress {
@@ -9304,8 +9320,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v30")) {
-  customElements.define("movie-poster-panel-v30", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v31")) {
+  customElements.define("movie-poster-panel-v31", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});
