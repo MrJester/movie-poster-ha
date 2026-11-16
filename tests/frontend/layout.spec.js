@@ -1140,6 +1140,41 @@ test("Cyber Noir keeps posters readable in short stacked desktop layouts", async
   }
 });
 
+test("portrait posters stay within their row with a title and tagline", async ({ page }) => {
+  await openHarness(page);
+  for (const viewport of [
+    { width: 720, height: 1280 },
+    { width: 1080, height: 1920 },
+    { width: 2160, height: 3840 },
+  ]) {
+    await page.setViewportSize(viewport);
+    for (const orientation of ["portrait", "auto"]) {
+      expect(await renderPoster(
+        page, "theater_classic", "classic", "cinematic", orientation,
+        { title: "Mission: Impossible III", showYear: false,
+          showRating: false, showRuntime: false, showSummary: false,
+          showProgress: false, showSession: false },
+      )).toEqual([]);
+      const geometry = await page.evaluate(() => {
+        const root = document.querySelector("movie-poster-panel").shadowRoot;
+        const poster = root.querySelector(".poster").getBoundingClientRect();
+        const row = root.querySelector(".poster-wrap").getBoundingClientRect();
+        const details = root.querySelector(".details");
+        const content = root.querySelector(".content").getBoundingClientRect();
+        return {
+          bottomClearance: content.bottom - details.getBoundingClientRect().bottom,
+          posterFits: poster.top >= row.top - 1 && poster.bottom <= row.bottom + 1,
+          textFits: details.scrollHeight <= details.clientHeight + 1,
+        };
+      });
+      expect(geometry.bottomClearance).toBeGreaterThanOrEqual(12);
+      expect(geometry, `${viewport.width}/${orientation}`).toMatchObject({
+        posterFits: true, textFits: true,
+      });
+    }
+  }
+});
+
 test("Theater Classic keeps the movie title visible with portrait artwork", async ({ page }) => {
   await page.setViewportSize({ width: 720, height: 1280 });
   await openHarness(page);

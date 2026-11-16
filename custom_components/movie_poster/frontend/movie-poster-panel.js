@@ -7816,6 +7816,16 @@ class MoviePosterPanel extends HTMLElement {
           -webkit-line-clamp: 2;
         }
       }
+      /* Keep the portrait title band clear of Theater Classic's lower gold
+         rail. Grid subtracts this inset before allocating the poster row. */
+      .theater.frame-theater_classic.orientation-portrait .frame-stage .content {
+        padding-bottom: clamp(12px, 2cqw, 40px) !important;
+      }
+      @media (max-width: 720px), (orientation: portrait) {
+        .theater.frame-theater_classic.orientation-auto .frame-stage .content {
+          padding-bottom: clamp(12px, 2cqw, 40px) !important;
+        }
+      }
       /* Frame-specific layout implementations tune proportions, never the
          aperture. These values compensate for each frame's visual weight. */
       .frame-marquee { --layout-poster-share: 45%; }
