@@ -103,5 +103,5 @@ test('Cyber lamps share a slow heartbeat rather than a chase', async ({ page }) 
     return { duration: parseFloat(css.animationDuration), delay: css.animationDelay, name: css.animationName };
   }));
   expect(lights).toHaveLength(7);
-  expect(lights.every(light => light.duration >= 5 && light.delay === '0s' && light.name === 'frameCyberFixture')).toBe(true);
+  expect(lights.every(light => light.duration >= 8 && light.delay === '0s' && light.name === 'frameCyberFixture')).toBe(true);
 });

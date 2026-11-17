@@ -9110,7 +9110,7 @@ class MoviePosterPanel extends HTMLElement {
         inset: 0;
         opacity: 1;
         animation-name: frameCyberFixture;
-        animation-duration: calc(var(--frame-motion-duration, 5s) * 1.25);
+        animation-duration: calc(var(--frame-motion-duration, 5s) * 1.6);
         animation-delay: 0s;
       }
       .cyber-fixture-glow::before {
@@ -9319,16 +9319,16 @@ class MoviePosterPanel extends HTMLElement {
       /* A slow double beat shared by every cyan fixture, followed by rest. */
       @keyframes frameCyberFixture {
         0%, 38%, 100% {
-          filter: brightness(calc(.2 + (1 - var(--frame-motion-intensity, .85)) * .5))
+          filter: brightness(.025)
             saturate(1.2) drop-shadow(0 0 0px #00dfff);
         }
         12%, 29% {
-          filter: brightness(calc(1.4 + var(--frame-motion-intensity, .85) * 1.6))
-            saturate(1.5) drop-shadow(0 0 5px #00dfff)
-            drop-shadow(0 0 16px #00cfff);
+          filter: brightness(calc(2 + var(--frame-motion-intensity, .85) * 3))
+            saturate(1.6) drop-shadow(0 0 8px #00eaff)
+            drop-shadow(0 0 28px #00cfff);
         }
         21% {
-          filter: brightness(.65) saturate(1.4)
+          filter: brightness(.2) saturate(1.4)
             drop-shadow(0 0 3px #00dfff);
         }
       }
@@ -9469,8 +9469,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v34")) {
-  customElements.define("movie-poster-panel-v34", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v35")) {
+  customElements.define("movie-poster-panel-v35", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});

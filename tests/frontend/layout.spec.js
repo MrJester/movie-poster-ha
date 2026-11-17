@@ -92,11 +92,11 @@ const responsiveViewports = configuredResponsivePartition
 
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
   await page.addInitScript(() => {
-    customElements.define("movie-poster-panel-v33", class extends HTMLElement {});
+    customElements.define("movie-poster-panel-v34", class extends HTMLElement {});
   });
   await openHarness(page);
   const result = await page.evaluate(() => {
-    const current = document.createElement("movie-poster-panel-v34");
+    const current = document.createElement("movie-poster-panel-v35");
     document.body.append(current);
     return {
       registered: current.localName,
@@ -105,7 +105,7 @@ test("versioned Home Assistant element cannot be claimed by an older module", as
     };
   });
   expect(result).toEqual({
-    registered: "movie-poster-panel-v34",
+    registered: "movie-poster-panel-v35",
     hasCurrentEditor: true,
     stableAlias: true,
   });
@@ -4043,7 +4043,7 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
         require("node:fs").writeFileSync(testInfo.outputPath(`phase-${fraction}.png`), screenshot);
         return screenshot;
       };
-      const low = await capture(.02);
+      const low = await capture(frame === "cyber_noir" ? .6 : .02);
       // A sweep can be between visible panels at any single phase. Sample the
       // complete cycle, retaining the authored stagger between panel effects.
       const phases = [];
@@ -4066,7 +4066,7 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
             const i = (y * a.width + x) * 4;
             if (Math.max(...[0, 1, 2].map((c) => Math.abs(a.data[i+c] - b.data[i+c]))) <= 8) continue;
             changed += 1;
-            if (Math.max(...[0, 1, 2].map((c) => Math.abs(a.data[i+c] - b.data[i+c]))) > 100) strongChanges += 1;
+            if (Math.max(...[0, 1, 2].map((c) => Math.abs(a.data[i+c] - b.data[i+c]))) > 180) strongChanges += 1;
             if (x > central.x && x < central.x + central.width && y > central.y && y < central.y + central.height) centralChanges += 1;
           }
         }
