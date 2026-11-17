@@ -9063,6 +9063,11 @@ class MoviePosterPanel extends HTMLElement {
         mix-blend-mode: screen;
       }
       .cyber-motion {
+        /* Replace the photographed lamp cores so the low phase can actually
+           dim them. Screen blending can only brighten already-white pixels. */
+        mix-blend-mode: normal;
+        opacity: 1;
+        --fixture-count: 4;
         --fixture-art: url("/movie_poster_static/assets/cyber-noir-frame-landscape.png");
         --fixture-1: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='65.05' y='8.64' width='10.92' height='0.64' rx='0.213' fill='white'/%3E%3C/svg%3E");
         --fixture-2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='3.48' y='24.35' width='0.68' height='9.0' rx='0.227' fill='white'/%3E%3C/svg%3E");
@@ -9074,10 +9079,9 @@ class MoviePosterPanel extends HTMLElement {
       }
       .cyber-fixture-glow {
         inset: 0;
-        filter: brightness(2.3) saturate(1.5)
-          drop-shadow(0 0 4px #00dfff) drop-shadow(0 0 12px #00cfff);
+        opacity: 1;
         animation-name: frameCyberFixture;
-        animation-delay: calc(var(--frame-light-index) * var(--frame-motion-duration) / -7);
+        animation-delay: calc(var(--fixture-order, var(--frame-light-index)) * var(--frame-motion-duration) / var(--fixture-count) * -1);
       }
       .cyber-fixture-glow::before {
         content: "";
@@ -9088,9 +9092,9 @@ class MoviePosterPanel extends HTMLElement {
         mask: var(--fixture-mask) 0 0 / 100% 100% no-repeat;
       }
       .cyber-fixture-glow:nth-child(1) { --fixture-mask: var(--fixture-1); }
-      .cyber-fixture-glow:nth-child(2) { --fixture-mask: var(--fixture-2); }
-      .cyber-fixture-glow:nth-child(3) { --fixture-mask: var(--fixture-3); }
-      .cyber-fixture-glow:nth-child(4) { --fixture-mask: var(--fixture-4); }
+      .cyber-fixture-glow:nth-child(2) { --fixture-mask: var(--fixture-2); --fixture-order: 3; }
+      .cyber-fixture-glow:nth-child(3) { --fixture-mask: var(--fixture-3); --fixture-order: 1; }
+      .cyber-fixture-glow:nth-child(4) { --fixture-mask: var(--fixture-4); --fixture-order: 2; }
       .cyber-fixture-glow:nth-child(5) { --fixture-mask: var(--fixture-5); }
       .cyber-fixture-glow:nth-child(6) { --fixture-mask: var(--fixture-6); }
       .cyber-fixture-glow:nth-child(7) { --fixture-mask: var(--fixture-7); }
@@ -9120,6 +9124,7 @@ class MoviePosterPanel extends HTMLElement {
       .comic-motion i:nth-child(4n) { clip-path: var(--comic-left); }
       /* Explicit portrait and auto orientation share the same art registration. */
       .orientation-portrait .cyber-motion {
+        --fixture-count: 7;
         --fixture-art: url("/movie_poster_static/assets/cyber-noir-frame-portrait.png");
         --fixture-1: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='20.09' y='6.34' width='11.48' height='0.48' rx='0.160' fill='white'/%3E%3C/svg%3E");
         --fixture-2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='68.23' y='6.34' width='11.48' height='0.48' rx='0.160' fill='white'/%3E%3C/svg%3E");
@@ -9137,6 +9142,7 @@ class MoviePosterPanel extends HTMLElement {
       }
       @media (max-width: 720px), (orientation: portrait) {
       .orientation-auto .cyber-motion {
+        --fixture-count: 7;
         --fixture-art: url("/movie_poster_static/assets/cyber-noir-frame-portrait.png");
         --fixture-1: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='20.09' y='6.34' width='11.48' height='0.48' rx='0.160' fill='white'/%3E%3C/svg%3E");
         --fixture-2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='68.23' y='6.34' width='11.48' height='0.48' rx='0.160' fill='white'/%3E%3C/svg%3E");
@@ -9281,10 +9287,15 @@ class MoviePosterPanel extends HTMLElement {
         50% { opacity: 1; transform: translateX(-50%) scale(1.12); }
       }
       @keyframes frameCyberFixture {
-        0%, 100% { opacity: .06; }
-        35% { opacity: .28; }
-        55% { opacity: .85; }
-        75% { opacity: .3; }
+        0%, 60%, 100% {
+          filter: brightness(calc(.12 + (1 - var(--frame-motion-intensity, .85)) * .5))
+            saturate(1.2) drop-shadow(0 0 0px #00dfff);
+        }
+        25% {
+          filter: brightness(calc(1.4 + var(--frame-motion-intensity, .85) * 1.6))
+            saturate(1.5) drop-shadow(0 0 5px #00dfff)
+            drop-shadow(0 0 16px #00cfff);
+        }
       }
       @keyframes frameComicSpeedSweep {
         0%, 15% { opacity: 0; background-position: 160% 0; }
@@ -9374,8 +9385,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v32")) {
-  customElements.define("movie-poster-panel-v32", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v33")) {
+  customElements.define("movie-poster-panel-v33", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});

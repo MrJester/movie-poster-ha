@@ -92,11 +92,11 @@ const responsiveViewports = configuredResponsivePartition
 
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
   await page.addInitScript(() => {
-    customElements.define("movie-poster-panel-v31", class extends HTMLElement {});
+    customElements.define("movie-poster-panel-v32", class extends HTMLElement {});
   });
   await openHarness(page);
   const result = await page.evaluate(() => {
-    const current = document.createElement("movie-poster-panel-v32");
+    const current = document.createElement("movie-poster-panel-v33");
     document.body.append(current);
     return {
       registered: current.localName,
@@ -105,7 +105,7 @@ test("versioned Home Assistant element cannot be claimed by an older module", as
     };
   });
   expect(result).toEqual({
-    registered: "movie-poster-panel-v32",
+    registered: "movie-poster-panel-v33",
     hasCurrentEditor: true,
     stableAlias: true,
   });
@@ -4059,20 +4059,22 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
           return ctx.getImageData(0, 0, img.width, img.height);
         };
         const a = await decode(low);
-        let changed = 0, centralChanges = 0;
+        let changed = 0, centralChanges = 0, strongChanges = 0;
         for (const phase of phases) {
           const b = await decode(phase);
           for (let y = 0; y < a.height; y += 1) for (let x = 0; x < a.width; x += 1) {
             const i = (y * a.width + x) * 4;
             if (Math.max(...[0, 1, 2].map((c) => Math.abs(a.data[i+c] - b.data[i+c]))) <= 8) continue;
             changed += 1;
+            if (Math.max(...[0, 1, 2].map((c) => Math.abs(a.data[i+c] - b.data[i+c]))) > 100) strongChanges += 1;
             if (x > central.x && x < central.x + central.width && y > central.y && y < central.y + central.height) centralChanges += 1;
           }
         }
-        return { changed, centralChanges };
+        return { changed, centralChanges, strongChanges };
       }, { low: low.toString("base64"), phases: phases.map((phase) => phase.toString("base64")), central: prepare.central });
       expect(pixels.changed, JSON.stringify(prepare)).toBeGreaterThan(20);
       expect(pixels.centralChanges).toBe(0);
+      if (frame === "cyber_noir") expect(pixels.strongChanges).toBeGreaterThan(30);
       await page.evaluate(() => document.querySelector("movie-poster-panel").shadowRoot.querySelector(".theater").classList.add("motion-off"));
       await expect(page.locator("movie-poster-panel").locator(sceneSelector)).toBeHidden();
       await page.evaluate(() => document.querySelector("movie-poster-panel").shadowRoot.querySelector(".theater").classList.remove("motion-off"));
