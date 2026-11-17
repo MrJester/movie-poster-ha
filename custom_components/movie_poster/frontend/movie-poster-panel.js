@@ -210,6 +210,7 @@ class MoviePosterPanel extends HTMLElement {
     this._controlsTimer = null;
     this._renderIdentity = null;
     this._transitionRevision = 0;
+    this._binaryRainTimer = null;
     this._kioskEnabled = false;
     this._kioskElements = new Map();
     this._kioskProperties = new Map();
@@ -282,6 +283,8 @@ class MoviePosterPanel extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this._transitionRevision += 1;
+    clearTimeout(this._binaryRainTimer);
     this._setKiosk(false);
     clearTimeout(this._retryTimer);
     clearTimeout(this._reloadTimer);
@@ -379,18 +382,27 @@ class MoviePosterPanel extends HTMLElement {
       state.media?.position_ms != null,
       state.session?.player, state.session?.user,
     ]);
+    const revision = ++this._transitionRevision;
     if (identity === this._renderIdentity) {
+      this.shadowRoot.querySelector(".cyber-rain-cover")?.remove();
+      this.shadowRoot.querySelector(".theater")?.classList.remove("media-leaving");
       this._updateLiveState();
       return;
     }
 
-    const revision = ++this._transitionRevision;
     const urls = [state.media?.poster_url, state.media?.backdrop_url].filter(Boolean);
     await Promise.allSettled(urls.map((url) => this._preload(url)));
     if (revision !== this._transitionRevision || !this.isConnected) return;
     if (softMediaChange) {
+      const cyberTransition = normalizeFrame(state.presentation?.frame_theme) === "cyber_noir";
       this.shadowRoot.querySelector(".theater")?.classList.add("media-leaving");
-      await new Promise((resolve) => window.setTimeout(resolve, 240));
+      if (cyberTransition) {
+        this.shadowRoot.querySelector(".cyber-rain")?.remove();
+        this.shadowRoot.querySelector(".marquee-frame")?.insertAdjacentHTML(
+          "beforeend", this._cyberRainMarkup("cover"),
+        );
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, cyberTransition ? 650 : 240));
       if (revision !== this._transitionRevision || !this.isConnected) return;
     }
     this._renderIdentity = identity;
@@ -774,12 +786,29 @@ class MoviePosterPanel extends HTMLElement {
           </div>
           </div>
           ${declarativeRenderer ? this._frameCompositeMarkup() : ""}
+          ${this._softMediaTransition && frame === "cyber_noir"
+            ? this._cyberRainMarkup("reveal") : ""}
         </section>
       </main>`;
     this._bindStudioControls();
     this._bindDisplayControls();
     this._bindMarqueeBulbs();
     this._softMediaTransition = false;
+    clearTimeout(this._binaryRainTimer);
+    const rain = this.shadowRoot.querySelector(".cyber-rain");
+    if (rain) this._binaryRainTimer = setTimeout(() => rain.remove(), 1100);
+  }
+
+  _cyberRainMarkup(phase) {
+    // Fixed local binary data: no movie metadata or external content enters
+    // this decorative layer. Both phases retain the same column pattern.
+    const columns = Array.from({ length: 40 }, (_, column) => {
+      const digits = Array.from({ length: 64 }, (_, row) =>
+        ((column * 13 + row * 7 + (row * row % 11)) % 17) % 2).join("\n");
+      return `<i style="--rain-column:${column}">${digits}</i>`;
+    }).join("");
+    return `<div class="cyber-rain cyber-rain-${phase === "cover" ? "cover" : "reveal"}"
+      aria-hidden="true">${columns}</div>`;
   }
 
   _bindMarqueeBulbs() {
@@ -9077,11 +9106,12 @@ class MoviePosterPanel extends HTMLElement {
         --fixture-6: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='0' y='0' width='0' height='0' rx='0.000' fill='white'/%3E%3C/svg%3E");
         --fixture-7: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='0' y='0' width='0' height='0' rx='0.000' fill='white'/%3E%3C/svg%3E");
       }
-      .cyber-fixture-glow {
+      .cyber-motion .cyber-fixture-glow {
         inset: 0;
         opacity: 1;
         animation-name: frameCyberFixture;
-        animation-delay: calc(var(--fixture-order, var(--frame-light-index)) * var(--frame-motion-duration) / var(--fixture-count) * -1);
+        animation-duration: calc(var(--frame-motion-duration, 5s) * 1.25);
+        animation-delay: 0s;
       }
       .cyber-fixture-glow::before {
         content: "";
@@ -9286,16 +9316,70 @@ class MoviePosterPanel extends HTMLElement {
         0%, 100% { opacity: .45; transform: translateX(-50%) scale(.88); }
         50% { opacity: 1; transform: translateX(-50%) scale(1.12); }
       }
+      /* A slow double beat shared by every cyan fixture, followed by rest. */
       @keyframes frameCyberFixture {
-        0%, 60%, 100% {
-          filter: brightness(calc(.12 + (1 - var(--frame-motion-intensity, .85)) * .5))
+        0%, 38%, 100% {
+          filter: brightness(calc(.2 + (1 - var(--frame-motion-intensity, .85)) * .5))
             saturate(1.2) drop-shadow(0 0 0px #00dfff);
         }
-        25% {
+        12%, 29% {
           filter: brightness(calc(1.4 + var(--frame-motion-intensity, .85) * 1.6))
             saturate(1.5) drop-shadow(0 0 5px #00dfff)
             drop-shadow(0 0 16px #00cfff);
         }
+        21% {
+          filter: brightness(.65) saturate(1.4)
+            drop-shadow(0 0 3px #00dfff);
+        }
+      }
+      .cyber-rain {
+        position: absolute;
+        z-index: 100;
+        inset: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+        display: flex;
+        justify-content: space-around;
+        overflow: hidden;
+        contain: paint;
+        pointer-events: none;
+        background: #020d09;
+        color: #21f58b;
+        text-shadow: 0 0 7px #00ff8877;
+      }
+      .cyber-rain i {
+        flex: 0 0 auto;
+        height: max-content;
+        white-space: pre;
+        font: 600 clamp(11px, 1.5cqw, 26px)/1.25 monospace;
+        font-style: normal;
+        opacity: .7;
+        animation: cyberBinaryFall 1.5s linear infinite;
+        animation-delay: calc(var(--rain-column) * -.117s);
+        -webkit-mask-image: linear-gradient(transparent, #000 20%, #000 85%, transparent);
+        mask-image: linear-gradient(transparent, #000 20%, #000 85%, transparent);
+      }
+      .cyber-rain i:nth-child(2n) { opacity: .95; }
+      .cyber-rain i:nth-child(3n) { opacity: .45; }
+      .cyber-rain i::after {
+        content: "01";
+        display: block;
+        color: #ddffef;
+        text-shadow: 0 0 9px #baffdf;
+      }
+      .cyber-rain-cover { animation: cyberBinaryCover .65s ease-in both; }
+      .cyber-rain-reveal { animation: cyberBinaryReveal 1s ease-out both; }
+      .cyber-rain-reveal i { animation-delay: calc(var(--rain-column) * -.117s - .65s); }
+      @keyframes cyberBinaryFall {
+        from { transform: translateY(-72%); }
+        to { transform: translateY(25%); }
+      }
+      @keyframes cyberBinaryCover { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes cyberBinaryReveal {
+        0%, 15% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+      .motion-off .cyber-rain { display: none; }
+      @media (prefers-reduced-motion: reduce) {
+        .cyber-rain { display: none; }
       }
       @keyframes frameComicSpeedSweep {
         0%, 15% { opacity: 0; background-position: 160% 0; }
@@ -9385,8 +9469,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v33")) {
-  customElements.define("movie-poster-panel-v33", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v34")) {
+  customElements.define("movie-poster-panel-v34", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});

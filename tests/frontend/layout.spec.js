@@ -92,11 +92,11 @@ const responsiveViewports = configuredResponsivePartition
 
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
   await page.addInitScript(() => {
-    customElements.define("movie-poster-panel-v32", class extends HTMLElement {});
+    customElements.define("movie-poster-panel-v33", class extends HTMLElement {});
   });
   await openHarness(page);
   const result = await page.evaluate(() => {
-    const current = document.createElement("movie-poster-panel-v33");
+    const current = document.createElement("movie-poster-panel-v34");
     document.body.append(current);
     return {
       registered: current.localName,
@@ -105,7 +105,7 @@ test("versioned Home Assistant element cannot be claimed by an older module", as
     };
   });
   expect(result).toEqual({
-    registered: "movie-poster-panel-v33",
+    registered: "movie-poster-panel-v34",
     hasCurrentEditor: true,
     stableAlias: true,
   });
@@ -4047,7 +4047,7 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
       // A sweep can be between visible panels at any single phase. Sample the
       // complete cycle, retaining the authored stagger between panel effects.
       const phases = [];
-      for (const fraction of [.2, .4, .6, .8]) phases.push(await capture(fraction));
+      for (const fraction of (frame === "cyber_noir" ? [.12, .21, .29, .6, .85] : [.2, .4, .6, .8])) phases.push(await capture(fraction));
       for (const [index, body] of phases.entries()) {
         await testInfo.attach(`${frame}-${orientation}-phase-${index}`, { body, contentType: "image/png" });
       }
