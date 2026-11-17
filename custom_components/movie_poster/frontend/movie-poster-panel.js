@@ -384,7 +384,7 @@ class MoviePosterPanel extends HTMLElement {
     ]);
     const revision = ++this._transitionRevision;
     if (identity === this._renderIdentity) {
-      this.shadowRoot.querySelector(".cyber-rain-cover, .marquee-curtain-cover")?.remove();
+      this.shadowRoot.querySelector(".cyber-rain-cover, .marquee-curtain-cover, .comic-page-cover")?.remove();
       this.shadowRoot.querySelector(".theater")?.classList.remove("media-leaving");
       this._updateLiveState();
       return;
@@ -396,7 +396,7 @@ class MoviePosterPanel extends HTMLElement {
     if (softMediaChange) {
       const transitionFrame = normalizeFrame(state.presentation?.frame_theme);
       const cover = this._frameTransitionMarkup("cover");
-      if (transitionFrame !== "marquee") {
+      if (!["marquee", "comic_hero"].includes(transitionFrame)) {
         this.shadowRoot.querySelector(".theater")?.classList.add("media-leaving");
       }
       if (cover) {
@@ -404,7 +404,8 @@ class MoviePosterPanel extends HTMLElement {
         this.shadowRoot.querySelector(".marquee-frame")?.insertAdjacentHTML("beforeend", cover);
       }
       const coverDuration = transitionFrame === "marquee" ? 800
-        : transitionFrame === "cyber_noir" ? 650 : 240;
+        : transitionFrame === "comic_hero" ? 700
+          : transitionFrame === "cyber_noir" ? 650 : 240;
       await new Promise((resolve) => window.setTimeout(resolve, coverDuration));
       if (revision !== this._transitionRevision || !this.isConnected) return;
     }
@@ -799,7 +800,8 @@ class MoviePosterPanel extends HTMLElement {
     clearTimeout(this._frameTransitionTimer);
     const transition = this.shadowRoot.querySelector(".frame-transition");
     if (transition) {
-      const cleanupDelay = frame === "marquee" ? 1050 : 1100;
+      const cleanupDelay = frame === "marquee" ? 1050
+        : frame === "comic_hero" ? 900 : 1100;
       this._frameTransitionTimer = setTimeout(() => transition.remove(), cleanupDelay);
     }
   }
@@ -808,7 +810,18 @@ class MoviePosterPanel extends HTMLElement {
     const frame = normalizeFrame(this._state?.presentation?.frame_theme);
     if (frame === "cyber_noir") return this._cyberRainMarkup(phase);
     if (frame === "marquee") return this._marqueeCurtainMarkup(phase);
+    if (frame === "comic_hero") return this._comicPageMarkup(phase);
     return "";
+  }
+
+  _comicPageMarkup(phase) {
+    return `<div class="frame-transition comic-page-transition comic-page-${phase === "cover" ? "cover" : "reveal"}"
+      aria-hidden="true">
+      <div class="comic-page-panel comic-page-red"><span class="comic-page-streaks"></span></div>
+      <div class="comic-page-panel comic-page-blue"><span class="comic-page-streaks"></span></div>
+      <div class="comic-page-panel comic-page-yellow"><span class="comic-page-streaks"></span></div>
+      <div class="comic-page-fold"></div>
+    </div>`;
   }
 
   _marqueeCurtainMarkup(phase) {
@@ -9500,6 +9513,88 @@ class MoviePosterPanel extends HTMLElement {
       @media (prefers-reduced-motion: reduce) {
         .marquee-curtain { display: none; }
       }
+      /* Three inked panels sweep over the screen like comic-book gutters.
+         The extra width keeps their clipped diagonal ends outside the aperture. */
+      .comic-page-transition {
+        position: absolute;
+        z-index: 100;
+        inset: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+        overflow: hidden;
+        contain: paint;
+        isolation: isolate;
+        pointer-events: none;
+      }
+      .comic-page-panel {
+        position: absolute;
+        left: -12%;
+        width: 124%;
+        height: calc(33.333333% + 3px);
+        box-sizing: border-box;
+        overflow: hidden;
+        clip-path: polygon(6% 0, 100% 0, 94% 100%, 0 100%);
+        border-top: 3px solid #11121a;
+        border-bottom: 3px solid #11121a;
+        background-color: var(--comic-page-paper);
+        background-image:
+          radial-gradient(circle, #070b1666 0 1px, transparent 1.5px),
+          linear-gradient(115deg, #fff4, transparent 38%, #0003);
+        background-size: 7px 7px, 100% 100%;
+        box-shadow: 0 4px 12px #0008;
+        will-change: transform;
+      }
+      .comic-page-red { top: -1px; --comic-page-paper: #d82c43; --comic-page-delay: 0s; }
+      .comic-page-blue { top: calc(33.333333% - 1px); --comic-page-paper: #1467b5; --comic-page-delay: .075s; }
+      .comic-page-yellow { top: calc(66.666666% - 1px); --comic-page-paper: #f2c640; --comic-page-delay: .15s; }
+      .comic-page-streaks {
+        position: absolute;
+        inset: 8% -10%;
+        background: repeating-linear-gradient(-12deg,
+          transparent 0 13px, #080b1655 14px 16px, transparent 17px 28px);
+        clip-path: polygon(0 45%, 100% 0, 100% 100%, 0 55%);
+      }
+      .comic-page-fold {
+        position: absolute;
+        z-index: 1;
+        top: -12%;
+        bottom: -12%;
+        left: -8%;
+        width: 9%;
+        background: linear-gradient(90deg, transparent, #0004 20%,
+          #f7efd1 44%, #fff9e8 58%, #a99e88 73%, transparent 100%);
+        pointer-events: none;
+      }
+      .comic-page-cover .comic-page-panel {
+        animation: comicPanelCover .55s cubic-bezier(.65, 0, .25, 1) both;
+        animation-delay: var(--comic-page-delay);
+      }
+      .comic-page-reveal .comic-page-panel {
+        animation: comicPanelReveal .65s cubic-bezier(.4, 0, .2, 1) both;
+        animation-delay: var(--comic-page-delay);
+      }
+      .comic-page-cover .comic-page-fold { animation: comicFoldCover .7s ease-in-out both; }
+      .comic-page-reveal .comic-page-fold { animation: comicFoldReveal .8s ease-in-out both; }
+      @keyframes comicPanelCover {
+        from { transform: translateX(110%); }
+        to { transform: translateX(0); }
+      }
+      @keyframes comicPanelReveal {
+        from { transform: translateX(0); }
+        to { transform: translateX(-110%); }
+      }
+      @keyframes comicFoldCover {
+        0% { transform: translateX(1500%) skewX(-12deg); opacity: 0; }
+        20%, 75% { opacity: .85; }
+        100% { transform: translateX(-200%) skewX(-12deg); opacity: 0; }
+      }
+      @keyframes comicFoldReveal {
+        0% { transform: translateX(1500%) skewX(-12deg); opacity: 0; }
+        15%, 80% { opacity: .9; }
+        100% { transform: translateX(-200%) skewX(-12deg); opacity: 0; }
+      }
+      .motion-off .comic-page-transition { display: none; }
+      @media (prefers-reduced-motion: reduce) {
+        .comic-page-transition { display: none; }
+      }
       .cyber-rain {
         position: absolute;
         z-index: 100;
@@ -9637,8 +9732,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v40")) {
-  customElements.define("movie-poster-panel-v40", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v41")) {
+  customElements.define("movie-poster-panel-v41", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});
