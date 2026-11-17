@@ -4016,37 +4016,45 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
       expect(prepare.legacyBefore).toBe("none");
       expect(prepare.animation).not.toBe("none");
       const capture = async (fraction) => {
-        await page.evaluate(({ selector, fraction }) => {
+        await page.evaluate(async ({ selector, fraction }) => {
           const scene = document.querySelector("movie-poster-panel").shadowRoot.querySelector(selector);
           for (const animation of scene.getAnimations({ subtree: true })) {
-            animation.effect.updateTiming({ delay: 0 });
+            await animation.ready;
             animation.currentTime = Number(animation.effect.getTiming().duration) * fraction;
           }
+          // Let the compositor commit the seek before taking the raster sample.
+          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         }, { selector: sceneSelector, fraction });
         return page.screenshot();
       };
       const low = await capture(.02);
-      const high = await capture(frame === "comic_hero" ? .45 : .55);
-      require("node:fs").writeFileSync(testInfo.outputPath("low.png"), low);
-      require("node:fs").writeFileSync(testInfo.outputPath("high.png"), high);
-      await testInfo.attach(`${frame}-${orientation}-motion`, { body: high, contentType: "image/png" });
-      const pixels = await page.evaluate(async ({ low, high, central }) => {
+      // A sweep can be between visible panels at any single phase. Sample the
+      // complete cycle, retaining the authored stagger between panel effects.
+      const phases = [];
+      for (const fraction of [.2, .4, .6, .8]) phases.push(await capture(fraction));
+      for (const [index, body] of phases.entries()) {
+        await testInfo.attach(`${frame}-${orientation}-phase-${index}`, { body, contentType: "image/png" });
+      }
+      const pixels = await page.evaluate(async ({ low, phases, central }) => {
         const decode = async (data) => {
           const img = new Image(); img.src = `data:image/png;base64,${data}`; await img.decode();
           const canvas = document.createElement("canvas"); canvas.width = img.width; canvas.height = img.height;
           const ctx = canvas.getContext("2d"); ctx.drawImage(img, 0, 0);
           return ctx.getImageData(0, 0, img.width, img.height);
         };
-        const a = await decode(low), b = await decode(high);
+        const a = await decode(low);
         let changed = 0, centralChanges = 0;
-        for (let y = 0; y < a.height; y += 1) for (let x = 0; x < a.width; x += 1) {
-          const i = (y * a.width + x) * 4;
-          if (Math.max(...[0, 1, 2].map((c) => Math.abs(a.data[i+c] - b.data[i+c]))) <= 8) continue;
-          changed += 1;
-          if (x > central.x && x < central.x + central.width && y > central.y && y < central.y + central.height) centralChanges += 1;
+        for (const phase of phases) {
+          const b = await decode(phase);
+          for (let y = 0; y < a.height; y += 1) for (let x = 0; x < a.width; x += 1) {
+            const i = (y * a.width + x) * 4;
+            if (Math.max(...[0, 1, 2].map((c) => Math.abs(a.data[i+c] - b.data[i+c]))) <= 8) continue;
+            changed += 1;
+            if (x > central.x && x < central.x + central.width && y > central.y && y < central.y + central.height) centralChanges += 1;
+          }
         }
         return { changed, centralChanges };
-      }, { low: low.toString("base64"), high: high.toString("base64"), central: prepare.central });
+      }, { low: low.toString("base64"), phases: phases.map((phase) => phase.toString("base64")), central: prepare.central });
       expect(pixels.changed).toBeGreaterThan(20);
       expect(pixels.centralChanges).toBe(0);
       await page.evaluate(() => document.querySelector("movie-poster-panel").shadowRoot.querySelector(".theater").classList.add("motion-off"));
