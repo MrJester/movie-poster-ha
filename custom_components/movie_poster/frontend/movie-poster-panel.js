@@ -9096,12 +9096,11 @@ class MoviePosterPanel extends HTMLElement {
            dim them. Screen blending can only brighten already-white pixels. */
         mix-blend-mode: normal;
         opacity: 1;
-        --fixture-count: 4;
         --fixture-art: url("/movie_poster_static/assets/cyber-noir-frame-landscape.png");
-        --fixture-1: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='65.05' y='8.64' width='10.92' height='0.64' rx='0.213' fill='white'/%3E%3C/svg%3E");
-        --fixture-2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='3.48' y='24.35' width='0.68' height='9.0' rx='0.227' fill='white'/%3E%3C/svg%3E");
-        --fixture-3: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='95.82' y='59.4' width='0.53' height='8.3' rx='0.177' fill='white'/%3E%3C/svg%3E");
-        --fixture-4: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='23.62' y='91.34' width='10.56' height='0.74' rx='0.247' fill='white'/%3E%3C/svg%3E");
+        --fixture-1: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='65.03' y='8.59' width='10.96' height='0.69' rx='0.12' fill='white'/%3E%3C/svg%3E");
+        --fixture-2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='3.43' y='24.28' width='0.88' height='9.31' rx='0.12' fill='white'/%3E%3C/svg%3E");
+        --fixture-3: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='95.79' y='59.36' width='0.69' height='8.36' rx='0.1' fill='white'/%3E%3C/svg%3E");
+        --fixture-4: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='23.59' y='91.32' width='10.69' height='0.78' rx='0.12' fill='white'/%3E%3C/svg%3E");
         --fixture-5: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='0' y='0' width='0' height='0' rx='0.000' fill='white'/%3E%3C/svg%3E");
         --fixture-6: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='0' y='0' width='0' height='0' rx='0.000' fill='white'/%3E%3C/svg%3E");
         --fixture-7: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='0' y='0' width='0' height='0' rx='0.000' fill='white'/%3E%3C/svg%3E");
@@ -9122,9 +9121,9 @@ class MoviePosterPanel extends HTMLElement {
         mask: var(--fixture-mask) 0 0 / 100% 100% no-repeat;
       }
       .cyber-fixture-glow:nth-child(1) { --fixture-mask: var(--fixture-1); }
-      .cyber-fixture-glow:nth-child(2) { --fixture-mask: var(--fixture-2); --fixture-order: 3; }
-      .cyber-fixture-glow:nth-child(3) { --fixture-mask: var(--fixture-3); --fixture-order: 1; }
-      .cyber-fixture-glow:nth-child(4) { --fixture-mask: var(--fixture-4); --fixture-order: 2; }
+      .cyber-fixture-glow:nth-child(2) { --fixture-mask: var(--fixture-2); }
+      .cyber-fixture-glow:nth-child(3) { --fixture-mask: var(--fixture-3); }
+      .cyber-fixture-glow:nth-child(4) { --fixture-mask: var(--fixture-4); }
       .cyber-fixture-glow:nth-child(5) { --fixture-mask: var(--fixture-5); }
       .cyber-fixture-glow:nth-child(6) { --fixture-mask: var(--fixture-6); }
       .cyber-fixture-glow:nth-child(7) { --fixture-mask: var(--fixture-7); }
@@ -9154,7 +9153,6 @@ class MoviePosterPanel extends HTMLElement {
       .comic-motion i:nth-child(4n) { clip-path: var(--comic-left); }
       /* Explicit portrait and auto orientation share the same art registration. */
       .orientation-portrait .cyber-motion {
-        --fixture-count: 7;
         --fixture-art: url("/movie_poster_static/assets/cyber-noir-frame-portrait.png");
         --fixture-1: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='20.09' y='6.34' width='11.48' height='0.48' rx='0.160' fill='white'/%3E%3C/svg%3E");
         --fixture-2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='68.23' y='6.34' width='11.48' height='0.48' rx='0.160' fill='white'/%3E%3C/svg%3E");
@@ -9172,7 +9170,6 @@ class MoviePosterPanel extends HTMLElement {
       }
       @media (max-width: 720px), (orientation: portrait) {
       .orientation-auto .cyber-motion {
-        --fixture-count: 7;
         --fixture-art: url("/movie_poster_static/assets/cyber-noir-frame-portrait.png");
         --fixture-1: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='20.09' y='6.34' width='11.48' height='0.48' rx='0.160' fill='white'/%3E%3C/svg%3E");
         --fixture-2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='68.23' y='6.34' width='11.48' height='0.48' rx='0.160' fill='white'/%3E%3C/svg%3E");
@@ -9316,20 +9313,16 @@ class MoviePosterPanel extends HTMLElement {
         0%, 100% { opacity: .45; transform: translateX(-50%) scale(.88); }
         50% { opacity: 1; transform: translateX(-50%) scale(1.12); }
       }
-      /* A slow double beat shared by every cyan fixture, followed by rest. */
+      /* Continuous synchronized beats: the trough is never held off. */
       @keyframes frameCyberFixture {
-        0%, 38%, 100% {
+        0%, 50%, 100% {
           filter: brightness(.025)
             saturate(1.2) drop-shadow(0 0 0px #00dfff);
         }
-        12%, 29% {
+        25%, 75% {
           filter: brightness(calc(2 + var(--frame-motion-intensity, .85) * 3))
             saturate(1.6) drop-shadow(0 0 8px #00eaff)
             drop-shadow(0 0 28px #00cfff);
-        }
-        21% {
-          filter: brightness(.2) saturate(1.4)
-            drop-shadow(0 0 3px #00dfff);
         }
       }
       .cyber-rain {
@@ -9469,8 +9462,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v35")) {
-  customElements.define("movie-poster-panel-v35", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v36")) {
+  customElements.define("movie-poster-panel-v36", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});

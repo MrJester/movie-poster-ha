@@ -92,11 +92,11 @@ const responsiveViewports = configuredResponsivePartition
 
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
   await page.addInitScript(() => {
-    customElements.define("movie-poster-panel-v34", class extends HTMLElement {});
+    customElements.define("movie-poster-panel-v35", class extends HTMLElement {});
   });
   await openHarness(page);
   const result = await page.evaluate(() => {
-    const current = document.createElement("movie-poster-panel-v35");
+    const current = document.createElement("movie-poster-panel-v36");
     document.body.append(current);
     return {
       registered: current.localName,
@@ -105,7 +105,7 @@ test("versioned Home Assistant element cannot be claimed by an older module", as
     };
   });
   expect(result).toEqual({
-    registered: "movie-poster-panel-v35",
+    registered: "movie-poster-panel-v36",
     hasCurrentEditor: true,
     stableAlias: true,
   });
@@ -4018,6 +4018,7 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
           frameOpacity: getComputedStyle(root.querySelector(".marquee-frame")).opacity,
           sceneBox: scene.getBoundingClientRect().toJSON(),
           stageBox: box.toJSON(),
+          frameBox: root.querySelector(".marquee-frame").getBoundingClientRect().toJSON(),
           sceneStyle: { display: getComputedStyle(scene).display, opacity: getComputedStyle(scene).opacity },
           classes: root.querySelector(".theater").className,
           animation: getComputedStyle(first).animationName,
@@ -4043,15 +4044,15 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
         require("node:fs").writeFileSync(testInfo.outputPath(`phase-${fraction}.png`), screenshot);
         return screenshot;
       };
-      const low = await capture(frame === "cyber_noir" ? .6 : .02);
+      const low = await capture(frame === "cyber_noir" ? .5 : .02);
       // A sweep can be between visible panels at any single phase. Sample the
       // complete cycle, retaining the authored stagger between panel effects.
       const phases = [];
-      for (const fraction of (frame === "cyber_noir" ? [.12, .21, .29, .6, .85] : [.2, .4, .6, .8])) phases.push(await capture(fraction));
+      for (const fraction of (frame === "cyber_noir" ? [.125, .25, .375, .625, .75, .875] : [.2, .4, .6, .8])) phases.push(await capture(fraction));
       for (const [index, body] of phases.entries()) {
         await testInfo.attach(`${frame}-${orientation}-phase-${index}`, { body, contentType: "image/png" });
       }
-      const pixels = await page.evaluate(async ({ low, phases, central }) => {
+      const pixels = await page.evaluate(async ({ low, phases, central, frameBox, checkFixtures }) => {
         const decode = async (data) => {
           const img = new Image(); img.src = `data:image/png;base64,${data}`; await img.decode();
           const canvas = document.createElement("canvas"); canvas.width = img.width; canvas.height = img.height;
@@ -4060,21 +4061,47 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
         };
         const a = await decode(low);
         let changed = 0, centralChanges = 0, strongChanges = 0;
+        const phaseChanges = [];
+        // Independently check all four photographed landscape fixtures. A
+        // working top strip must not conceal a stationary lower-right strip.
+        const fixtureBounds = checkFixtures ? [
+          [65.03, 8.59, 10.96, .69], [3.43, 24.28, .88, 9.31],
+          [95.79, 59.36, .69, 8.36], [23.59, 91.32, 10.69, .78],
+        ].map(([x, y, width, height]) => ({
+          left: frameBox.x + frameBox.width * x / 100,
+          top: frameBox.y + frameBox.height * y / 100,
+          right: frameBox.x + frameBox.width * (x + width) / 100,
+          bottom: frameBox.y + frameBox.height * (y + height) / 100,
+          changed: 0,
+        })) : [];
         for (const phase of phases) {
+          let phaseStrong = 0;
           const b = await decode(phase);
           for (let y = 0; y < a.height; y += 1) for (let x = 0; x < a.width; x += 1) {
             const i = (y * a.width + x) * 4;
             if (Math.max(...[0, 1, 2].map((c) => Math.abs(a.data[i+c] - b.data[i+c]))) <= 8) continue;
             changed += 1;
-            if (Math.max(...[0, 1, 2].map((c) => Math.abs(a.data[i+c] - b.data[i+c]))) > 180) strongChanges += 1;
+            if (Math.max(...[0, 1, 2].map((c) => Math.abs(a.data[i+c] - b.data[i+c]))) > 180) {
+              strongChanges += 1;
+              phaseStrong += 1;
+              for (const fixture of fixtureBounds) {
+                if (x >= fixture.left && x <= fixture.right && y >= fixture.top && y <= fixture.bottom) fixture.changed += 1;
+              }
+            }
             if (x > central.x && x < central.x + central.width && y > central.y && y < central.y + central.height) centralChanges += 1;
           }
+          phaseChanges.push(phaseStrong);
         }
-        return { changed, centralChanges, strongChanges };
-      }, { low: low.toString("base64"), phases: phases.map((phase) => phase.toString("base64")), central: prepare.central });
+        return { changed, centralChanges, strongChanges, phaseChanges, fixtures: fixtureBounds.map(f => f.changed) };
+      }, { low: low.toString("base64"), phases: phases.map((phase) => phase.toString("base64")), central: prepare.central,
+        frameBox: prepare.frameBox, checkFixtures: frame === "cyber_noir" && orientation === "landscape" });
       expect(pixels.changed, JSON.stringify(prepare)).toBeGreaterThan(20);
       expect(pixels.centralChanges).toBe(0);
-      if (frame === "cyber_noir") expect(pixels.strongChanges).toBeGreaterThan(30);
+      if (frame === "cyber_noir") {
+        expect(pixels.strongChanges).toBeGreaterThan(30);
+        for (const count of pixels.phaseChanges) expect(count, "No dead half of the heartbeat cycle").toBeGreaterThan(30);
+        for (const [index, count] of pixels.fixtures.entries()) expect(count, `Landscape lamp ${index + 1} must pulse`).toBeGreaterThan(10);
+      }
       await page.evaluate(() => document.querySelector("movie-poster-panel").shadowRoot.querySelector(".theater").classList.add("motion-off"));
       await expect(page.locator("movie-poster-panel").locator(sceneSelector)).toBeHidden();
       await page.evaluate(() => document.querySelector("movie-poster-panel").shadowRoot.querySelector(".theater").classList.remove("motion-off"));
