@@ -3997,9 +3997,17 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
         const art = new Image();
         art.src = `${assetBase}assets/${selector === ".cyber-motion" ? "cyber-noir" : "comic-hero"}-frame-${innerHeight > innerWidth ? "portrait" : "landscape"}.png`;
         await art.decode();
+        const effectNodes = new Set(scene.querySelectorAll("i"));
         for (const animation of root.getAnimations()) {
-          animation.currentTime = Number(animation.effect.getTiming().duration) || 0;
-          animation.pause();
+          if (!effectNodes.has(animation.effect.target)) {
+            // Cancel the unrelated entrance fade so its underlying opacity is
+            // fully visible. Seeking then pausing that fade can leave a stale
+            // near-transparent compositor layer in headless Chromium.
+            animation.cancel();
+          } else {
+            animation.pause();
+            await animation.ready;
+          }
         }
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const box = root.querySelector(".frame-stage").getBoundingClientRect();
@@ -4007,6 +4015,7 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
         return {
           central: { x: box.x + box.width * .03, y: box.y + box.height * .03,
             width: box.width * .94, height: box.height * .94 },
+          frameOpacity: getComputedStyle(root.querySelector(".marquee-frame")).opacity,
           sceneBox: scene.getBoundingClientRect().toJSON(),
           stageBox: box.toJSON(),
           sceneStyle: { display: getComputedStyle(scene).display, opacity: getComputedStyle(scene).opacity },
@@ -4016,6 +4025,7 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
           legacyBefore: getComputedStyle(root.querySelector(".marquee-frame"), "::before").display,
         };
       }, sceneSelector);
+      expect(prepare.frameOpacity).toBe("1");
       expect(prepare.oldEffects).toBe(0);
       expect(prepare.legacyBefore).toBe("none");
       expect(prepare.animation).not.toBe("none");
