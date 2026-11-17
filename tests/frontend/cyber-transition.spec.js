@@ -3,9 +3,10 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const catalog = require('./presentation-catalog.json');
 
-async function open(page, { orientation = 'landscape', info = true, motion = true, frame = 'cyber_noir' } = {}) {
+async function open(page, { orientation = 'landscape', info = true, motion = true, frame = 'cyber_noir', controlledClock = false } = {}) {
   await page.setViewportSize(orientation === 'landscape'
     ? { width: 1280, height: 720 } : { width: 720, height: 1280 });
+  if (controlledClock) await page.clock.install({ time: '2026-01-01T00:00:00Z' });
   await page.goto(process.env.PLAYWRIGHT_FILE_MODE === '1'
     ? pathToFileURL(path.resolve(__dirname, 'harness.html')).href
     : '/tests/frontend/harness.html');
@@ -27,13 +28,16 @@ async function open(page, { orientation = 'landscape', info = true, motion = tru
       return panel._applyState(state);
     };
   }, { catalog, orientation, info, motion, frame });
+  // Freeze JS timers before starting a transition. CI rendering can take longer
+  // than the entire cover phase, so elapsed wall time cannot select a phase.
+  if (controlledClock) await page.clock.pauseAt('2026-01-01T01:00:00Z');
 }
 const rain = page => page.locator('movie-poster-panel').locator('.cyber-rain');
 
 for (const orientation of ['landscape', 'portrait', 'auto']) {
   for (const info of [false, true]) {
     test(`Cyber binary waterfall covers only the inner screen: ${orientation}, info=${info}`, async ({ page }, testInfo) => {
-      await open(page, { orientation, info });
+      await open(page, { orientation, info, controlledClock: true });
       await expect(rain(page)).toHaveCount(0);
       await page.evaluate(() => { window.rotation = window.changeMovie('second', 'Second movie'); });
       await expect(rain(page)).toHaveClass(/cyber-rain-cover/);
@@ -56,11 +60,18 @@ for (const orientation of ['landscape', 'portrait', 'auto']) {
       expect(details.binary).toBe(true);
       expect(details.columns).toBe(40);
       if (info) expect(details.title).toBe('First movie');
+      await page.clock.fastForward(649);
+      await expect(rain(page)).toHaveClass(/cyber-rain-cover/);
+      if (info) await expect(page.locator('movie-poster-panel').locator('.details h2')).toHaveText('First movie');
+      await page.clock.fastForward(1);
       await page.evaluate(() => window.rotation);
       await expect(rain(page)).toHaveClass(/cyber-rain-reveal/);
       if (info) await expect(page.locator('movie-poster-panel').locator('.details h2')).toHaveText('Second movie');
       await page.screenshot({ path: testInfo.outputPath('binary-reveal.png') });
-      await expect(rain(page)).toHaveCount(0, { timeout: 2500 });
+      await page.clock.fastForward(1099);
+      await expect(rain(page)).toHaveClass(/cyber-rain-reveal/);
+      await page.clock.fastForward(1);
+      await expect(rain(page)).toHaveCount(0);
       // An update to the same movie must not retrigger the waterfall.
       await page.evaluate(async () => {
         const panel = document.querySelector('movie-poster-panel');
@@ -83,15 +94,18 @@ for (const configuration of [{ motion: false }, { reduced: true }, { frame: 'com
 
 for (const target of ['third', 'first']) {
   test(`A rapid movie change to ${target} cancels the obsolete waterfall`, async ({ page }) => {
-    await open(page);
+    await open(page, { controlledClock: true });
     await page.evaluate(() => { window.obsolete = window.changeMovie('second'); });
     await expect(rain(page)).toHaveClass(/cyber-rain-cover/);
-    await page.evaluate(async target => {
-      await window.changeMovie(target, target === 'first' ? 'First movie' : 'Third movie');
-      await window.obsolete;
+    await page.clock.fastForward(200);
+    await page.evaluate(target => {
+      window.latest = window.changeMovie(target, target === 'first' ? 'First movie' : 'Third movie');
     }, target);
+    await page.clock.fastForward(650);
+    await page.evaluate(() => Promise.all([window.latest, window.obsolete]));
     await expect(page.locator('movie-poster-panel').locator('.details h2')).toHaveText(target === 'first' ? 'First movie' : 'Third movie');
-    await expect(rain(page)).toHaveCount(0, { timeout: 2500 });
+    await page.clock.fastForward(1100);
+    await expect(rain(page)).toHaveCount(0);
     await expect(page.locator('movie-poster-panel').locator('.theater')).not.toHaveClass(/media-leaving/);
   });
 }
