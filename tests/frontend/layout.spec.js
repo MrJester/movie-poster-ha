@@ -32,8 +32,8 @@ const THEMES = ["classic", "art_deco", "neon", "minimal", "oled"];
 const LAYOUTS = ["cinematic", "poster", "split"];
 const FRAME_MOTIONS = {
   marquee: ["marquee_chase", 18, ".marquee-bulbs i", "marquee-bulbs"],
-  cyber_noir: ["cyber_scan", 8, ".cyber-powered-node", "cyber-motion"],
-  comic_hero: ["comic_energy", 6, ".comic-panel-pulse", "comic-motion"],
+  cyber_noir: ["cyber_scan", 8, ".cyber-fixture-glow", "cyber-motion"],
+  comic_hero: ["comic_energy", 6, ".comic-speed-sweep", "comic-motion"],
   theater_classic: ["theater_sconce", 4, ".theater-sconce", "theater-motion"],
   indie_nature: ["nature_dapple", 5, ".leaf-shadow", "nature-motion"],
   golden_age: ["golden_footlights", 12, ".golden-footlight", "golden-motion"],
@@ -92,11 +92,11 @@ const responsiveViewports = configuredResponsivePartition
 
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
   await page.addInitScript(() => {
-    customElements.define("movie-poster-panel-v30", class extends HTMLElement {});
+    customElements.define("movie-poster-panel-v31", class extends HTMLElement {});
   });
   await openHarness(page);
   const result = await page.evaluate(() => {
-    const current = document.createElement("movie-poster-panel-v31");
+    const current = document.createElement("movie-poster-panel-v32");
     document.body.append(current);
     return {
       registered: current.localName,
@@ -105,7 +105,7 @@ test("versioned Home Assistant element cannot be claimed by an older module", as
     };
   });
   expect(result).toEqual({
-    registered: "movie-poster-panel-v31",
+    registered: "movie-poster-panel-v32",
     hasCurrentEditor: true,
     stableAlias: true,
   });
@@ -866,8 +866,8 @@ test("production display has exactly one active rendering path", async ({ page }
   expect(result.stageVisible).toBe(true);
   expect(result.declarativeFrameLayers).toBe(0);
   expect(result.authoredCanvases).toBe(0);
-  expect(result.nativeMotionScenes).toBe(0);
-  expect(result.legacyCyberVisible).toBe(true);
+  expect(result.nativeMotionScenes).toBe(1);
+  expect(result.legacyCyberVisible).toBe(false);
   expect(result.legacyFrameImage).not.toBe("none");
 });
 
@@ -3968,4 +3968,92 @@ for (const viewport of VIEWPORTS) {
     });
     expect(failures).toEqual([]);
   });
+}
+
+for (const frame of ["cyber_noir", "comic_hero"]) {
+  for (const orientation of ["landscape", "portrait", "auto"]) {
+    test(`${frame} artwork motion stays outside movie content in ${orientation}`, async ({ page }, testInfo) => {
+      const portrait = orientation !== "landscape";
+      await page.setViewportSize(portrait
+        ? { width: 720, height: 1280 } : { width: 1280, height: 720 });
+      await openHarness(page);
+      await renderPoster(page, frame, "classic", "cinematic", orientation, {
+        enableMotion: true,
+        frameMotion: productionCatalog.frames[frame].motion,
+      });
+      const sceneSelector = frame === "cyber_noir" ? ".cyber-motion" : ".comic-motion";
+      const prepare = await page.evaluate(async (selector) => {
+        const root = document.querySelector("movie-poster-panel").shadowRoot;
+        const scene = root.querySelector(selector);
+        // File-mode runs need the same asset mapping provided by server.py.
+        const assetBase = location.protocol === "file:"
+          ? new URL("../../custom_components/movie_poster/frontend/", location.href).href
+          : "/movie_poster_static/";
+        if (location.protocol === "file:") {
+          const style = root.querySelector("style");
+          style.textContent = style.textContent.replaceAll("/movie_poster_static/", assetBase);
+        }
+        // Decode the actual fixture artwork, including when used as a CSS background.
+        const art = new Image();
+        art.src = `${assetBase}assets/${selector === ".cyber-motion" ? "cyber-noir" : "comic-hero"}-frame-${innerHeight > innerWidth ? "portrait" : "landscape"}.png`;
+        await art.decode();
+        for (const animation of root.getAnimations()) {
+          animation.currentTime = Number(animation.effect.getTiming().duration) || 0;
+          animation.pause();
+        }
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const box = root.querySelector(".frame-stage").getBoundingClientRect();
+        const first = scene.querySelector("i");
+        return {
+          central: { x: box.x + box.width * .03, y: box.y + box.height * .03,
+            width: box.width * .94, height: box.height * .94 },
+          animation: getComputedStyle(first).animationName,
+          oldEffects: root.querySelectorAll(".cyber-scan-beam, .cyber-powered-node, .comic-panel-pulse, .comic-ink-flash").length,
+          legacyBefore: getComputedStyle(root.querySelector(".marquee-frame"), "::before").display,
+        };
+      }, sceneSelector);
+      expect(prepare.oldEffects).toBe(0);
+      expect(prepare.legacyBefore).toBe("none");
+      expect(prepare.animation).not.toBe("none");
+      const capture = async (fraction) => {
+        await page.evaluate(({ selector, fraction }) => {
+          const scene = document.querySelector("movie-poster-panel").shadowRoot.querySelector(selector);
+          for (const animation of scene.getAnimations({ subtree: true })) {
+            animation.effect.updateTiming({ delay: 0 });
+            animation.currentTime = Number(animation.effect.getTiming().duration) * fraction;
+          }
+        }, { selector: sceneSelector, fraction });
+        return page.screenshot();
+      };
+      const low = await capture(.02);
+      const high = await capture(frame === "comic_hero" ? .45 : .55);
+      require("node:fs").writeFileSync(testInfo.outputPath("low.png"), low);
+      require("node:fs").writeFileSync(testInfo.outputPath("high.png"), high);
+      await testInfo.attach(`${frame}-${orientation}-motion`, { body: high, contentType: "image/png" });
+      const pixels = await page.evaluate(async ({ low, high, central }) => {
+        const decode = async (data) => {
+          const img = new Image(); img.src = `data:image/png;base64,${data}`; await img.decode();
+          const canvas = document.createElement("canvas"); canvas.width = img.width; canvas.height = img.height;
+          const ctx = canvas.getContext("2d"); ctx.drawImage(img, 0, 0);
+          return ctx.getImageData(0, 0, img.width, img.height);
+        };
+        const a = await decode(low), b = await decode(high);
+        let changed = 0, centralChanges = 0;
+        for (let y = 0; y < a.height; y += 1) for (let x = 0; x < a.width; x += 1) {
+          const i = (y * a.width + x) * 4;
+          if (Math.max(...[0, 1, 2].map((c) => Math.abs(a.data[i+c] - b.data[i+c]))) <= 8) continue;
+          changed += 1;
+          if (x > central.x && x < central.x + central.width && y > central.y && y < central.y + central.height) centralChanges += 1;
+        }
+        return { changed, centralChanges };
+      }, { low: low.toString("base64"), high: high.toString("base64"), central: prepare.central });
+      expect(pixels.changed).toBeGreaterThan(20);
+      expect(pixels.centralChanges).toBe(0);
+      await page.evaluate(() => document.querySelector("movie-poster-panel").shadowRoot.querySelector(".theater").classList.add("motion-off"));
+      await expect(page.locator("movie-poster-panel").locator(sceneSelector)).toBeHidden();
+      await page.evaluate(() => document.querySelector("movie-poster-panel").shadowRoot.querySelector(".theater").classList.remove("motion-off"));
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await expect(page.locator("movie-poster-panel").locator(sceneSelector)).toBeHidden();
+    });
+  }
 }

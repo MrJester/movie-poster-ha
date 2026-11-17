@@ -712,7 +712,7 @@ class MoviePosterPanel extends HTMLElement {
           ${escapeHtml(state.health?.message)}</p>
         ${this._editorCanvas()}
         <section class="marquee-frame${logoUrl ? ` has-logo logo-at-${logoPosition}` : ""}">
-          ${declarativeRenderer
+          ${declarativeRenderer || ["cyber_noir", "comic_hero"].includes(frame)
             ? this._frameMotionMarkup(frameMotionPreset, frameLightCount) : ""}
           <div class="cyber-frame-lights${declarativeRenderer ? " renderer-inactive" : ""}" aria-hidden="true">
             <i class="cyber-light-group cyber-light-group-a"></i>
@@ -1498,12 +1498,12 @@ class MoviePosterPanel extends HTMLElement {
     switch (preset) {
       case "cyber_scan":
         return `<div class="frame-motion-scene cyber-motion" aria-hidden="true">
-          <i class="cyber-scan-beam"></i>${pieces("cyber-powered-node", Math.max(2, count))}
+          ${pieces("cyber-fixture-glow", 7)}
         </div>`;
       case "comic_energy":
         return `<div class="frame-motion-scene comic-motion" aria-hidden="true">
-          ${pieces("comic-panel-pulse", Math.max(4, count))}
-          <i class="comic-ink-flash"></i>
+          ${pieces("comic-speed-sweep", 4)}
+          ${pieces("comic-halftone-shimmer", 4)}
         </div>`;
       case "theater_sconce":
         return `<div class="frame-motion-scene theater-motion" aria-hidden="true">
@@ -9053,56 +9053,105 @@ class MoviePosterPanel extends HTMLElement {
         animation-timing-function: ease-in-out;
         animation-delay: calc(var(--frame-light-index, 0) * -.16s);
       }
-      .cyber-scan-beam {
-        inset: 8% auto 8% -14%;
-        width: 11%;
-        background: linear-gradient(90deg, transparent,
-          color-mix(in srgb, var(--mp-light-primary, #31dcff) 78%, transparent),
-          transparent);
-        border-inline: 1px solid var(--mp-light-primary, #31dcff);
-        filter: blur(2px) drop-shadow(0 0 9px var(--mp-light-primary, #31dcff));
-        animation-name: frameCyberScan;
-        animation-timing-function: linear;
-      }
-      .cyber-powered-node {
-        top: calc(9% + var(--frame-light-index) * 10%);
-        width: clamp(5px, .65cqw, 10px);
-        aspect-ratio: 1;
-        border: 1px solid var(--mp-light-primary, #31dcff);
-        transform: rotate(45deg);
-        background: var(--mp-light-secondary, #ff36d1);
-        box-shadow: 0 0 3px #fff, 0 0 14px var(--mp-light-secondary, #ff36d1);
-        animation-name: frameCyberNode;
-        animation-timing-function: steps(2, end);
-      }
-      .cyber-powered-node:nth-child(even) {
-        left: 2.5%;
-      }
-      .cyber-powered-node:nth-child(odd) {
-        right: 2.5%;
-      }
-      .comic-panel-pulse {
-        width: 24%;
-        height: 15%;
-        background: radial-gradient(ellipse,
-          color-mix(in srgb, var(--mp-light-primary, #fff36a) 62%, transparent),
-          transparent 70%);
+      /* Effects are registered to the source artwork, independent of Theme.
+         No moving light crosses the movie or its information panel. */
+      .frame-cyber_noir .marquee-frame::before,
+      .frame-comic_hero .marquee-frame::before,
+      .frame-cyber_noir .cyber-frame-lights { display: none !important; }
+      .cyber-motion, .comic-motion {
+        z-index: 90;
         mix-blend-mode: screen;
-        filter: blur(8px);
-        animation-name: frameComicPanelPulse;
-        animation-timing-function: steps(3, end);
       }
-      .comic-panel-pulse:nth-child(4n+1) { left: 4%; top: 3%; }
-      .comic-panel-pulse:nth-child(4n+2) { right: 4%; top: 3%; }
-      .comic-panel-pulse:nth-child(4n+3) { left: 5%; bottom: 3%; }
-      .comic-panel-pulse:nth-child(4n) { right: 5%; bottom: 3%; }
-      .comic-ink-flash {
-        inset: 2%;
-        border: clamp(2px, .35cqw, 5px) solid transparent;
-        border-image: linear-gradient(115deg, transparent 12%,
-          var(--mp-light-secondary, #ff4060) 34%, transparent 52%) 1;
-        animation-name: frameComicInkFlash;
-        animation-timing-function: steps(2, end);
+      .cyber-motion {
+        --fixture-art: url("/movie_poster_static/assets/cyber-noir-frame-landscape.png");
+        --fixture-1: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='65.05' y='8.64' width='10.92' height='0.64' rx='0.213' fill='white'/%3E%3C/svg%3E");
+        --fixture-2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='3.48' y='24.35' width='0.68' height='9.0' rx='0.227' fill='white'/%3E%3C/svg%3E");
+        --fixture-3: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='95.82' y='59.4' width='0.53' height='8.3' rx='0.177' fill='white'/%3E%3C/svg%3E");
+        --fixture-4: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='23.62' y='91.34' width='10.56' height='0.74' rx='0.247' fill='white'/%3E%3C/svg%3E");
+        --fixture-5: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='0' y='0' width='0' height='0' rx='0.000' fill='white'/%3E%3C/svg%3E");
+        --fixture-6: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='0' y='0' width='0' height='0' rx='0.000' fill='white'/%3E%3C/svg%3E");
+        --fixture-7: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='0' y='0' width='0' height='0' rx='0.000' fill='white'/%3E%3C/svg%3E");
+      }
+      .cyber-fixture-glow {
+        inset: 0;
+        filter: brightness(2.3) saturate(1.5)
+          drop-shadow(0 0 4px #00dfff) drop-shadow(0 0 12px #00cfff);
+        animation-name: frameCyberFixture;
+        animation-delay: calc(var(--frame-light-index) * var(--frame-motion-duration) / -7);
+      }
+      .cyber-fixture-glow::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: var(--fixture-art) center / 100% 100% no-repeat;
+        -webkit-mask: var(--fixture-mask) 0 0 / 100% 100% no-repeat;
+        mask: var(--fixture-mask) 0 0 / 100% 100% no-repeat;
+      }
+      .cyber-fixture-glow:nth-child(1) { --fixture-mask: var(--fixture-1); }
+      .cyber-fixture-glow:nth-child(2) { --fixture-mask: var(--fixture-2); }
+      .cyber-fixture-glow:nth-child(3) { --fixture-mask: var(--fixture-3); }
+      .cyber-fixture-glow:nth-child(4) { --fixture-mask: var(--fixture-4); }
+      .cyber-fixture-glow:nth-child(5) { --fixture-mask: var(--fixture-5); }
+      .cyber-fixture-glow:nth-child(6) { --fixture-mask: var(--fixture-6); }
+      .cyber-fixture-glow:nth-child(7) { --fixture-mask: var(--fixture-7); }
+      .comic-motion {
+        --comic-top: polygon(4% 5%, 96% 5%, 87% 17%, 12% 17%);
+        --comic-right: polygon(89% 24%, 96% 18%, 96% 89%, 89% 77%);
+        --comic-bottom: polygon(13% 84%, 86% 84%, 96% 96%, 4% 96%);
+        --comic-left: polygon(4% 26%, 11% 35%, 11% 76%, 4% 88%);
+      }
+      .comic-speed-sweep, .comic-halftone-shimmer { inset: 0; }
+      .comic-speed-sweep {
+        background: linear-gradient(115deg, transparent 38%, #b8eaff55 47%,
+          #ffffffaa 50%, #b8eaff33 53%, transparent 62%) 160% 0 / 300% 100%;
+        animation-name: frameComicSpeedSweep;
+        animation-delay: calc(var(--frame-light-index) * var(--frame-motion-duration) / -4);
+      }
+      .comic-halftone-shimmer {
+        background: radial-gradient(circle, #fff8 0 20%, transparent 24%) 0 0 / 7px 7px;
+        -webkit-mask: linear-gradient(110deg, transparent 35%, #000 50%, transparent 65%) 150% 0 / 300% 100%;
+        mask: linear-gradient(110deg, transparent 35%, #000 50%, transparent 65%) 150% 0 / 300% 100%;
+        animation-name: frameComicHalftone;
+        animation-delay: calc(var(--frame-light-index) * var(--frame-motion-duration) / -4);
+      }
+      .comic-motion i:nth-child(4n+1) { clip-path: var(--comic-top); }
+      .comic-motion i:nth-child(4n+2) { clip-path: var(--comic-right); }
+      .comic-motion i:nth-child(4n+3) { clip-path: var(--comic-bottom); }
+      .comic-motion i:nth-child(4n) { clip-path: var(--comic-left); }
+      /* Explicit portrait and auto orientation share the same art registration. */
+      .orientation-portrait .cyber-motion {
+        --fixture-art: url("/movie_poster_static/assets/cyber-noir-frame-portrait.png");
+        --fixture-1: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='20.09' y='6.34' width='11.48' height='0.48' rx='0.160' fill='white'/%3E%3C/svg%3E");
+        --fixture-2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='68.23' y='6.34' width='11.48' height='0.48' rx='0.160' fill='white'/%3E%3C/svg%3E");
+        --fixture-3: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='88.04' y='21.02' width='0.9' height='16.54' rx='0.300' fill='white'/%3E%3C/svg%3E");
+        --fixture-4: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='87.78' y='66.39' width='0.64' height='14.95' rx='0.213' fill='white'/%3E%3C/svg%3E");
+        --fixture-5: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='20.19' y='93.12' width='11.37' height='0.42' rx='0.140' fill='white'/%3E%3C/svg%3E");
+        --fixture-6: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='68.28' y='93.12' width='11.42' height='0.42' rx='0.140' fill='white'/%3E%3C/svg%3E");
+        --fixture-7: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='9.56' y='43.3' width='0.64' height='3.29' rx='0.213' fill='white'/%3E%3C/svg%3E");
+      }
+      .orientation-portrait .comic-motion {
+        --comic-top: polygon(6% 3%, 94% 3%, 80% 12%, 34% 12%);
+        --comic-right: polygon(85% 17%, 96% 8%, 96% 88%, 85% 79%);
+        --comic-bottom: polygon(21% 88%, 80% 88%, 96% 98%, 6% 98%);
+        --comic-left: polygon(5% 15%, 17% 21%, 17% 76%, 5% 86%);
+      }
+      @media (max-width: 720px), (orientation: portrait) {
+      .orientation-auto .cyber-motion {
+        --fixture-art: url("/movie_poster_static/assets/cyber-noir-frame-portrait.png");
+        --fixture-1: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='20.09' y='6.34' width='11.48' height='0.48' rx='0.160' fill='white'/%3E%3C/svg%3E");
+        --fixture-2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='68.23' y='6.34' width='11.48' height='0.48' rx='0.160' fill='white'/%3E%3C/svg%3E");
+        --fixture-3: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='88.04' y='21.02' width='0.9' height='16.54' rx='0.300' fill='white'/%3E%3C/svg%3E");
+        --fixture-4: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='87.78' y='66.39' width='0.64' height='14.95' rx='0.213' fill='white'/%3E%3C/svg%3E");
+        --fixture-5: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='20.19' y='93.12' width='11.37' height='0.42' rx='0.140' fill='white'/%3E%3C/svg%3E");
+        --fixture-6: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='68.28' y='93.12' width='11.42' height='0.42' rx='0.140' fill='white'/%3E%3C/svg%3E");
+        --fixture-7: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='9.56' y='43.3' width='0.64' height='3.29' rx='0.213' fill='white'/%3E%3C/svg%3E");
+      }
+      .orientation-auto .comic-motion {
+        --comic-top: polygon(6% 3%, 94% 3%, 80% 12%, 34% 12%);
+        --comic-right: polygon(85% 17%, 96% 8%, 96% 88%, 85% 79%);
+        --comic-bottom: polygon(21% 88%, 80% 88%, 96% 98%, 6% 98%);
+        --comic-left: polygon(5% 15%, 17% 21%, 17% 76%, 5% 86%);
+      }
       }
       .theater-sconce {
         top: 24%;
@@ -9231,22 +9280,23 @@ class MoviePosterPanel extends HTMLElement {
         0%, 100% { opacity: .45; transform: translateX(-50%) scale(.88); }
         50% { opacity: 1; transform: translateX(-50%) scale(1.12); }
       }
-      @keyframes frameCyberScan {
-        from { transform: translateX(0); opacity: 0; }
-        12%, 82% { opacity: .9; }
-        to { transform: translateX(1250%); opacity: 0; }
+      @keyframes frameCyberFixture {
+        0%, 100% { opacity: .06; }
+        35% { opacity: .28; }
+        55% { opacity: .85; }
+        75% { opacity: .3; }
       }
-      @keyframes frameCyberNode {
-        0%, 70%, 100% { opacity: .18; filter: brightness(.7); }
-        78%, 92% { opacity: 1; filter: brightness(1.6); }
+      @keyframes frameComicSpeedSweep {
+        0%, 15% { opacity: 0; background-position: 160% 0; }
+        30% { opacity: .45; }
+        60% { opacity: .25; }
+        75%, 100% { opacity: 0; background-position: -60% 0; }
       }
-      @keyframes frameComicPanelPulse {
-        0%, 100% { opacity: .08; transform: scale(.92); }
-        45%, 65% { opacity: .58; transform: scale(1.04); }
-      }
-      @keyframes frameComicInkFlash {
-        0%, 75%, 100% { opacity: .05; filter: brightness(.8); }
-        82%, 92% { opacity: .72; filter: brightness(1.5); }
+      @keyframes frameComicHalftone {
+        0%, 20%, 85%, 100% { opacity: 0; }
+        45%, 60% { opacity: .16; }
+        from { mask-position: 150% 0; -webkit-mask-position: 150% 0; }
+        to { mask-position: -50% 0; -webkit-mask-position: -50% 0; }
       }
       @keyframes frameSconceBreathe {
         from { opacity: .42; transform: scale(.88); }
@@ -9312,6 +9362,10 @@ class MoviePosterPanel extends HTMLElement {
         .marquee-frame::before { opacity: .8; }
       }
       .motion-off .frame-motion-scene i { animation: none !important; }
+      .motion-off :is(.cyber-motion, .comic-motion) { display: none; }
+      @media (prefers-reduced-motion: reduce) {
+        :is(.cyber-motion, .comic-motion) { display: none; }
+      }
     </style>`;
   }
 }
@@ -9320,8 +9374,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v31")) {
-  customElements.define("movie-poster-panel-v31", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v32")) {
+  customElements.define("movie-poster-panel-v32", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});
