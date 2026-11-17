@@ -210,7 +210,7 @@ class MoviePosterPanel extends HTMLElement {
     this._controlsTimer = null;
     this._renderIdentity = null;
     this._transitionRevision = 0;
-    this._binaryRainTimer = null;
+    this._frameTransitionTimer = null;
     this._kioskEnabled = false;
     this._kioskElements = new Map();
     this._kioskProperties = new Map();
@@ -284,7 +284,7 @@ class MoviePosterPanel extends HTMLElement {
 
   disconnectedCallback() {
     this._transitionRevision += 1;
-    clearTimeout(this._binaryRainTimer);
+    clearTimeout(this._frameTransitionTimer);
     this._setKiosk(false);
     clearTimeout(this._retryTimer);
     clearTimeout(this._reloadTimer);
@@ -384,7 +384,7 @@ class MoviePosterPanel extends HTMLElement {
     ]);
     const revision = ++this._transitionRevision;
     if (identity === this._renderIdentity) {
-      this.shadowRoot.querySelector(".cyber-rain-cover")?.remove();
+      this.shadowRoot.querySelector(".cyber-rain-cover, .marquee-curtain-cover")?.remove();
       this.shadowRoot.querySelector(".theater")?.classList.remove("media-leaving");
       this._updateLiveState();
       return;
@@ -394,15 +394,18 @@ class MoviePosterPanel extends HTMLElement {
     await Promise.allSettled(urls.map((url) => this._preload(url)));
     if (revision !== this._transitionRevision || !this.isConnected) return;
     if (softMediaChange) {
-      const cyberTransition = normalizeFrame(state.presentation?.frame_theme) === "cyber_noir";
-      this.shadowRoot.querySelector(".theater")?.classList.add("media-leaving");
-      if (cyberTransition) {
-        this.shadowRoot.querySelector(".cyber-rain")?.remove();
-        this.shadowRoot.querySelector(".marquee-frame")?.insertAdjacentHTML(
-          "beforeend", this._cyberRainMarkup("cover"),
-        );
+      const transitionFrame = normalizeFrame(state.presentation?.frame_theme);
+      const cover = this._frameTransitionMarkup("cover");
+      if (transitionFrame !== "marquee") {
+        this.shadowRoot.querySelector(".theater")?.classList.add("media-leaving");
       }
-      await new Promise((resolve) => window.setTimeout(resolve, cyberTransition ? 650 : 240));
+      if (cover) {
+        this.shadowRoot.querySelector(".frame-transition")?.remove();
+        this.shadowRoot.querySelector(".marquee-frame")?.insertAdjacentHTML("beforeend", cover);
+      }
+      const coverDuration = transitionFrame === "marquee" ? 800
+        : transitionFrame === "cyber_noir" ? 650 : 240;
+      await new Promise((resolve) => window.setTimeout(resolve, coverDuration));
       if (revision !== this._transitionRevision || !this.isConnected) return;
     }
     this._renderIdentity = identity;
@@ -786,17 +789,35 @@ class MoviePosterPanel extends HTMLElement {
           </div>
           </div>
           ${declarativeRenderer ? this._frameCompositeMarkup() : ""}
-          ${this._softMediaTransition && frame === "cyber_noir"
-            ? this._cyberRainMarkup("reveal") : ""}
+          ${this._softMediaTransition ? this._frameTransitionMarkup("reveal") : ""}
         </section>
       </main>`;
     this._bindStudioControls();
     this._bindDisplayControls();
     this._bindMarqueeBulbs();
     this._softMediaTransition = false;
-    clearTimeout(this._binaryRainTimer);
-    const rain = this.shadowRoot.querySelector(".cyber-rain");
-    if (rain) this._binaryRainTimer = setTimeout(() => rain.remove(), 1100);
+    clearTimeout(this._frameTransitionTimer);
+    const transition = this.shadowRoot.querySelector(".frame-transition");
+    if (transition) {
+      const cleanupDelay = frame === "marquee" ? 1050 : 1100;
+      this._frameTransitionTimer = setTimeout(() => transition.remove(), cleanupDelay);
+    }
+  }
+
+  _frameTransitionMarkup(phase) {
+    const frame = normalizeFrame(this._state?.presentation?.frame_theme);
+    if (frame === "cyber_noir") return this._cyberRainMarkup(phase);
+    if (frame === "marquee") return this._marqueeCurtainMarkup(phase);
+    return "";
+  }
+
+  _marqueeCurtainMarkup(phase) {
+    return `<div class="frame-transition marquee-curtain marquee-curtain-${phase === "cover" ? "cover" : "reveal"}"
+      aria-hidden="true">
+      <div class="marquee-curtain-panel curtain-left"></div>
+      <div class="marquee-curtain-panel curtain-right"></div>
+      <div class="marquee-curtain-valance"></div>
+    </div>`;
   }
 
   _cyberRainMarkup(phase) {
@@ -807,7 +828,7 @@ class MoviePosterPanel extends HTMLElement {
         ((column * 13 + row * 7 + (row * row % 11)) % 17) % 2).join("\n");
       return `<i style="--rain-column:${column}">${digits}</i>`;
     }).join("");
-    return `<div class="cyber-rain cyber-rain-${phase === "cover" ? "cover" : "reveal"}"
+    return `<div class="frame-transition cyber-rain cyber-rain-${phase === "cover" ? "cover" : "reveal"}"
       aria-hidden="true">${columns}</div>`;
   }
 
@@ -9403,6 +9424,82 @@ class MoviePosterPanel extends HTMLElement {
         25%, 75% { opacity: 1; }
       }
       .motion-off :is(.cyber-core-glow, .cyber-halo-glow) { animation: none !important; }
+      /* Velvet closes over the aperture while the photographic frame and
+         its registered bulb chase stay visible outside it. */
+      .marquee-curtain {
+        position: absolute;
+        z-index: 100;
+        inset: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+        overflow: hidden;
+        contain: paint;
+        isolation: isolate;
+        pointer-events: none;
+      }
+      .marquee-curtain-panel {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: calc(50% + 2px);
+        box-sizing: border-box;
+        background:
+          linear-gradient(180deg, #0008, transparent 16%, #0002 72%, #100006b3),
+          repeating-linear-gradient(90deg, #29030c 0%, #620919 3%,
+            #a4263a 5%, #6b0c1f 7%, #32030e 10%);
+        border-bottom: clamp(3px, .55cqw, 8px) solid #b68a45;
+        box-shadow: inset 0 0 18px #0007;
+        will-change: transform;
+      }
+      .curtain-left {
+        left: 0;
+        border-right: 2px solid #be985b;
+        box-shadow: inset -12px 0 20px #16000899, 5px 0 18px #0008;
+      }
+      .curtain-right {
+        right: 0;
+        border-left: 2px solid #be985b;
+        background-position: 0 0, 100% 0;
+        box-shadow: inset 12px 0 20px #16000899, -5px 0 18px #0008;
+      }
+      .marquee-curtain-valance {
+        position: absolute;
+        z-index: 1;
+        inset: 0 0 auto;
+        height: clamp(12px, 3cqw, 38px);
+        background: repeating-linear-gradient(90deg, #3f0611, #89162b 5%, #3f0611 10%);
+        border-top: 3px solid #d2aa62;
+        border-bottom: 2px solid #a77d3d;
+        box-shadow: 0 7px 13px #0007;
+        clip-path: polygon(0 0, 100% 0, 100% 58%, 90% 100%, 80% 58%,
+          70% 100%, 60% 58%, 50% 100%, 40% 58%, 30% 100%, 20% 58%, 10% 100%, 0 58%);
+      }
+      .marquee-curtain-cover .curtain-left {
+        animation: marqueeCurtainCloseLeft .8s cubic-bezier(.65, 0, .35, 1) both;
+      }
+      .marquee-curtain-cover .curtain-right {
+        animation: marqueeCurtainCloseRight .8s cubic-bezier(.65, 0, .35, 1) both;
+      }
+      .marquee-curtain-cover .marquee-curtain-valance {
+        animation: marqueeValanceIn .8s ease both;
+      }
+      .marquee-curtain-reveal .curtain-left {
+        animation: marqueeCurtainOpenLeft .95s cubic-bezier(.33, 0, .2, 1) both;
+      }
+      .marquee-curtain-reveal .curtain-right {
+        animation: marqueeCurtainOpenRight .95s cubic-bezier(.33, 0, .2, 1) both;
+      }
+      .marquee-curtain-reveal .marquee-curtain-valance {
+        animation: marqueeValanceOut .95s ease both;
+      }
+      @keyframes marqueeCurtainCloseLeft { from { transform: translateX(-102%); } to { transform: translateX(0); } }
+      @keyframes marqueeCurtainCloseRight { from { transform: translateX(102%); } to { transform: translateX(0); } }
+      @keyframes marqueeCurtainOpenLeft { from { transform: translateX(0); } to { transform: translateX(-102%); } }
+      @keyframes marqueeCurtainOpenRight { from { transform: translateX(0); } to { transform: translateX(102%); } }
+      @keyframes marqueeValanceIn { 0% { opacity: 0; } 25%, 100% { opacity: 1; } }
+      @keyframes marqueeValanceOut { 0%, 65% { opacity: 1; } 100% { opacity: 0; } }
+      .motion-off .marquee-curtain { display: none; }
+      @media (prefers-reduced-motion: reduce) {
+        .marquee-curtain { display: none; }
+      }
       .cyber-rain {
         position: absolute;
         z-index: 100;
@@ -9540,8 +9637,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v39")) {
-  customElements.define("movie-poster-panel-v39", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v40")) {
+  customElements.define("movie-poster-panel-v40", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});

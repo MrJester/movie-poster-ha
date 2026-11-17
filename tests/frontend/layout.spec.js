@@ -92,11 +92,11 @@ const responsiveViewports = configuredResponsivePartition
 
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
   await page.addInitScript(() => {
-    customElements.define("movie-poster-panel-v38", class extends HTMLElement {});
+    customElements.define("movie-poster-panel-v39", class extends HTMLElement {});
   });
   await openHarness(page);
   const result = await page.evaluate(() => {
-    const current = document.createElement("movie-poster-panel-v39");
+    const current = document.createElement("movie-poster-panel-v40");
     document.body.append(current);
     return {
       registered: current.localName,
@@ -105,7 +105,7 @@ test("versioned Home Assistant element cannot be claimed by an older module", as
     };
   });
   expect(result).toEqual({
-    registered: "movie-poster-panel-v39",
+    registered: "movie-poster-panel-v40",
     hasCurrentEditor: true,
     stableAlias: true,
   });
