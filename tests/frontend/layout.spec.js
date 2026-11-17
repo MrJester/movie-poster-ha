@@ -92,11 +92,11 @@ const responsiveViewports = configuredResponsivePartition
 
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
   await page.addInitScript(() => {
-    customElements.define("movie-poster-panel-v35", class extends HTMLElement {});
+    customElements.define("movie-poster-panel-v36", class extends HTMLElement {});
   });
   await openHarness(page);
   const result = await page.evaluate(() => {
-    const current = document.createElement("movie-poster-panel-v36");
+    const current = document.createElement("movie-poster-panel-v37");
     document.body.append(current);
     return {
       registered: current.localName,
@@ -105,7 +105,7 @@ test("versioned Home Assistant element cannot be claimed by an older module", as
     };
   });
   expect(result).toEqual({
-    registered: "movie-poster-panel-v36",
+    registered: "movie-poster-panel-v37",
     hasCurrentEditor: true,
     stableAlias: true,
   });
@@ -4062,11 +4062,12 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
         const a = await decode(low);
         let changed = 0, centralChanges = 0, strongChanges = 0;
         const phaseChanges = [];
-        // Independently check all four photographed landscape fixtures. A
-        // working top strip must not conceal a stationary lower-right strip.
+        // Independently check the four photographed tubes AND the lower-right
+        // horizontal recess. Right-edge motion cannot stand in for that lamp.
         const fixtureBounds = checkFixtures ? [
           [65.03, 8.59, 10.96, .69], [3.43, 24.28, .88, 9.31],
           [95.79, 59.36, .69, 8.36], [23.59, 91.32, 10.69, .78],
+          [67.65, 91.55, 10.87, .49],
         ].map(([x, y, width, height]) => ({
           left: frameBox.x + frameBox.width * x / 100,
           top: frameBox.y + frameBox.height * y / 100,
@@ -4100,6 +4101,7 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
       if (frame === "cyber_noir") {
         expect(pixels.strongChanges).toBeGreaterThan(30);
         for (const count of pixels.phaseChanges) expect(count, "No dead half of the heartbeat cycle").toBeGreaterThan(30);
+        if (orientation === "landscape") expect(pixels.fixtures).toHaveLength(5);
         for (const [index, count] of pixels.fixtures.entries()) expect(count, `Landscape lamp ${index + 1} must pulse`).toBeGreaterThan(10);
       }
       await page.evaluate(() => document.querySelector("movie-poster-panel").shadowRoot.querySelector(".theater").classList.add("motion-off"));

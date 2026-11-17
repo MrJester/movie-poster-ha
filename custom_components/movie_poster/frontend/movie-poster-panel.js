@@ -1528,6 +1528,7 @@ class MoviePosterPanel extends HTMLElement {
       case "cyber_scan":
         return `<div class="frame-motion-scene cyber-motion" aria-hidden="true">
           ${pieces("cyber-fixture-glow", 7)}
+          <i class="cyber-fixture-glow cyber-bottom-right" aria-hidden="true"></i>
         </div>`;
       case "comic_energy":
         return `<div class="frame-motion-scene comic-motion" aria-hidden="true">
@@ -9127,6 +9128,18 @@ class MoviePosterPanel extends HTMLElement {
       .cyber-fixture-glow:nth-child(5) { --fixture-mask: var(--fixture-5); }
       .cyber-fixture-glow:nth-child(6) { --fixture-mask: var(--fixture-6); }
       .cyber-fixture-glow:nth-child(7) { --fixture-mask: var(--fixture-7); }
+      /* The lower-right horizontal recess is unlit in the photograph. Give
+         it an actual emitter; copying its black pixels can never make a lamp. */
+      .cyber-fixture-glow.cyber-bottom-right::before {
+        -webkit-mask: none;
+        mask: none;
+        background: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cdefs%3E%3ClinearGradient%20id%3D%27lamp%27%20x1%3D%270%27%20y1%3D%270%27%20x2%3D%270%27%20y2%3D%271%27%3E%3Cstop%20stop-color%3D%27%2300a8d8%27%2F%3E%3Cstop%20offset%3D%27.45%27%20stop-color%3D%27%23baffff%27%2F%3E%3Cstop%20offset%3D%27.55%27%20stop-color%3D%27%23eaffff%27%2F%3E%3Cstop%20offset%3D%271%27%20stop-color%3D%27%2300bce8%27%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cpath%20d%3D%27M67.75%2091.55H78.4L78.52%2091.7L78.42%2092.04H67.75L67.65%2091.88Z%27%20fill%3D%27url%28%23lamp%29%27%2F%3E%3Crect%20x%3D%2767.88%27%20y%3D%2791.73%27%20width%3D%2710.34%27%20height%3D%27.12%27%20rx%3D%27.04%27%20fill%3D%27%23eaffff%27%2F%3E%3C%2Fsvg%3E")
+          center / 100% 100% no-repeat;
+      }
+      .orientation-portrait .cyber-bottom-right { display: none; }
+      @media (max-width: 720px), (orientation: portrait) {
+        .orientation-auto .cyber-bottom-right { display: none; }
+      }
       .comic-motion {
         --comic-top: polygon(4% 5%, 96% 5%, 87% 17%, 12% 17%);
         --comic-right: polygon(89% 24%, 96% 18%, 96% 89%, 89% 77%);
@@ -9462,8 +9475,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v36")) {
-  customElements.define("movie-poster-panel-v36", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v37")) {
+  customElements.define("movie-poster-panel-v37", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});
