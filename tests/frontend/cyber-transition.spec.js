@@ -99,9 +99,81 @@ for (const target of ['third', 'first']) {
 test('Cyber lamps share a slow heartbeat rather than a chase', async ({ page }) => {
   await open(page);
   const lights = await page.evaluate(() => [...document.querySelector('movie-poster-panel').shadowRoot.querySelectorAll('.cyber-fixture-glow')].map(el => {
-    const css = getComputedStyle(el);
+    const css = getComputedStyle(el.querySelector('.cyber-core-glow'));
     return { duration: parseFloat(css.animationDuration), delay: css.animationDelay, name: css.animationName };
   }));
   expect(lights).toHaveLength(8);
   expect(lights.every(light => light.duration >= 8 && light.delay === '0s' && light.name === 'frameCyberFixture')).toBe(true);
 });
+
+for (const orientation of ['landscape', 'portrait']) {
+  test(`Every Cyber glow dims with its tube in ${orientation}`, async ({ page }, testInfo) => {
+    await open(page, { orientation });
+    const bounds = await page.evaluate(async orientation => {
+      const panel = document.querySelector('movie-poster-panel');
+      const root = panel.shadowRoot;
+      // The chat preview uses the full-color photograph. Test that stricter
+      // case too: desaturating the base artwork must not conceal static glow.
+      const style = document.createElement('style');
+      style.textContent = '.frame-cyber_noir .marquee-frame::after { filter: none !important; }';
+      root.append(style);
+      const art = new Image();
+      art.src = `/movie_poster_static/assets/cyber-noir-frame-${orientation}.png`;
+      await art.decode();
+      for (const animation of root.getAnimations()) {
+        if (animation.effect.target.closest('.cyber-motion')) {
+          animation.pause(); await animation.ready;
+        } else animation.cancel();
+      }
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      return root.querySelector('.marquee-frame').getBoundingClientRect().toJSON();
+    }, orientation);
+    const capture = async phase => {
+      await page.evaluate(async phase => {
+        const root = document.querySelector('movie-poster-panel').shadowRoot;
+        for (const animation of root.querySelector('.cyber-motion').getAnimations({ subtree: true })) {
+          animation.currentTime = Number(animation.effect.getTiming().duration) * phase;
+        }
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      }, phase);
+      const image = await page.screenshot();
+      require('node:fs').writeFileSync(testInfo.outputPath(`glow-${phase}.png`), image);
+      return image.toString('base64');
+    };
+    const dim = await capture(.5), bright = await capture(.25);
+    const glow = await page.evaluate(async ({ dim, bright, bounds, orientation }) => {
+      const decode = async data => {
+        const image = new Image(); image.src = `data:image/png;base64,${data}`; await image.decode();
+        const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+        const ctx = canvas.getContext('2d'); ctx.drawImage(image, 0, 0);
+        return ctx.getImageData(0, 0, canvas.width, canvas.height);
+      };
+      const a = await decode(dim), b = await decode(bright);
+      const regions = orientation === 'landscape' ? [
+        [64.4, 7.1, 13.5, 3.6], [2.2, 23.7, 3.3, 11.2],
+        [94.2, 58.6, 3.4, 9.8], [23, 90.6, 11.8, 3],
+      ] : [
+        [19.5, 6, 12.5, 1.2], [67.4, 5.7, 12.7, 1.5],
+        [87.4, 20.6, 2.4, 17.5], [87.4, 66, 1.7, 16],
+        [19.8, 92.8, 12.2, 1.2], [68, 92.8, 12.2, 1.8], [8.1, 43, 2.6, 4.1],
+      ];
+      const visibleCyan = (data, i) => Math.min(data[i+1], data[i+2]) > 90 && Math.min(data[i+1], data[i+2]) - data[i] > 35;
+      return regions.map(([x, y, w, h]) => {
+        let dim = 0, bright = 0;
+        for (let py = Math.max(0, Math.floor(bounds.y + bounds.height*y/100)); py < Math.min(a.height, bounds.y + bounds.height*(y+h)/100); py++) {
+          for (let px = Math.max(0, Math.floor(bounds.x + bounds.width*x/100)); px < Math.min(a.width, bounds.x + bounds.width*(x+w)/100); px++) {
+            const i = (py*a.width+px)*4;
+            if (visibleCyan(a.data, i)) dim++;
+            if (visibleCyan(b.data, i)) bright++;
+          }
+        }
+        return { dim, bright };
+      });
+    }, { dim, bright, bounds, orientation });
+    require('node:fs').writeFileSync(testInfo.outputPath('glow-measurements.json'), JSON.stringify({ bounds, glow }));
+    for (const [index, fixture] of glow.entries()) {
+      expect(fixture.bright, `Fixture ${index+1} must have a visible cyan glow`).toBeGreaterThan(20);
+      expect(fixture.dim, `Fixture ${index+1} glow stays on: ${JSON.stringify(fixture)}`).toBeLessThan(fixture.bright*.1);
+    }
+  });
+}

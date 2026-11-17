@@ -1527,8 +1527,13 @@ class MoviePosterPanel extends HTMLElement {
     switch (preset) {
       case "cyber_scan":
         return `<div class="frame-motion-scene cyber-motion" aria-hidden="true">
-          ${pieces("cyber-fixture-glow", 7)}
-          <i class="cyber-fixture-glow cyber-bottom-right" aria-hidden="true"></i>
+          ${pieces("cyber-fixture-glow", 7).replaceAll("</i>", '<b class="cyber-core-glow"></b><b class="cyber-halo-glow"></b></i>')}
+          <i class="cyber-fixture-glow cyber-bottom-right" aria-hidden="true"><b class="cyber-core-glow"></b></i>
+          <svg class="cyber-emission-filter" width="0" height="0" aria-hidden="true" focusable="false">
+            <filter id="cyber-emission-alpha" color-interpolation-filters="sRGB">
+              <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  -16 8 8 0 -.1"/>
+            </filter>
+          </svg>
         </div>`;
       case "comic_energy":
         return `<div class="frame-motion-scene comic-motion" aria-hidden="true">
@@ -9097,6 +9102,17 @@ class MoviePosterPanel extends HTMLElement {
            dim them. Screen blending can only brighten already-white pixels. */
         mix-blend-mode: normal;
         opacity: 1;
+        /* Keep fixture bloom on the frame, outside the movie aperture. */
+        -webkit-mask:
+          linear-gradient(#000, #000) top / 100% var(--safe-top) no-repeat,
+          linear-gradient(#000, #000) bottom / 100% var(--safe-bottom) no-repeat,
+          linear-gradient(#000, #000) left / var(--safe-left) 100% no-repeat,
+          linear-gradient(#000, #000) right / var(--safe-right) 100% no-repeat;
+        mask:
+          linear-gradient(#000, #000) top / 100% var(--safe-top) no-repeat,
+          linear-gradient(#000, #000) bottom / 100% var(--safe-bottom) no-repeat,
+          linear-gradient(#000, #000) left / var(--safe-left) 100% no-repeat,
+          linear-gradient(#000, #000) right / var(--safe-right) 100% no-repeat;
         --fixture-art: url("/movie_poster_static/assets/cyber-noir-frame-landscape.png");
         --fixture-1: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='65.03' y='8.59' width='10.96' height='0.69' rx='0.12' fill='white'/%3E%3C/svg%3E");
         --fixture-2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='3.43' y='24.28' width='0.88' height='9.31' rx='0.12' fill='white'/%3E%3C/svg%3E");
@@ -9105,32 +9121,64 @@ class MoviePosterPanel extends HTMLElement {
         --fixture-5: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='0' y='0' width='0' height='0' rx='0.000' fill='white'/%3E%3C/svg%3E");
         --fixture-6: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='0' y='0' width='0' height='0' rx='0.000' fill='white'/%3E%3C/svg%3E");
         --fixture-7: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='0' y='0' width='0' height='0' rx='0.000' fill='white'/%3E%3C/svg%3E");
+        --halo-1: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M64.14%206.97H78.19V10.85H64.14ZM65.03%208.59H75.99000000000001V9.28H65.03Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-2: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M1.91%2023.58H5.72V35.019999999999996H1.91ZM3.43%2024.28H4.3100000000000005V33.59H3.43Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-3: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M93.97%2058.48H97.82V68.45H93.97ZM95.79%2059.36H96.48V67.72H95.79Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-4: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M22.8%2090.53H35.04V93.73H22.8ZM23.59%2091.32H34.28V92.1H23.59Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-5: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M0.0%200.0H0.0V0.0H0.0ZM0.0%200.0H0.0V0.0H0.0Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-6: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M0.0%200.0H0.0V0.0H0.0ZM0.0%200.0H0.0V0.0H0.0Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-7: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M0.0%200.0H0.0V0.0H0.0ZM0.0%200.0H0.0V0.0H0.0Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
       }
       .cyber-motion .cyber-fixture-glow {
         inset: 0;
         opacity: 1;
-        animation-name: frameCyberFixture;
+        animation-name: none;
         animation-duration: calc(var(--frame-motion-duration, 5s) * 1.6);
         animation-delay: 0s;
       }
-      .cyber-fixture-glow::before {
+      .cyber-core-glow {
         content: "";
         position: absolute;
         inset: 0;
         background: var(--fixture-art) center / 100% 100% no-repeat;
         -webkit-mask: var(--fixture-mask) 0 0 / 100% 100% no-repeat;
         mask: var(--fixture-mask) 0 0 / 100% 100% no-repeat;
+        animation: frameCyberFixture calc(var(--frame-motion-duration, 5s) * 1.6) ease-in-out infinite;
       }
-      .cyber-fixture-glow:nth-child(1) { --fixture-mask: var(--fixture-1); }
-      .cyber-fixture-glow:nth-child(2) { --fixture-mask: var(--fixture-2); }
-      .cyber-fixture-glow:nth-child(3) { --fixture-mask: var(--fixture-3); }
-      .cyber-fixture-glow:nth-child(4) { --fixture-mask: var(--fixture-4); }
-      .cyber-fixture-glow:nth-child(5) { --fixture-mask: var(--fixture-5); }
-      .cyber-fixture-glow:nth-child(6) { --fixture-mask: var(--fixture-6); }
-      .cyber-fixture-glow:nth-child(7) { --fixture-mask: var(--fixture-7); }
+      /* Extract cyan emission from the wider photograph around each tube.
+         Neutral metal stays transparent, so dimming a halo cannot paint a
+         dark rectangle over the frame. White cores use the narrow mask above. */
+      .cyber-fixture-glow:not(.cyber-bottom-right)::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: var(--fixture-art) center / 100% 100% no-repeat;
+        filter: url("#cyber-emission-alpha") grayscale(1) brightness(.4);
+        -webkit-mask: var(--fixture-halo-mask) 0 0 / 100% 100% no-repeat;
+        mask: var(--fixture-halo-mask) 0 0 / 100% 100% no-repeat;
+      }
+      .cyber-halo-glow {
+        position: absolute;
+        z-index: 2;
+        inset: 0;
+        display: block;
+        background: var(--fixture-art) center / 100% 100% no-repeat;
+        filter: url("#cyber-emission-alpha") brightness(calc(2 + var(--frame-motion-intensity, .85) * 3))
+          saturate(1.6) drop-shadow(0 0 8px #00eaff) drop-shadow(0 0 28px #00cfff);
+        -webkit-mask: var(--fixture-halo-mask) 0 0 / 100% 100% no-repeat;
+        mask: var(--fixture-halo-mask) 0 0 / 100% 100% no-repeat;
+        animation: cyberHaloPulse calc(var(--frame-motion-duration, 5s) * 1.6) ease-in-out infinite;
+      }
+      .cyber-fixture-glow:nth-child(1) { --fixture-mask: var(--fixture-1); --fixture-halo-mask: var(--halo-1); }
+      .cyber-fixture-glow:nth-child(2) { --fixture-mask: var(--fixture-2); --fixture-halo-mask: var(--halo-2); }
+      .cyber-fixture-glow:nth-child(3) { --fixture-mask: var(--fixture-3); --fixture-halo-mask: var(--halo-3); }
+      .cyber-fixture-glow:nth-child(4) { --fixture-mask: var(--fixture-4); --fixture-halo-mask: var(--halo-4); }
+      .cyber-fixture-glow:nth-child(5) { --fixture-mask: var(--fixture-5); --fixture-halo-mask: var(--halo-5); }
+      .cyber-fixture-glow:nth-child(6) { --fixture-mask: var(--fixture-6); --fixture-halo-mask: var(--halo-6); }
+      .cyber-fixture-glow:nth-child(7) { --fixture-mask: var(--fixture-7); --fixture-halo-mask: var(--halo-7); }
       /* The lower-right horizontal recess is unlit in the photograph. Give
          it an actual emitter; copying its black pixels can never make a lamp. */
-      .cyber-fixture-glow.cyber-bottom-right::before {
+      .cyber-bottom-right .cyber-core-glow {
         -webkit-mask: none;
         mask: none;
         background: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cdefs%3E%3ClinearGradient%20id%3D%27lamp%27%20x1%3D%270%27%20y1%3D%270%27%20x2%3D%270%27%20y2%3D%271%27%3E%3Cstop%20stop-color%3D%27%2300a8d8%27%2F%3E%3Cstop%20offset%3D%27.45%27%20stop-color%3D%27%23baffff%27%2F%3E%3Cstop%20offset%3D%27.55%27%20stop-color%3D%27%23eaffff%27%2F%3E%3Cstop%20offset%3D%271%27%20stop-color%3D%27%2300bce8%27%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cpath%20d%3D%27M67.75%2091.55H78.4L78.52%2091.7L78.42%2092.04H67.75L67.65%2091.88Z%27%20fill%3D%27url%28%23lamp%29%27%2F%3E%3Crect%20x%3D%2767.88%27%20y%3D%2791.73%27%20width%3D%2710.34%27%20height%3D%27.12%27%20rx%3D%27.04%27%20fill%3D%27%23eaffff%27%2F%3E%3C%2Fsvg%3E")
@@ -9174,6 +9222,13 @@ class MoviePosterPanel extends HTMLElement {
         --fixture-5: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='20.19' y='93.12' width='11.37' height='0.42' rx='0.140' fill='white'/%3E%3C/svg%3E");
         --fixture-6: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='68.28' y='93.12' width='11.42' height='0.42' rx='0.140' fill='white'/%3E%3C/svg%3E");
         --fixture-7: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='9.56' y='43.3' width='0.64' height='3.29' rx='0.213' fill='white'/%3E%3C/svg%3E");
+        --halo-1: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M19.26%205.92H32.18V7.27H19.26ZM20.09%206.34H31.57V6.82H20.09Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-2: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M67.13%205.56H80.32V7.239999999999999H67.13ZM68.23%206.34H79.71000000000001V6.82H68.23Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-3: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M87.16%2020.48H89.99V38.129999999999995H87.16ZM88.04%2021.02H88.94000000000001V37.56H88.04Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-4: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M87.16%2065.93H89.35V82.03H87.16ZM87.78%2066.39H88.42V81.34H87.78Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-5: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M19.57%2092.67H32.17V94.08H19.57ZM20.19%2093.12H31.560000000000002V93.54H20.19Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-6: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M67.71%2092.67H80.30999999999999V94.65H67.71ZM68.28%2093.12H79.7V93.54H68.28Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-7: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M7.83%2042.88H10.93V47.190000000000005H7.83ZM9.56%2043.3H10.200000000000001V46.589999999999996H9.56Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
       }
       .orientation-portrait .comic-motion {
         --comic-top: polygon(6% 3%, 94% 3%, 80% 12%, 34% 12%);
@@ -9191,6 +9246,13 @@ class MoviePosterPanel extends HTMLElement {
         --fixture-5: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='20.19' y='93.12' width='11.37' height='0.42' rx='0.140' fill='white'/%3E%3C/svg%3E");
         --fixture-6: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='68.28' y='93.12' width='11.42' height='0.42' rx='0.140' fill='white'/%3E%3C/svg%3E");
         --fixture-7: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Crect x='9.56' y='43.3' width='0.64' height='3.29' rx='0.213' fill='white'/%3E%3C/svg%3E");
+        --halo-1: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M19.26%205.92H32.18V7.27H19.26ZM20.09%206.34H31.57V6.82H20.09Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-2: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M67.13%205.56H80.32V7.239999999999999H67.13ZM68.23%206.34H79.71000000000001V6.82H68.23Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-3: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M87.16%2020.48H89.99V38.129999999999995H87.16ZM88.04%2021.02H88.94000000000001V37.56H88.04Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-4: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M87.16%2065.93H89.35V82.03H87.16ZM87.78%2066.39H88.42V81.34H87.78Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-5: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M19.57%2092.67H32.17V94.08H19.57ZM20.19%2093.12H31.560000000000002V93.54H20.19Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-6: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M67.71%2092.67H80.30999999999999V94.65H67.71ZM68.28%2093.12H79.7V93.54H68.28Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
+        --halo-7: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%20preserveAspectRatio%3D%27none%27%3E%3Cpath%20d%3D%27M7.83%2042.88H10.93V47.190000000000005H7.83ZM9.56%2043.3H10.200000000000001V46.589999999999996H9.56Z%27%20fill%3D%27white%27%20fill-rule%3D%27evenodd%27%2F%3E%3C%2Fsvg%3E");
       }
       .orientation-auto .comic-motion {
         --comic-top: polygon(6% 3%, 94% 3%, 80% 12%, 34% 12%);
@@ -9338,6 +9400,11 @@ class MoviePosterPanel extends HTMLElement {
             drop-shadow(0 0 28px #00cfff);
         }
       }
+      @keyframes cyberHaloPulse {
+        0%, 50%, 100% { opacity: 0; }
+        25%, 75% { opacity: 1; }
+      }
+      .motion-off :is(.cyber-core-glow, .cyber-halo-glow) { animation: none !important; }
       .cyber-rain {
         position: absolute;
         z-index: 100;
@@ -9475,8 +9542,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v37")) {
-  customElements.define("movie-poster-panel-v37", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v38")) {
+  customElements.define("movie-poster-panel-v38", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});

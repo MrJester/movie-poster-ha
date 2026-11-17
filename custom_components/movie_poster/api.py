@@ -98,8 +98,8 @@ STATIC_URL = "/movie_poster_static"
 _ARTWORK_EXPIRATION = timedelta(hours=24)
 _FRONTEND_DIR = Path(__file__).parent / "frontend"
 _FRONTEND_PATH = _FRONTEND_DIR / "movie-poster-panel.js"
-_FRONTEND_VERSION = "0.1.0-beta.62-presentation.38"
-_FRONTEND_ELEMENT = "movie-poster-panel-v37"
+_FRONTEND_VERSION = "0.1.0-beta.62-presentation.39"
+_FRONTEND_ELEMENT = "movie-poster-panel-v38"
 _LOGO_ASSET_SUFFIXES = frozenset({".png", ".jpg", ".jpeg", ".webp"})
 
 

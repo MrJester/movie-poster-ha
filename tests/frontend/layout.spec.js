@@ -92,11 +92,11 @@ const responsiveViewports = configuredResponsivePartition
 
 test("versioned Home Assistant element cannot be claimed by an older module", async ({ page }) => {
   await page.addInitScript(() => {
-    customElements.define("movie-poster-panel-v36", class extends HTMLElement {});
+    customElements.define("movie-poster-panel-v37", class extends HTMLElement {});
   });
   await openHarness(page);
   const result = await page.evaluate(() => {
-    const current = document.createElement("movie-poster-panel-v37");
+    const current = document.createElement("movie-poster-panel-v38");
     document.body.append(current);
     return {
       registered: current.localName,
@@ -105,7 +105,7 @@ test("versioned Home Assistant element cannot be claimed by an older module", as
     };
   });
   expect(result).toEqual({
-    registered: "movie-poster-panel-v37",
+    registered: "movie-poster-panel-v38",
     hasCurrentEditor: true,
     stableAlias: true,
   });
@@ -3735,7 +3735,7 @@ for (const frame of FRAMES) {
         scenePresent: Boolean(root.querySelector(`.${expectedScene}`)),
         lightCount: lights.length,
         animationName: lights.length
-          ? getComputedStyle(lights[0]).animationName : "none",
+          ? getComputedStyle(lights[0].querySelector(".cyber-core-glow") || lights[0]).animationName : "none",
       };
     }, { selector: lightSelector, expectedScene: sceneClass });
     expect(result.className).toBe(`frame-motion-${preset}`);
@@ -3997,7 +3997,7 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
         const art = new Image();
         art.src = `${assetBase}assets/${selector === ".cyber-motion" ? "cyber-noir" : "comic-hero"}-frame-${innerHeight > innerWidth ? "portrait" : "landscape"}.png`;
         await art.decode();
-        const effectNodes = new Set(scene.querySelectorAll("i"));
+        const effectNodes = new Set(scene.querySelectorAll("i, .cyber-core-glow, .cyber-halo-glow"));
         for (const animation of root.getAnimations()) {
           if (!effectNodes.has(animation.effect.target)) {
             // Cancel the unrelated entrance fade so its underlying opacity is
@@ -4021,7 +4021,7 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
           frameBox: root.querySelector(".marquee-frame").getBoundingClientRect().toJSON(),
           sceneStyle: { display: getComputedStyle(scene).display, opacity: getComputedStyle(scene).opacity },
           classes: root.querySelector(".theater").className,
-          animation: getComputedStyle(first).animationName,
+          animation: getComputedStyle(first.querySelector(".cyber-core-glow") || first).animationName,
           oldEffects: root.querySelectorAll(".cyber-scan-beam, .cyber-powered-node, .comic-panel-pulse, .comic-ink-flash").length,
           legacyBefore: getComputedStyle(root.querySelector(".marquee-frame"), "::before").display,
         };
