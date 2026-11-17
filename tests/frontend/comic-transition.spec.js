@@ -49,9 +49,16 @@ for (const orientation of ['landscape', 'portrait', 'auto']) {
           const box = wipe.getBoundingClientRect();
           const panels = [...wipe.querySelectorAll('.comic-page-panel')].map(panel => panel.getBoundingClientRect());
           const lights = [...root.querySelectorAll('.comic-motion i')];
+          const emblem = wipe.querySelector('.comic-page-emblem');
+          const badge = emblem.getBoundingClientRect();
           return {
             bounds: ['top', 'left', 'right', 'bottom'].map(key => Math.abs(box[key] - stage[key])),
             panelCount: panels.length,
+            emblemCentered: Math.abs(badge.x+badge.width/2-(box.x+box.width/2)) < 2
+              && Math.abs(badge.y+badge.height/2-(box.y+box.height/2)) < 2,
+            emblemFits: badge.top >= panels[1].top && badge.bottom <= panels[1].bottom,
+            emblemSize: Math.min(badge.width, badge.height),
+            emblemRidesPanel: emblem.parentElement.classList.contains('comic-page-blue'),
             coversWidth: panels.every(panel => panel.left < box.left && panel.right > box.right),
             coversTop: panels[0].top <= box.top, coversBottom: panels[2].bottom >= box.bottom,
             seams: [panels[0].bottom-panels[1].top, panels[1].bottom-panels[2].top],
@@ -63,6 +70,8 @@ for (const orientation of ['landscape', 'portrait', 'auto']) {
         });
         expect(Math.max(...closed.bounds)).toBeLessThan(1);
         expect(closed.panelCount).toBe(3);
+        expect(closed.emblemCentered).toBe(true); expect(closed.emblemFits).toBe(true);
+        expect(closed.emblemSize).toBeGreaterThan(30); expect(closed.emblemRidesPanel).toBe(true);
         expect(closed.coversWidth).toBe(true); expect(closed.coversTop).toBe(true); expect(closed.coversBottom).toBe(true);
         for (const overlap of closed.seams) expect(overlap).toBeGreaterThan(2);
         expect(closed.effectsActive).toBe(true); expect(closed.art).toContain('comic-hero-frame-');

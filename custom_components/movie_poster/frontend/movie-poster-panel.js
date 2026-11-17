@@ -818,7 +818,20 @@ class MoviePosterPanel extends HTMLElement {
     return `<div class="frame-transition comic-page-transition comic-page-${phase === "cover" ? "cover" : "reveal"}"
       aria-hidden="true">
       <div class="comic-page-panel comic-page-red"><span class="comic-page-streaks"></span></div>
-      <div class="comic-page-panel comic-page-blue"><span class="comic-page-streaks"></span></div>
+      <div class="comic-page-panel comic-page-blue"><span class="comic-page-streaks"></span>
+        <svg class="comic-page-emblem" viewBox="0 0 120 120" width="120" height="120" aria-hidden="true" focusable="false">
+          <path d="M60 4L72 20L93 13L94 35L115 42L102 60L115 78L94 85L93 107L72 100L60 116L48 100L27 107L26 85L5 78L18 60L5 42L26 35L27 13L48 20Z"
+            fill="#fff1b0" stroke="#101423" stroke-width="4" stroke-linejoin="round"/>
+          <path d="M60 17L98 31L91 73L60 102L29 73L22 31Z"
+            fill="#172a4b" stroke="#101423" stroke-width="5" stroke-linejoin="round"/>
+          <path d="M31 35L60 24L89 35L84 67L60 91L36 67Z"
+            fill="none" stroke="#fff3cc" stroke-width="3" stroke-linejoin="round"/>
+          <path d="M29 55L89 36L86 54L35 73Z" fill="#dc354b"/>
+          <path d="M66 31L43 64H59L51 86L82 51H65L73 31Z"
+            fill="#ffe15c" stroke="#101423" stroke-width="3" stroke-linejoin="round"/>
+          <path d="M89 20L92 27L99 30L92 33L89 40L86 33L79 30L86 27Z" fill="#fff9e8" stroke="#101423" stroke-width="2"/>
+        </svg>
+      </div>
       <div class="comic-page-panel comic-page-yellow"><span class="comic-page-streaks"></span></div>
       <div class="comic-page-fold"></div>
     </div>`;
@@ -9552,6 +9565,19 @@ class MoviePosterPanel extends HTMLElement {
           transparent 0 13px, #080b1655 14px 16px, transparent 17px 28px);
         clip-path: polygon(0 45%, 100% 0, 100% 100%, 0 55%);
       }
+      .comic-page-emblem {
+        position: absolute;
+        z-index: 1;
+        left: 50%;
+        top: 50%;
+        display: block;
+        height: 80%;
+        width: auto;
+        max-width: 38%;
+        transform: translate(-50%, -50%) rotate(-8deg);
+        filter: drop-shadow(3px 4px 0 #101423);
+        pointer-events: none;
+      }
       .comic-page-fold {
         position: absolute;
         z-index: 1;
@@ -9732,8 +9758,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v41")) {
-  customElements.define("movie-poster-panel-v41", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v42")) {
+  customElements.define("movie-poster-panel-v42", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});
