@@ -109,6 +109,13 @@ jobs:
           --workers=1
           --grep=@selection-matrix
           --reporter=line
+      - name: Upload failed renderer evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: renderer-${{ matrix.browser }}-${{ matrix.suite.name }}
+          path: test-results/
+          retention-days: 3
 
   test:
     runs-on: ubuntu-24.04

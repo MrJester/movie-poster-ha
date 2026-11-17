@@ -4007,6 +4007,10 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
         return {
           central: { x: box.x + box.width * .03, y: box.y + box.height * .03,
             width: box.width * .94, height: box.height * .94 },
+          sceneBox: scene.getBoundingClientRect().toJSON(),
+          stageBox: box.toJSON(),
+          sceneStyle: { display: getComputedStyle(scene).display, opacity: getComputedStyle(scene).opacity },
+          classes: root.querySelector(".theater").className,
           animation: getComputedStyle(first).animationName,
           oldEffects: root.querySelectorAll(".cyber-scan-beam, .cyber-powered-node, .comic-panel-pulse, .comic-ink-flash").length,
           legacyBefore: getComputedStyle(root.querySelector(".marquee-frame"), "::before").display,
@@ -4025,7 +4029,9 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
           // Let the compositor commit the seek before taking the raster sample.
           await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         }, { selector: sceneSelector, fraction });
-        return page.screenshot();
+        const screenshot = await page.screenshot();
+        require("node:fs").writeFileSync(testInfo.outputPath(`phase-${fraction}.png`), screenshot);
+        return screenshot;
       };
       const low = await capture(.02);
       // A sweep can be between visible panels at any single phase. Sample the
@@ -4055,7 +4061,7 @@ for (const frame of ["cyber_noir", "comic_hero"]) {
         }
         return { changed, centralChanges };
       }, { low: low.toString("base64"), phases: phases.map((phase) => phase.toString("base64")), central: prepare.central });
-      expect(pixels.changed).toBeGreaterThan(20);
+      expect(pixels.changed, JSON.stringify(prepare)).toBeGreaterThan(20);
       expect(pixels.centralChanges).toBe(0);
       await page.evaluate(() => document.querySelector("movie-poster-panel").shadowRoot.querySelector(".theater").classList.add("motion-off"));
       await expect(page.locator("movie-poster-panel").locator(sceneSelector)).toBeHidden();
