@@ -5096,9 +5096,7 @@ class MoviePosterPanel extends HTMLElement {
         right: clamp(22px, 3vw, 44px);
         bottom: 9px;
         height: 2px;
-        background: linear-gradient(90deg, var(--cyber-cyan) 0 72%,
-          transparent 72% 75%, var(--cyber-magenta) 75% 81%,
-          transparent 81% 94%, var(--cyber-cyan) 94% 100%);
+        background: var(--cyber-cyan);
         box-shadow: 0 0 7px color-mix(in srgb, var(--cyber-cyan) 40%, transparent);
       }
       .theater.frame-cyber_noir .eyebrow {
@@ -9542,8 +9540,8 @@ class MoviePosterPanel extends HTMLElement {
 // A versioned primary element prevents the first historical module from
 // permanently claiming the live panel. Keep the stable alias for standalone
 // harnesses and third-party embeds.
-if (!customElements.get("movie-poster-panel-v38")) {
-  customElements.define("movie-poster-panel-v38", MoviePosterPanel);
+if (!customElements.get("movie-poster-panel-v39")) {
+  customElements.define("movie-poster-panel-v39", MoviePosterPanel);
 }
 if (!customElements.get("movie-poster-panel")) {
   customElements.define("movie-poster-panel", class extends MoviePosterPanel {});
